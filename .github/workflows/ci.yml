@@ -1,0 +1,185 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  DOTNET_NOLOGO: 'true'
+  DOTNET_SKIP_FIRST_TIME_EXPERIENCE: 'true'
+
+jobs:
+  # The .slnx files are generated from eng/solutions.json. A hand-edit to one is
+  # silently reverted by the next generator run, so the only thing keeping them
+  # true is failing here when a checked-in solution no longer matches the real
+  # reference graph. This also catches the subtler case: adding a ProjectReference
+  # without regenerating leaves the new project out of every solution.
+  solutions:
+    name: Solution manifest
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Check out
+        uses: actions/checkout@v7
+        with:
+          submodules: true
+
+      - name: Set up
+        uses: ./.github/actions/setup-broiler
+
+      - name: Verify the generated solutions
+        shell: pwsh
+        run: ./scripts/update-solutions.ps1 -Verify
+
+  build:
+    name: ${{ matrix.name }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
+
+    defaults:
+      run:
+        shell: bash
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # The Windows head targets net10.0-windows and renders through Direct2D,
+          # so it only builds on Windows.
+          - name: Windows head
+            os: windows-latest
+            solution: Broiler.Windows.Writer.slnx
+            test: false
+          # The Linux head is plain net10.0 with P/Invoke into X11 and GL, so it
+          # compiles anywhere; building it on Linux keeps that honest.
+          - name: Linux head
+            os: ubuntu-latest
+            solution: Broiler.Linux.Writer.slnx
+            test: false
+          # The suite is all net10.0. Running it on both hosts is deliberate: the
+          # shared Writer core does clipboard and file-dialog work that is easy to
+          # make accidentally platform-specific.
+          - name: Tests (Linux)
+            os: ubuntu-latest
+            solution: Broiler.Writer.Tests.slnx
+            test: true
+          - name: Tests (Windows)
+            os: windows-latest
+            solution: Broiler.Writer.Tests.slnx
+            test: true
+
+    steps:
+      - name: Check out
+        uses: actions/checkout@v7
+        with:
+          submodules: true
+
+      - name: Set up
+        uses: ./.github/actions/setup-broiler
+
+      - name: Build
+        run: dotnet build ${{ matrix.solution }} -c Release
+
+      - name: Test
+        if: matrix.test
+        run: dotnet test ${{ matrix.solution }} -c Release --no-build
+
+  # Split out because it needs the android workload, which costs several minutes
+  # the other jobs should not pay for.
+  android:
+    name: Android head
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    steps:
+      - name: Check out
+        uses: actions/checkout@v7
+        with:
+          submodules: true
+
+      - name: Set up
+        uses: ./.github/actions/setup-broiler
+
+      # net10.0-android needs the workload for the Mono runtime packs; without it
+      # the restore fails outright rather than degrading.
+      - name: Install the Android workload
+        run: dotnet workload install android
+
+      - name: Build
+        run: dotnet build Broiler.Android.Writer.slnx -c Release
+
+  # Also split out for its workload. Publishing the browser head is the part worth
+  # protecting: this app must publish trimmed, because an untrimmed browser-wasm
+  # publish crashes the mono runtime at boot (AppContext.Setup), and a plain build
+  # would never exercise that path.
+  webassembly:
+    name: WebAssembly head
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    steps:
+      - name: Check out
+        uses: actions/checkout@v7
+        with:
+          submodules: true
+
+      - name: Set up
+        uses: ./.github/actions/setup-broiler
+
+      - name: Install the wasm-tools workload
+        run: dotnet workload install wasm-tools
+
+      - name: Build
+        run: dotnet build Broiler.WebAssembly.Writer.slnx -c Release
+
+      - name: Publish
+        run: dotnet publish src/Broiler.Writer.WebAssembly/Broiler.Writer.WebAssembly.csproj -c Release
+
+  # The desktop heads publish through configurations the solutions do not declare
+  # (Release-Windows / Release-Linux pin win-x64 and linux-x64). Those have to be
+  # project-level builds — a solution-level build with an undeclared configuration
+  # fails MSB4126 — so they are exercised here rather than in `build`, and this is
+  # the path release.yml takes.
+  publish:
+    name: Publish ${{ matrix.rid }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
+
+    defaults:
+      run:
+        shell: bash
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            rid: win-x64
+            project: src/Broiler.Writer.Windows/Broiler.Writer.Windows.csproj
+            configuration: Release-Windows
+          - os: ubuntu-latest
+            rid: linux-x64
+            project: src/Broiler.Writer.Linux/Broiler.Writer.Linux.csproj
+            configuration: Release-Linux
+
+    steps:
+      - name: Check out
+        uses: actions/checkout@v7
+        with:
+          submodules: true
+
+      - name: Set up
+        uses: ./.github/actions/setup-broiler
+
+      - name: Publish
+        run: dotnet publish ${{ matrix.project }} -c ${{ matrix.configuration }}

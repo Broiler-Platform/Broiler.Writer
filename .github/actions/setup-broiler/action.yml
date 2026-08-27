@@ -1,0 +1,51 @@
+name: Set up Broiler.Writer
+description: >-
+  Initialises the nested component submodules the Writer's project closure
+  reaches, and installs the .NET SDK. Run this after actions/checkout with
+  `submodules: true` — a local action cannot perform the checkout itself,
+  because its own files have to be in the workspace first.
+
+inputs:
+  dotnet-version:
+    description: .NET SDK version to install.
+    required: false
+    default: '10.0.x'
+
+runs:
+  using: composite
+  steps:
+    # `submodules: true` on the checkout fetches the six top-level components only.
+    # Each component repository also carries nested checkouts of its own dependencies,
+    # because its projects reference those nested copies by literal relative path so
+    # that the component still builds standalone. The lines below are exactly the
+    # nested checkouts the Writer's project closure reaches, and no more:
+    #
+    #   Broiler.Documents  Documents.Html takes the DOM, and Documents.Model the
+    #                      graphics core, from its own nested copies.
+    #   Broiler.Graphics   its projects take the image abstraction from its own Media.
+    #   Broiler.UI         every control reaches Graphics and Input through its own
+    #                      copies, and the text controls reach Documents the same way.
+    #   …/Broiler.Graphics and each of those Graphics copies in turn needs its own Media.
+    #
+    # Order matters: a parent has to be initialised before its own nested submodule can be.
+    #
+    # Naming them beats `--recursive`: the Graphics <-> Media reference is mutual, so a
+    # recursive init descends further than anything here builds against.
+    #
+    # Every line is load-bearing. A ProjectReference to a missing project is only a
+    # restore *warning*; the build then fails later on missing types.
+    - name: Initialise nested submodules
+      shell: bash
+      run: |
+        git -C Broiler.Documents submodule update --init Broiler.DOM Broiler.Graphics
+        git -C Broiler.Documents/Broiler.Graphics submodule update --init Broiler.Media
+        git -C Broiler.Graphics submodule update --init Broiler.Media
+        git -C Broiler.UI submodule update --init Broiler.Documents Broiler.Graphics Broiler.Input
+        git -C Broiler.UI/Broiler.Graphics submodule update --init Broiler.Media
+        git -C Broiler.UI/Broiler.Documents submodule update --init Broiler.Graphics
+        git -C Broiler.UI/Broiler.Documents/Broiler.Graphics submodule update --init Broiler.Media
+
+    - name: Set up .NET
+      uses: actions/setup-dotnet@v6
+      with:
+        dotnet-version: ${{ inputs.dotnet-version }}

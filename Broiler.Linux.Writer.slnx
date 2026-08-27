@@ -8,39 +8,39 @@
     <Project Path="src/Broiler.Writer.Linux/Broiler.Writer.Linux.csproj" />
   </Folder>
   <Folder Name="/Dependencies/Broiler.Documents/">
-    <Project Path="Broiler.Documents/Broiler.Documents.Docx/Broiler.Documents.Docx.csproj" />
-    <Project Path="Broiler.Documents/Broiler.Documents.FormatCodes/Broiler.Documents.FormatCodes.csproj" />
-    <Project Path="Broiler.Documents/Broiler.Documents.Html/Broiler.Documents.Html.csproj" />
-    <Project Path="Broiler.Documents/Broiler.Documents.Markdown/Broiler.Documents.Markdown.csproj" />
-    <Project Path="Broiler.Documents/Broiler.Documents.Model/Broiler.Documents.Model.csproj" />
-    <Project Path="Broiler.Documents/Broiler.Documents.Pdf/Broiler.Documents.Pdf.csproj" />
-    <Project Path="Broiler.Documents/Broiler.Documents.Rtf/Broiler.Documents.Rtf.csproj" />
-    <Project Path="Broiler.Documents/Broiler.Documents/Broiler.Documents.csproj" />
+    <Project Path="Broiler.Documents/src/Broiler.Documents.Docx/Broiler.Documents.Docx.csproj" />
+    <Project Path="Broiler.Documents/src/Broiler.Documents.FormatCodes/Broiler.Documents.FormatCodes.csproj" />
+    <Project Path="Broiler.Documents/src/Broiler.Documents.Html/Broiler.Documents.Html.csproj" />
+    <Project Path="Broiler.Documents/src/Broiler.Documents.Markdown/Broiler.Documents.Markdown.csproj" />
+    <Project Path="Broiler.Documents/src/Broiler.Documents.Model/Broiler.Documents.Model.csproj" />
+    <Project Path="Broiler.Documents/src/Broiler.Documents.Pdf/Broiler.Documents.Pdf.csproj" />
+    <Project Path="Broiler.Documents/src/Broiler.Documents.Rtf/Broiler.Documents.Rtf.csproj" />
+    <Project Path="Broiler.Documents/src/Broiler.Documents/Broiler.Documents.csproj" />
   </Folder>
   <Folder Name="/Dependencies/Broiler.DOM/">
     <Project Path="Broiler.DOM/Broiler.Dom.Html/Broiler.Dom.Html.csproj" />
     <Project Path="Broiler.DOM/Broiler.Dom/Broiler.Dom.csproj" />
   </Folder>
   <Folder Name="/Dependencies/Broiler.Graphics/">
-    <Project Path="Broiler.Graphics/Broiler.Graphics.Linux.OpenGL/Broiler.Graphics.Linux.OpenGL.csproj" />
-    <Project Path="Broiler.Graphics/Broiler.Graphics.Linux/Broiler.Graphics.Linux.csproj" />
-    <Project Path="Broiler.Graphics/Broiler.Graphics/Broiler.Graphics.csproj" />
+    <Project Path="Broiler.Graphics/src/Broiler.Graphics.Linux.OpenGL/Broiler.Graphics.Linux.OpenGL.csproj" />
+    <Project Path="Broiler.Graphics/src/Broiler.Graphics.Linux/Broiler.Graphics.Linux.csproj" />
+    <Project Path="Broiler.Graphics/src/Broiler.Graphics/Broiler.Graphics.csproj" />
   </Folder>
   <Folder Name="/Dependencies/Broiler.Input/">
-    <Project Path="Broiler.Input/Broiler.Input.Keyboard.Linux/Broiler.Input.Keyboard.Linux.csproj" />
-    <Project Path="Broiler.Input/Broiler.Input.Keyboard/Broiler.Input.Keyboard.csproj" />
-    <Project Path="Broiler.Input/Broiler.Input.Linux/Broiler.Input.Linux.csproj" />
-    <Project Path="Broiler.Input/Broiler.Input.Mouse.Linux/Broiler.Input.Mouse.Linux.csproj" />
-    <Project Path="Broiler.Input/Broiler.Input.Mouse/Broiler.Input.Mouse.csproj" />
-    <Project Path="Broiler.Input/Broiler.Input.Pen/Broiler.Input.Pen.csproj" />
-    <Project Path="Broiler.Input/Broiler.Input.Text/Broiler.Input.Text.csproj" />
-    <Project Path="Broiler.Input/Broiler.Input.Touch/Broiler.Input.Touch.csproj" />
-    <Project Path="Broiler.Input/Broiler.Input/Broiler.Input.csproj" />
+    <Project Path="Broiler.Input/src/Broiler.Input.Keyboard.Linux/Broiler.Input.Keyboard.Linux.csproj" />
+    <Project Path="Broiler.Input/src/Broiler.Input.Keyboard/Broiler.Input.Keyboard.csproj" />
+    <Project Path="Broiler.Input/src/Broiler.Input.Linux/Broiler.Input.Linux.csproj" />
+    <Project Path="Broiler.Input/src/Broiler.Input.Mouse.Linux/Broiler.Input.Mouse.Linux.csproj" />
+    <Project Path="Broiler.Input/src/Broiler.Input.Mouse/Broiler.Input.Mouse.csproj" />
+    <Project Path="Broiler.Input/src/Broiler.Input.Pen/Broiler.Input.Pen.csproj" />
+    <Project Path="Broiler.Input/src/Broiler.Input.Text/Broiler.Input.Text.csproj" />
+    <Project Path="Broiler.Input/src/Broiler.Input.Touch/Broiler.Input.Touch.csproj" />
+    <Project Path="Broiler.Input/src/Broiler.Input/Broiler.Input.csproj" />
   </Folder>
   <Folder Name="/Dependencies/Broiler.Media/">
-    <Project Path="Broiler.Media/Broiler.Media.Image/Broiler.Media.Image.csproj" />
-    <Project Path="Broiler.Media/Broiler.Media.Image.Managed/Broiler.Media.Image.Managed.csproj" />
-    <Project Path="Broiler.Media/Broiler.Media/Broiler.Media.csproj" />
+    <Project Path="Broiler.Media/src/Broiler.Media.Image.Managed/Broiler.Media.Image.Managed.csproj" />
+    <Project Path="Broiler.Media/src/Broiler.Media.Image/Broiler.Media.Image.csproj" />
+    <Project Path="Broiler.Media/src/Broiler.Media/Broiler.Media.csproj" />
   </Folder>
   <Folder Name="/Dependencies/Broiler.UI/">
     <Project Path="Broiler.UI/src/Abstractions/Commands/Broiler.UI.Button/Broiler.UI.Button.csproj" />

@@ -1,6 +1,75 @@
-net10.0-android36.0
-net10.0-android
-publish
+# Build results
+[Dd]ebug/
+[Rr]elease/
+x64/
+x86/
+[Bb]in/
+[Oo]bj/
+[Ll]og/
+[Ll]ogs/
+
+# Target-framework output directories, for the layouts that place them outside bin/obj
 net10.0
-obj
 net10.0-windows
+net10.0-android
+net10.0-android36.0
+
+# Visual Studio
+.vs/
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+*.rsuser
+
+# Build artifacts
+*.dll
+*.exe
+*.pdb
+*.mdb
+
+# NuGet
+**/[Pp]ackages/*
+!**/[Pp]ackages/build/
+*.nupkg
+*.snupkg
+**/[Pp]ackages/*.config
+project.lock.json
+project.fragment.lock.json
+artifacts/
+
+# Test results
+[Tt]est[Rr]esult*/
+*.trx
+*.coverage
+*.coveragexml
+
+# Android signing material. Keystores and their base64 transfer files are secrets and
+# must never be committed; CI takes them from repository secrets instead.
+*.jks
+*.keystore
+*-jks-base64.txt
+
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# IDE
+*.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Misc
+*.tmp
+*.bak
+*.orig
+Generated/
+*.log
+node_modules/
+__pycache__/
+
+# Claude Code session-local settings (per-session permission state)
+.claude/settings.local.json

@@ -5,9 +5,7 @@
     <BuildType Name="Release" />
   </Configurations>
   <Folder Name="/Entry points/">
-    <Project Path="src/Broiler.Writer.Android/Broiler.Writer.Android.csproj">
-      <Deploy Solution="Debug|*" />
-    </Project>
+    <Project Path="src/Broiler.Writer.FormatCodes.Tests/Broiler.Writer.FormatCodes.Tests.csproj" />
   </Folder>
   <Folder Name="/Dependencies/Broiler.Documents/">
     <Project Path="Broiler.Documents/src/Broiler.Documents.Docx/Broiler.Documents.Docx.csproj" />
@@ -15,6 +13,7 @@
     <Project Path="Broiler.Documents/src/Broiler.Documents.Html/Broiler.Documents.Html.csproj" />
     <Project Path="Broiler.Documents/src/Broiler.Documents.Markdown/Broiler.Documents.Markdown.csproj" />
     <Project Path="Broiler.Documents/src/Broiler.Documents.Model/Broiler.Documents.Model.csproj" />
+    <Project Path="Broiler.Documents/src/Broiler.Documents.Pdf/Broiler.Documents.Pdf.csproj" />
     <Project Path="Broiler.Documents/src/Broiler.Documents.Rtf/Broiler.Documents.Rtf.csproj" />
     <Project Path="Broiler.Documents/src/Broiler.Documents/Broiler.Documents.csproj" />
   </Folder>
@@ -26,19 +25,15 @@
     <Project Path="Broiler.Graphics/src/Broiler.Graphics/Broiler.Graphics.csproj" />
   </Folder>
   <Folder Name="/Dependencies/Broiler.Input/">
-    <Project Path="Broiler.Input/src/Broiler.Input.Android/Broiler.Input.Android.csproj" />
-    <Project Path="Broiler.Input/src/Broiler.Input.Keyboard.Android/Broiler.Input.Keyboard.Android.csproj" />
     <Project Path="Broiler.Input/src/Broiler.Input.Keyboard/Broiler.Input.Keyboard.csproj" />
     <Project Path="Broiler.Input/src/Broiler.Input.Mouse/Broiler.Input.Mouse.csproj" />
-    <Project Path="Broiler.Input/src/Broiler.Input.Pen.Android/Broiler.Input.Pen.Android.csproj" />
     <Project Path="Broiler.Input/src/Broiler.Input.Pen/Broiler.Input.Pen.csproj" />
-    <Project Path="Broiler.Input/src/Broiler.Input.Text.Android/Broiler.Input.Text.Android.csproj" />
     <Project Path="Broiler.Input/src/Broiler.Input.Text/Broiler.Input.Text.csproj" />
-    <Project Path="Broiler.Input/src/Broiler.Input.Touch.Android/Broiler.Input.Touch.Android.csproj" />
     <Project Path="Broiler.Input/src/Broiler.Input.Touch/Broiler.Input.Touch.csproj" />
     <Project Path="Broiler.Input/src/Broiler.Input/Broiler.Input.csproj" />
   </Folder>
   <Folder Name="/Dependencies/Broiler.Media/">
+    <Project Path="Broiler.Media/src/Broiler.Media.Image.Managed/Broiler.Media.Image.Managed.csproj" />
     <Project Path="Broiler.Media/src/Broiler.Media.Image/Broiler.Media.Image.csproj" />
     <Project Path="Broiler.Media/src/Broiler.Media/Broiler.Media.csproj" />
   </Folder>
@@ -74,7 +69,6 @@
     <Project Path="Broiler.UI/src/Implementations/Standard/ValueAndSelection/Broiler.UI.ListView.Standard/Broiler.UI.ListView.Standard.csproj" />
   </Folder>
   <Folder Name="/Dependencies/src/">
-    <Project Path="src/Broiler.App.Android/Broiler.App.Android.csproj" />
     <Project Path="src/Broiler.Writer.FormatCodes/Broiler.Writer.FormatCodes.csproj" />
     <Project Path="src/Broiler.Writer/Broiler.Writer.Core.csproj" />
   </Folder>

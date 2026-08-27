@@ -20,9 +20,9 @@
     <ProjectReference Include="..\Broiler.Writer\Broiler.Writer.Core.csproj" />
     <!-- Referenced so the tests can compose PDF the way the desktop heads do, and
          assert that the shared default format set still does not carry it. -->
-    <ProjectReference Include="..\..\Broiler.Documents\Broiler.Documents.Pdf\Broiler.Documents.Pdf.csproj" />
+    <ProjectReference Include="..\..\Broiler.Documents\src\Broiler.Documents.Pdf\Broiler.Documents.Pdf.csproj" />
     <ProjectReference Include="..\..\Broiler.UI\src\Implementations\Standard\Text\Broiler.UI.RichEdit.Standard\Broiler.UI.RichEdit.Standard.csproj" />
-    <ProjectReference Include="..\..\Broiler.Media\Broiler.Media.Image.Managed\Broiler.Media.Image.Managed.csproj" />
+    <ProjectReference Include="..\..\Broiler.Media\src\Broiler.Media.Image.Managed\Broiler.Media.Image.Managed.csproj" />
   </ItemGroup>
 
   <ItemGroup>

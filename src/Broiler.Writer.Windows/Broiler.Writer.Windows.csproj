@@ -27,9 +27,9 @@
     <ProjectReference Include="..\Broiler.Writer\Broiler.Writer.Core.csproj" />
     <!-- The PDF codec is referenced by the heads that register it, never by the
          shared Writer core: a head must not acquire it transitively (PDF roadmap §10.1). -->
-    <ProjectReference Include="..\..\Broiler.Documents\Broiler.Documents.Pdf\Broiler.Documents.Pdf.csproj" />
-    <ProjectReference Include="..\..\Broiler.Media\Broiler.Media.Image.Managed\Broiler.Media.Image.Managed.csproj" />
-    <ProjectReference Include="..\..\Broiler.Graphics\Broiler.Graphics.Windows\Broiler.Graphics.Direct2D.csproj" />
+    <ProjectReference Include="..\..\Broiler.Documents\src\Broiler.Documents.Pdf\Broiler.Documents.Pdf.csproj" />
+    <ProjectReference Include="..\..\Broiler.Media\src\Broiler.Media.Image.Managed\Broiler.Media.Image.Managed.csproj" />
+    <ProjectReference Include="..\..\Broiler.Graphics\src\Broiler.Graphics.Windows\Broiler.Graphics.Direct2D.csproj" />
   </ItemGroup>
 
 </Project>
