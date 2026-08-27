@@ -1,0 +1,91 @@
+<Project>
+
+  <PropertyGroup>
+    <!-- Broiler.Graphics.Direct2D and the Windows head target net10.0-windows. Restoring
+         them from a non-Windows host (a `dotnet restore` on the Linux runner that walks the
+         whole graph) needs this, and it is inert on Windows. -->
+    <EnableWindowsTargeting>true</EnableWindowsTargeting>
+
+    <!-- The desktop heads declare four configurations each: Debug/Release build
+         framework-dependent, and the -Windows / -Linux variants pin a runtime identifier
+         (see the Configurations property in Broiler.Writer.Windows and .Linux, and the
+         FolderProfile.pubxml that targets Release-Windows). MSBuild only understands Debug
+         and Release on its own, so the compound names are decomposed here into a base
+         configuration and a target OS. Without this, `-c Release-Linux` would build
+         unoptimized and with neither RELEASE nor LINUX defined.
+
+         The component submodules carry the same decomposition in their own
+         Directory.Build.props, which chains to this file in an in-tree build. -->
+    <BroilerBaseConfiguration Condition="'$(Configuration)' == 'Debug-Linux' Or '$(Configuration)' == 'Debug-Windows'">Debug</BroilerBaseConfiguration>
+    <BroilerBaseConfiguration Condition="'$(Configuration)' == 'Release-Linux' Or '$(Configuration)' == 'Release-Windows'">Release</BroilerBaseConfiguration>
+    <BroilerTargetOperatingSystem Condition="'$(Configuration)' == 'Debug-Linux' Or '$(Configuration)' == 'Release-Linux'">Linux</BroilerTargetOperatingSystem>
+    <BroilerTargetOperatingSystem Condition="'$(Configuration)' == 'Debug-Windows' Or '$(Configuration)' == 'Release-Windows'">Windows</BroilerTargetOperatingSystem>
+
+    <DebugSymbols Condition="'$(BroilerBaseConfiguration)' == 'Debug'">true</DebugSymbols>
+    <DebugType Condition="'$(BroilerBaseConfiguration)' == 'Debug'">portable</DebugType>
+    <Optimize Condition="'$(BroilerBaseConfiguration)' == 'Debug'">false</Optimize>
+    <DefineConstants Condition="'$(BroilerBaseConfiguration)' == 'Debug'">$(DefineConstants);DEBUG</DefineConstants>
+    <DebugType Condition="'$(BroilerBaseConfiguration)' == 'Release'">portable</DebugType>
+    <Optimize Condition="'$(BroilerBaseConfiguration)' == 'Release'">true</Optimize>
+    <DefineConstants Condition="'$(BroilerBaseConfiguration)' == 'Release'">$(DefineConstants);RELEASE</DefineConstants>
+
+    <DefineConstants Condition="'$(BroilerTargetOperatingSystem)' == 'Linux'">$(DefineConstants);LINUX</DefineConstants>
+    <DefineConstants Condition="'$(BroilerTargetOperatingSystem)' == 'Windows'">$(DefineConstants);WINDOWS</DefineConstants>
+
+    <!--
+      ════════════════════════════════════════════════════════════════════
+      Suppressed Build Warnings — Documentation
+      ════════════════════════════════════════════════════════════════════
+
+      Every code below was measured against a clean Rebuild of all five solutions, so this
+      list suppresses only what this repository actually emits. Nothing here is authored in
+      Broiler.Writer itself: the nullable warnings come from component submodules and from
+      the vendored Android glue, and the platform warning is a false positive. Adding a code
+      speculatively costs the signal a warning is supposed to carry — measure first.
+
+      Note that Broiler.Input and Broiler.Media do not chain to this file (their
+      Directory.Build.props deliberately does not import a parent), so their own policy
+      applies and these suppressions do not reach them.
+
+      ── Nullable Reference Type Warnings ──────────────────────────────
+      CS8602 : Dereference of a possibly null reference
+      CS8618 : Non-nullable field must contain a non-null value when exiting constructor
+      CS8625 : Cannot convert null literal to non-nullable reference type
+
+      Reason  : ~240 warnings, all raised in the Broiler.DOM, Broiler.Documents and
+                Broiler.Graphics submodules, which have not finished adopting nullable
+                annotations. They are separately released components; suppressing here keeps
+                a composed build readable without editing a submodule from the consumer.
+      Future  : Drops out as each component completes its nullable pass upstream. Re-measure
+                after a submodule bump rather than assuming the code is still needed.
+
+      CS8601 : Possible null reference assignment
+      CS8603 : Possible null reference return
+      CS8604 : Possible null reference argument
+
+      Reason  : Raised only in src/Broiler.App.Android, against .NET for Android binding
+                signatures that are annotated non-nullable but documented to accept null
+                (Canvas.DrawColor's PorterDuff.Mode, Bitmap.CreateBitmap's Bitmap.Config).
+      Future  : Revisit when the Android bindings tighten their nullability annotations.
+
+      ── Platform Compatibility ────────────────────────────────────────
+      CA1416 : Call site reachable on all platforms but API is version-gated
+
+      Reason  : src/Broiler.App.Android targets a minimum SDK of 24 and calls
+                WindowInsets.GetInsets (30), Insets members (29) and
+                LockHardwareCanvas (26) behind `Build.VERSION.SdkInt` checks the analyzer
+                does not recognise as guards. The legacy branches already carry targeted
+                `#pragma warning disable CS0618, CA1422`, so the runtime gating is real.
+      Future  : No action expected; the guard is correct and the analyzer is imprecise.
+
+      ── Deliberately NOT suppressed ───────────────────────────────────
+      NU1504 : Duplicate 'PackageReference' items found
+
+      The nested Broiler.DOM checkout lists Microsoft.SourceLink.GitHub twice. It is a real
+      upstream defect and stays visible until Broiler.DOM fixes it.
+      ════════════════════════════════════════════════════════════════════
+    -->
+    <NoWarn>$(NoWarn);CS8601;CS8602;CS8603;CS8604;CS8618;CS8625;CA1416</NoWarn>
+  </PropertyGroup>
+
+</Project>

@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0-android36.0</TargetFramework>
+    <SupportedOSPlatformVersion>24</SupportedOSPlatformVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <LangVersion>latest</LangVersion>
+    <RootNamespace>Broiler.App.Android</RootNamespace>
+    <AssemblyName>Broiler.App.Android</AssemblyName>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\Broiler.Graphics\src\Broiler.Graphics\Broiler.Graphics.csproj" />
+    <ProjectReference Include="..\..\Broiler.Input\src\Broiler.Input.Android\Broiler.Input.Android.csproj" />
+    <ProjectReference Include="..\..\Broiler.Input\src\Broiler.Input.Keyboard.Android\Broiler.Input.Keyboard.Android.csproj" />
+    <ProjectReference Include="..\..\Broiler.Input\src\Broiler.Input.Pen.Android\Broiler.Input.Pen.Android.csproj" />
+    <ProjectReference Include="..\..\Broiler.Input\src\Broiler.Input.Text.Android\Broiler.Input.Text.Android.csproj" />
+    <ProjectReference Include="..\..\Broiler.Input\src\Broiler.Input.Touch.Android\Broiler.Input.Touch.Android.csproj" />
+    <ProjectReference Include="..\..\Broiler.UI\src\Foundation\Broiler.UI\Broiler.UI.csproj" />
+  </ItemGroup>
+
+</Project>

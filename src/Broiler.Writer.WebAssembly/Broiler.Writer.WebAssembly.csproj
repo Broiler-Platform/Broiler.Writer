@@ -21,22 +21,22 @@
 
   <ItemGroup>
     <!-- Direct-Canvas 2D backend + graphics core (matches the Broiler.UI WebAssembly demo). -->
-    <ProjectReference Include="..\..\Broiler.Graphics\Broiler.Graphics.WebAssembly\Broiler.Graphics.WebAssembly.csproj" />
-    <ProjectReference Include="..\..\Broiler.Graphics\Broiler.Graphics\Broiler.Graphics.csproj" />
+    <ProjectReference Include="..\..\Broiler.Graphics\src\Broiler.Graphics.WebAssembly\Broiler.Graphics.WebAssembly.csproj" />
+    <ProjectReference Include="..\..\Broiler.Graphics\src\Broiler.Graphics\Broiler.Graphics.csproj" />
 
     <!-- Input contracts: pointer, keyboard, and committed/composition text. -->
-    <ProjectReference Include="..\..\Broiler.Input\Broiler.Input\Broiler.Input.csproj" />
-    <ProjectReference Include="..\..\Broiler.Input\Broiler.Input.Keyboard\Broiler.Input.Keyboard.csproj" />
-    <ProjectReference Include="..\..\Broiler.Input\Broiler.Input.Mouse\Broiler.Input.Mouse.csproj" />
-    <ProjectReference Include="..\..\Broiler.Input\Broiler.Input.Text\Broiler.Input.Text.csproj" />
+    <ProjectReference Include="..\..\Broiler.Input\src\Broiler.Input\Broiler.Input.csproj" />
+    <ProjectReference Include="..\..\Broiler.Input\src\Broiler.Input.Keyboard\Broiler.Input.Keyboard.csproj" />
+    <ProjectReference Include="..\..\Broiler.Input\src\Broiler.Input.Mouse\Broiler.Input.Mouse.csproj" />
+    <ProjectReference Include="..\..\Broiler.Input\src\Broiler.Input.Text\Broiler.Input.Text.csproj" />
 
     <!-- Document codecs: the same RTF / DOCX / HTML / Markdown stack the desktop Writer uses. -->
-    <ProjectReference Include="..\..\Broiler.Documents\Broiler.Documents\Broiler.Documents.csproj" />
-    <ProjectReference Include="..\..\Broiler.Documents\Broiler.Documents.Docx\Broiler.Documents.Docx.csproj" />
-    <ProjectReference Include="..\..\Broiler.Documents\Broiler.Documents.Html\Broiler.Documents.Html.csproj" />
-    <ProjectReference Include="..\..\Broiler.Documents\Broiler.Documents.Markdown\Broiler.Documents.Markdown.csproj" />
-    <ProjectReference Include="..\..\Broiler.Documents\Broiler.Documents.Model\Broiler.Documents.Model.csproj" />
-    <ProjectReference Include="..\..\Broiler.Documents\Broiler.Documents.Rtf\Broiler.Documents.Rtf.csproj" />
+    <ProjectReference Include="..\..\Broiler.Documents\src\Broiler.Documents\Broiler.Documents.csproj" />
+    <ProjectReference Include="..\..\Broiler.Documents\src\Broiler.Documents.Docx\Broiler.Documents.Docx.csproj" />
+    <ProjectReference Include="..\..\Broiler.Documents\src\Broiler.Documents.Html\Broiler.Documents.Html.csproj" />
+    <ProjectReference Include="..\..\Broiler.Documents\src\Broiler.Documents.Markdown\Broiler.Documents.Markdown.csproj" />
+    <ProjectReference Include="..\..\Broiler.Documents\src\Broiler.Documents.Model\Broiler.Documents.Model.csproj" />
+    <ProjectReference Include="..\..\Broiler.Documents\src\Broiler.Documents.Rtf\Broiler.Documents.Rtf.csproj" />
 
     <!-- Broiler.UI Standard controls composing the Writer shell. -->
     <ProjectReference Include="..\..\Broiler.UI\src\Foundation\Broiler.UI.Standard\Broiler.UI.Standard.csproj" />
@@ -69,7 +69,7 @@
   <!-- Vendor the canonical Canvas 2D replay module from the backend into this app's wwwroot so it
        publishes as a stable static asset. The backend project owns the source of truth. -->
   <Target Name="SyncCanvasReplayModule" BeforeTargets="BeforeBuild;BeforePublish">
-    <Copy SourceFiles="..\..\Broiler.Graphics\Broiler.Graphics.WebAssembly\wwwroot\broiler.graphics.webassembly.js" DestinationFolder="$(MSBuildProjectDirectory)\wwwroot" SkipUnchangedFiles="true" />
+    <Copy SourceFiles="..\..\Broiler.Graphics\src\Broiler.Graphics.WebAssembly\wwwroot\broiler.graphics.webassembly.js" DestinationFolder="$(MSBuildProjectDirectory)\wwwroot" SkipUnchangedFiles="true" />
   </Target>
 
 </Project>

@@ -1,0 +1,67 @@
+{
+  "solutions": [
+    {
+      "path": "Broiler.Windows.Writer.slnx",
+      "description": "Windows Writer application and its transitive dependencies.",
+      "roots": [
+        "src/Broiler.Writer.Windows/Broiler.Writer.Windows.csproj"
+      ],
+      "forbiddenProjectPatterns": [
+        "(?i)(^|[./])[^/]*Linux[^/]*\\.csproj$",
+        "(?i)(^|[./])[^/]*WebAssembly[^/]*\\.csproj$",
+        "(?i)(^|[./])[^/]*Android[^/]*\\.csproj$"
+      ]
+    },
+    {
+      "path": "Broiler.Linux.Writer.slnx",
+      "description": "Linux Writer application and its transitive dependencies.",
+      "roots": [
+        "src/Broiler.Writer.Linux/Broiler.Writer.Linux.csproj"
+      ],
+      "forbiddenProjectPatterns": [
+        "(?i)(^|[./])[^/]*(Windows|Win32|MediaFoundation)[^/]*\\.csproj$",
+        "(?i)(^|[./])[^/]*WebAssembly[^/]*\\.csproj$",
+        "(?i)(^|[./])[^/]*Android[^/]*\\.csproj$"
+      ]
+    },
+    {
+      "path": "Broiler.Android.Writer.slnx",
+      "description": "Android Writer application and its transitive dependencies.",
+      "roots": [
+        "src/Broiler.Writer.Android/Broiler.Writer.Android.csproj"
+      ],
+      "deploy": [
+        {
+          "project": "src/Broiler.Writer.Android/Broiler.Writer.Android.csproj",
+          "solution": "Debug|*",
+          "reason": "Preserves the flag this solution has carried since the Android head landed, so Visual Studio installs the Debug APK on F5. It has no effect on `dotnet build` and nothing in CI depends on it."
+        }
+      ],
+      "forbiddenProjectPatterns": [
+        "(?i)(^|[./])[^/]*(Windows|Win32|MediaFoundation|Linux|WebAssembly)[^/]*\\.csproj$"
+      ]
+    },
+    {
+      "path": "Broiler.WebAssembly.Writer.slnx",
+      "description": "WebAssembly Writer application and its transitive dependencies.",
+      "roots": [
+        "src/Broiler.Writer.WebAssembly/Broiler.Writer.WebAssembly.csproj"
+      ],
+      "forbiddenProjectPatterns": [
+        "(?i)(^|[./])[^/]*(Windows|Win32|MediaFoundation|Linux)[^/]*\\.csproj$",
+        "(?i)(^|[./])[^/]*Android[^/]*\\.csproj$"
+      ]
+    },
+    {
+      "path": "Broiler.Writer.Tests.slnx",
+      "description": "Writer test projects; component unit tests stay in component-owned solutions.",
+      "roots": [
+        "src/Broiler.Writer.FormatCodes.Tests/Broiler.Writer.FormatCodes.Tests.csproj"
+      ],
+      "forbiddenProjectPatterns": [
+        "(?i)(^|[./])[^/]*(Windows|Win32|MediaFoundation|Linux|WebAssembly)[^/]*\\.csproj$",
+        "(?i)(^|[./])[^/]*Android[^/]*\\.csproj$"
+      ]
+    }
+  ]
+}

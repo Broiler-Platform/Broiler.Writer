@@ -1,0 +1,173 @@
+name: Release artifacts
+
+# Deliberately dispatch-only. This produces downloadable build artifacts for
+# manual prerelease testing; it does not create a GitHub release, publish a
+# package, or sign anything for distribution.
+#
+# Signed, store-ready preview packages are produced by the monorepo's
+# "Prepare Broiler Preview Package" workflow, which owns the Android signing
+# material. Nothing here has access to it.
+on:
+  workflow_dispatch:
+    inputs:
+      configuration-suffix:
+        description: >-
+          Build the runtime-identifier-pinned configurations (Release-Windows /
+          Release-Linux) rather than plain Release.
+        type: boolean
+        required: false
+        default: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  DOTNET_NOLOGO: 'true'
+  DOTNET_SKIP_FIRST_TIME_EXPERIENCE: 'true'
+
+jobs:
+  desktop:
+    name: ${{ matrix.rid }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
+
+    defaults:
+      run:
+        shell: bash
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            rid: win-x64
+            project: src/Broiler.Writer.Windows/Broiler.Writer.Windows.csproj
+            pinned: Release-Windows
+          - os: ubuntu-latest
+            rid: linux-x64
+            project: src/Broiler.Writer.Linux/Broiler.Writer.Linux.csproj
+            pinned: Release-Linux
+
+    steps:
+      - name: Check out
+        uses: actions/checkout@v7
+        with:
+          submodules: true
+
+      - name: Set up
+        uses: ./.github/actions/setup-broiler
+
+      # The pinned configurations are the ones src/Broiler.Writer.Windows'
+      # FolderProfile.pubxml names, so the artifact is built the same way and for
+      # the same runtime identifier a developer gets from Visual Studio's Publish.
+      # It is *not* byte-identical: a command-line publish does not read the
+      # profile, so SelfContained stays off and this artifact needs the .NET 10
+      # runtime installed. Add `-p:PublishProfile=FolderProfile` (and drop -o,
+      # which the profile's PublishDir would fight) if a self-contained drop is
+      # wanted instead.
+      - name: Select the configuration
+        id: configuration
+        run: |
+          if [ "${{ inputs.configuration-suffix }}" = "true" ]; then
+            echo "value=${{ matrix.pinned }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "value=Release" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Publish
+        run: |
+          dotnet publish '${{ matrix.project }}' \
+            -c '${{ steps.configuration.outputs.value }}' \
+            -o ./artifacts/${{ matrix.rid }}
+
+      - name: Upload
+        uses: actions/upload-artifact@v7
+        with:
+          name: broiler-writer-${{ matrix.rid }}
+          path: artifacts/${{ matrix.rid }}/**
+          if-no-files-found: error
+
+  android:
+    name: android-arm64
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    steps:
+      - name: Check out
+        uses: actions/checkout@v7
+        with:
+          submodules: true
+
+      - name: Set up
+        uses: ./.github/actions/setup-broiler
+
+      - name: Install the Android workload
+        run: dotnet workload install android
+
+      # Plain Release, not a Release-Android to match the desktop pair: the head
+      # switches AndroidPackageFormat to aab on '$(Configuration)' == 'Release'
+      # exactly, so any other configuration name quietly produces an APK instead.
+      # AndroidPackageFormat is then overridden back to apk here because a single
+      # sideloadable file is what manual prerelease testing wants; the bundle is
+      # the store format and belongs to the signed monorepo workflow.
+      #
+      # The ABI override goes through BroilerAndroidAbis rather than
+      # RuntimeIdentifiers, because the latter is an MSBuild global property and
+      # would reach every referenced net10.0 library too, failing NETSDK1047.
+      #
+      # No signing material is configured, so the .NET Android SDK falls back to
+      # the debug key. The result installs for testing and must not be
+      # distributed.
+      - name: Publish an APK
+        run: |
+          dotnet publish src/Broiler.Writer.Android/Broiler.Writer.Android.csproj \
+            -c Release \
+            -p:AndroidPackageFormat=apk \
+            -p:BroilerAndroidAbis=android-arm64 \
+            -o ./artifacts/android-arm64
+
+      - name: Upload
+        uses: actions/upload-artifact@v7
+        with:
+          name: broiler-writer-android-arm64-debug-signed
+          path: artifacts/android-arm64/*.apk
+          if-no-files-found: error
+
+  # The browser head has no desktop-style pinned configuration: browser-wasm is
+  # selected by the SDK, and the project forces PublishTrimmed on every publish
+  # path because an untrimmed publish crashes the mono runtime at boot. The
+  # uploaded folder is the static site — wwwroot with the _framework payload —
+  # and can be served from any static host.
+  webassembly:
+    name: browser-wasm
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    steps:
+      - name: Check out
+        uses: actions/checkout@v7
+        with:
+          submodules: true
+
+      - name: Set up
+        uses: ./.github/actions/setup-broiler
+
+      - name: Install the wasm-tools workload
+        run: dotnet workload install wasm-tools
+
+      - name: Publish
+        run: |
+          dotnet publish src/Broiler.Writer.WebAssembly/Broiler.Writer.WebAssembly.csproj \
+            -c Release \
+            -o ./artifacts/browser-wasm
+
+      - name: Upload
+        uses: actions/upload-artifact@v7
+        with:
+          name: broiler-writer-browser-wasm
+          path: artifacts/browser-wasm/wwwroot/**
+          if-no-files-found: error
