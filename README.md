@@ -130,6 +130,31 @@ for manual testing — `win-x64`, `linux-x64`, a **debug-signed** `android-arm64
 store-ready signed preview packages come from the monorepo's *Prepare Broiler Preview
 Package* workflow, which owns the signing material.
 
+## NativeAOT
+
+The two desktop heads publish with NativeAOT, so the `win-x64` and `linux-x64` artifacts are
+**a single self-contained native binary that runs with no .NET runtime installed** — 9.2 MB
+for the Windows head, against a 162-file framework-dependent drop. Pass `native-aot: false`
+when dispatching `release.yml` to get the framework-dependent output instead.
+
+This works because nothing in the Writer's closure needs the reflection AOT cannot see
+through. In particular the Direct2D backend dispatches COM through manual vtable offsets
+and `delegate* unmanaged` function pointers rather than `ComImport` interfaces, which is the
+one pattern that would otherwise rule it out. An AOT publish of the Windows head reports
+**zero `IL2xxx`/`IL3xxx` warnings**, and the Linux head reports zero under the trim, AOT and
+single-file analyzers.
+
+Keep it that way: reflection, `Activator.CreateInstance`, and reflection-based serialization
+in a head or in `Broiler.Writer.Core` will break the AOT publish while leaving an ordinary
+build green. CI publishes both desktop heads with AOT for exactly that reason.
+
+The other two heads are deliberately excluded. **Android** — the Android SDK raises
+`XA1040`, "the NativeAOT runtime on Android is an experimental feature and not yet suitable
+for production use", and it collides with that head's `PublishTrimmed=false` since native
+compilation implies trimming. **WebAssembly** — NativeAOT emits a native binary for a
+desktop OS and does not apply; the wasm analogue is mono's own `-p:RunAOTCompilation=true`,
+a separate feature that is not enabled.
+
 The nested-submodule set the Writer needs is defined once, in
 [`.github/actions/setup-broiler`](.github/actions/setup-broiler/action.yml).
 

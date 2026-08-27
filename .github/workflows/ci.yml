@@ -148,10 +148,14 @@ jobs:
   # The desktop heads publish through configurations the solutions do not declare
   # (Release-Windows / Release-Linux pin win-x64 and linux-x64). Those have to be
   # project-level builds — a solution-level build with an undeclared configuration
-  # fails MSB4126 — so they are exercised here rather than in `build`, and this is
-  # the path release.yml takes.
+  # fails MSB4126 — so they are exercised here rather than in `build`.
+  #
+  # This job publishes with NativeAOT because that is what release.yml ships. AOT
+  # is the one build mode that fails on reflection the rest of the build accepts,
+  # so leaving it to release time would mean discovering a regression only when
+  # cutting a release. It costs this job a few minutes; that is the trade.
   publish:
-    name: Publish ${{ matrix.rid }}
+    name: Publish ${{ matrix.rid }} (NativeAOT)
     runs-on: ${{ matrix.os }}
     timeout-minutes: 60
 
@@ -181,5 +185,11 @@ jobs:
       - name: Set up
         uses: ./.github/actions/setup-broiler
 
+      # ILCompiler shells out to a platform linker. windows-latest already carries
+      # the MSVC C++ tools; on Linux the toolchain is clang plus zlib headers.
+      - name: Install the NativeAOT prerequisites
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y clang zlib1g-dev
+
       - name: Publish
-        run: dotnet publish ${{ matrix.project }} -c ${{ matrix.configuration }}
+        run: dotnet publish ${{ matrix.project }} -c ${{ matrix.configuration }} -p:PublishAot=true
