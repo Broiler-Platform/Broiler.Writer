@@ -17,6 +17,14 @@ on:
         type: boolean
         required: false
         default: true
+      native-aot:
+        description: >-
+          Publish the desktop heads with NativeAOT — one self-contained native
+          binary per platform, with no .NET runtime to install. Turn off to get
+          the framework-dependent drop instead.
+        type: boolean
+        required: false
+        default: true
 
 permissions:
   contents: read
@@ -61,14 +69,21 @@ jobs:
       - name: Set up
         uses: ./.github/actions/setup-broiler
 
+      # ILCompiler shells out to a platform linker. windows-latest already carries
+      # the MSVC C++ tools; on Linux the toolchain is clang plus zlib headers, and
+      # installing them explicitly beats depending on what the runner image happens
+      # to ship this month.
+      - name: Install the NativeAOT prerequisites
+        if: inputs.native-aot && runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y clang zlib1g-dev
+
       # The pinned configurations are the ones src/Broiler.Writer.Windows'
       # FolderProfile.pubxml names, so the artifact is built the same way and for
       # the same runtime identifier a developer gets from Visual Studio's Publish.
-      # It is *not* byte-identical: a command-line publish does not read the
-      # profile, so SelfContained stays off and this artifact needs the .NET 10
-      # runtime installed. Add `-p:PublishProfile=FolderProfile` (and drop -o,
-      # which the profile's PublishDir would fight) if a self-contained drop is
-      # wanted instead.
+      #
+      # They also carry the runtime identifier NativeAOT needs. With the plain
+      # Release configuration there is none, and ILCompiler falls back to the host
+      # RID — correct here only because each matrix leg runs on the OS it targets.
       - name: Select the configuration
         id: configuration
         run: |
@@ -78,17 +93,28 @@ jobs:
             echo "value=Release" >> "$GITHUB_OUTPUT"
           fi
 
+      # PublishAot implies self-contained and trimmed, so the AOT artifact is a
+      # single native binary that runs with no .NET runtime installed. Without it
+      # the drop is framework-dependent and the tester needs .NET 10.
       - name: Publish
         run: |
           dotnet publish '${{ matrix.project }}' \
             -c '${{ steps.configuration.outputs.value }}' \
+            -p:PublishAot=${{ inputs.native-aot }} \
             -o ./artifacts/${{ matrix.rid }}
 
+      # Excluding symbols and XML docs suits both modes. An AOT publish leaves the
+      # managed .pdb/.xml of every intermediate assembly next to the native binary
+      # where they are dead weight — and its own native .pdb is four times the size
+      # of the executable. Drop the excludes to ship symbols for crash triage.
       - name: Upload
         uses: actions/upload-artifact@v7
         with:
           name: broiler-writer-${{ matrix.rid }}
-          path: artifacts/${{ matrix.rid }}/**
+          path: |
+            artifacts/${{ matrix.rid }}/**
+            !artifacts/${{ matrix.rid }}/**/*.pdb
+            !artifacts/${{ matrix.rid }}/**/*.xml
           if-no-files-found: error
 
   android:
@@ -122,6 +148,11 @@ jobs:
       # No signing material is configured, so the .NET Android SDK falls back to
       # the debug key. The result installs for testing and must not be
       # distributed.
+      #
+      # Deliberately not NativeAOT. The Android SDK raises XA1040 for it — "the
+      # NativeAOT runtime on Android is an experimental feature and not yet
+      # suitable for production use" — and it also collides with this head's
+      # PublishTrimmed=false, since native compilation implies trimming.
       - name: Publish an APK
         run: |
           dotnet publish src/Broiler.Writer.Android/Broiler.Writer.Android.csproj \
@@ -142,6 +173,10 @@ jobs:
   # path because an untrimmed publish crashes the mono runtime at boot. The
   # uploaded folder is the static site — wwwroot with the _framework payload —
   # and can be served from any static host.
+  #
+  # NativeAOT does not apply to browser-wasm; ILCompiler emits a native binary for
+  # a desktop OS. The wasm analogue is mono's own AOT, -p:RunAOTCompilation=true,
+  # which is a separate feature and is not enabled here.
   webassembly:
     name: browser-wasm
     runs-on: ubuntu-latest
