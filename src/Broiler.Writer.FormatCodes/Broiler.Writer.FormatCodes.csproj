@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <LangVersion>latest</LangVersion>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <RootNamespace>Broiler.Writer.FormatCodes</RootNamespace>
+    <AssemblyName>Broiler.Writer.FormatCodes</AssemblyName>
+    <Description>Shared Formatting Codes synchronization, structured editing, and host policy for Broiler Writer.</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\Broiler.Documents\Broiler.Documents.FormatCodes\Broiler.Documents.FormatCodes.csproj" />
+    <ProjectReference Include="..\..\Broiler.UI\src\Abstractions\Text\Broiler.UI.FormatCodeView\Broiler.UI.FormatCodeView.csproj" />
+    <ProjectReference Include="..\..\Broiler.UI\src\Abstractions\Text\Broiler.UI.RichEdit\Broiler.UI.RichEdit.csproj" />
+  </ItemGroup>
+
+</Project>

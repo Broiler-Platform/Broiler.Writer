@@ -1,0 +1,50 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <LangVersion>latest</LangVersion>
+    <RootNamespace>Broiler.Writer</RootNamespace>
+    <AssemblyName>Broiler.Writer.Core</AssemblyName>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\Broiler.Documents\Broiler.Documents\Broiler.Documents.csproj" />
+    <ProjectReference Include="..\..\Broiler.Documents\Broiler.Documents.Docx\Broiler.Documents.Docx.csproj" />
+    <ProjectReference Include="..\..\Broiler.Documents\Broiler.Documents.Html\Broiler.Documents.Html.csproj" />
+    <ProjectReference Include="..\..\Broiler.Documents\Broiler.Documents.Markdown\Broiler.Documents.Markdown.csproj" />
+    <ProjectReference Include="..\..\Broiler.Documents\Broiler.Documents.Model\Broiler.Documents.Model.csproj" />
+    <ProjectReference Include="..\..\Broiler.Documents\Broiler.Documents.Rtf\Broiler.Documents.Rtf.csproj" />
+    <ProjectReference Include="..\..\Broiler.Graphics\Broiler.Graphics\Broiler.Graphics.csproj" />
+    <ProjectReference Include="..\..\Broiler.Input\Broiler.Input\Broiler.Input.csproj" />
+    <ProjectReference Include="..\..\Broiler.Input\Broiler.Input.Keyboard\Broiler.Input.Keyboard.csproj" />
+    <ProjectReference Include="..\..\Broiler.Input\Broiler.Input.Mouse\Broiler.Input.Mouse.csproj" />
+    <ProjectReference Include="..\..\Broiler.Input\Broiler.Input.Text\Broiler.Input.Text.csproj" />
+    <ProjectReference Include="..\..\Broiler.UI\src\Implementations\Standard\Commands\Broiler.UI.Button.Standard\Broiler.UI.Button.Standard.csproj" />
+    <ProjectReference Include="..\..\Broiler.UI\src\Implementations\Standard\Shell\Broiler.UI.FileDialog.Standard\Broiler.UI.FileDialog.Standard.csproj" />
+    <ProjectReference Include="..\..\Broiler.UI\src\Abstractions\Shell\Broiler.UI.FontDialog\Broiler.UI.FontDialog.csproj" />
+    <ProjectReference Include="..\..\Broiler.UI\src\Implementations\Standard\Shell\Broiler.UI.FontDialog.Standard\Broiler.UI.FontDialog.Standard.csproj" />
+    <ProjectReference Include="..\..\Broiler.UI\src\Foundation\Broiler.UI.Standard\Broiler.UI.Standard.csproj" />
+    <ProjectReference Include="..\..\Broiler.UI\src\Implementations\Standard\Commands\Broiler.UI.ToggleButton.Standard\Broiler.UI.ToggleButton.Standard.csproj" />
+    <ProjectReference Include="..\..\Broiler.UI\src\Abstractions\Commands\Broiler.UI.Toolbar\Broiler.UI.Toolbar.csproj" />
+    <ProjectReference Include="..\..\Broiler.UI\src\Implementations\Standard\Commands\Broiler.UI.Toolbar.Standard\Broiler.UI.Toolbar.Standard.csproj" />
+    <ProjectReference Include="..\..\Broiler.UI\src\Implementations\Standard\Shell\Broiler.UI.Window.Standard\Broiler.UI.Window.Standard.csproj" />
+    <ProjectReference Include="..\..\Broiler.UI\src\Implementations\Standard\Content\Broiler.UI.Label.Standard\Broiler.UI.Label.Standard.csproj" />
+    <ProjectReference Include="..\..\Broiler.UI\src\Implementations\Standard\Commands\Broiler.UI.Menu.Standard\Broiler.UI.Menu.Standard.csproj" />
+    <ProjectReference Include="..\..\Broiler.UI\src\Abstractions\Text\Broiler.UI.RichEdit\Broiler.UI.RichEdit.csproj" />
+    <ProjectReference Include="..\..\Broiler.UI\src\Implementations\Standard\Text\Broiler.UI.RichEdit.Standard\Broiler.UI.RichEdit.Standard.csproj" />
+    <ProjectReference Include="..\..\Broiler.UI\src\Implementations\Standard\Text\Broiler.UI.FormatCodeView.Standard\Broiler.UI.FormatCodeView.Standard.csproj" />
+    <ProjectReference Include="..\..\Broiler.UI\src\Implementations\Standard\Layout\Broiler.UI.Splitter.Standard\Broiler.UI.Splitter.Standard.csproj" />
+    <ProjectReference Include="..\Broiler.Writer.FormatCodes\Broiler.Writer.FormatCodes.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="Broiler.Writer.Windows" />
+    <InternalsVisibleTo Include="Broiler.Writer.Linux" />
+    <InternalsVisibleTo Include="Broiler.Writer.Android" />
+    <InternalsVisibleTo Include="Broiler.Writer.FormatCodes.Tests" />
+  </ItemGroup>
+
+</Project>

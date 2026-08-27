@@ -1,0 +1,32 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <RootNamespace>Broiler.Writer.FormatCodes.Tests</RootNamespace>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.8.0" />
+    <PackageReference Include="xunit" Version="2.5.3" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="2.5.3" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Broiler.Writer.FormatCodes\Broiler.Writer.FormatCodes.csproj" />
+    <ProjectReference Include="..\Broiler.Writer\Broiler.Writer.Core.csproj" />
+    <!-- Referenced so the tests can compose PDF the way the desktop heads do, and
+         assert that the shared default format set still does not carry it. -->
+    <ProjectReference Include="..\..\Broiler.Documents\Broiler.Documents.Pdf\Broiler.Documents.Pdf.csproj" />
+    <ProjectReference Include="..\..\Broiler.UI\src\Implementations\Standard\Text\Broiler.UI.RichEdit.Standard\Broiler.UI.RichEdit.Standard.csproj" />
+    <ProjectReference Include="..\..\Broiler.Media\Broiler.Media.Image.Managed\Broiler.Media.Image.Managed.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Using Include="Xunit" />
+  </ItemGroup>
+
+</Project>

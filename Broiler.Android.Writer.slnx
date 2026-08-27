@@ -1,0 +1,81 @@
+<Solution>
+  <!-- Generated from eng/solutions.json by scripts/update-solutions.ps1. -->
+  <Configurations>
+    <BuildType Name="Debug" />
+    <BuildType Name="Release" />
+  </Configurations>
+  <Folder Name="/Entry points/">
+    <Project Path="src/Broiler.Writer.Android/Broiler.Writer.Android.csproj">
+      <Deploy Solution="Debug|*" />
+    </Project>
+  </Folder>
+  <Folder Name="/Dependencies/Broiler.Documents/">
+    <Project Path="Broiler.Documents/Broiler.Documents.Docx/Broiler.Documents.Docx.csproj" />
+    <Project Path="Broiler.Documents/Broiler.Documents.FormatCodes/Broiler.Documents.FormatCodes.csproj" />
+    <Project Path="Broiler.Documents/Broiler.Documents.Html/Broiler.Documents.Html.csproj" />
+    <Project Path="Broiler.Documents/Broiler.Documents.Markdown/Broiler.Documents.Markdown.csproj" />
+    <Project Path="Broiler.Documents/Broiler.Documents.Model/Broiler.Documents.Model.csproj" />
+    <Project Path="Broiler.Documents/Broiler.Documents.Rtf/Broiler.Documents.Rtf.csproj" />
+    <Project Path="Broiler.Documents/Broiler.Documents/Broiler.Documents.csproj" />
+  </Folder>
+  <Folder Name="/Dependencies/Broiler.DOM/">
+    <Project Path="Broiler.DOM/Broiler.Dom.Html/Broiler.Dom.Html.csproj" />
+    <Project Path="Broiler.DOM/Broiler.Dom/Broiler.Dom.csproj" />
+  </Folder>
+  <Folder Name="/Dependencies/Broiler.Graphics/">
+    <Project Path="Broiler.Graphics/Broiler.Graphics/Broiler.Graphics.csproj" />
+  </Folder>
+  <Folder Name="/Dependencies/Broiler.Input/">
+    <Project Path="Broiler.Input/Broiler.Input.Android/Broiler.Input.Android.csproj" />
+    <Project Path="Broiler.Input/Broiler.Input.Keyboard.Android/Broiler.Input.Keyboard.Android.csproj" />
+    <Project Path="Broiler.Input/Broiler.Input.Keyboard/Broiler.Input.Keyboard.csproj" />
+    <Project Path="Broiler.Input/Broiler.Input.Mouse/Broiler.Input.Mouse.csproj" />
+    <Project Path="Broiler.Input/Broiler.Input.Pen.Android/Broiler.Input.Pen.Android.csproj" />
+    <Project Path="Broiler.Input/Broiler.Input.Pen/Broiler.Input.Pen.csproj" />
+    <Project Path="Broiler.Input/Broiler.Input.Text.Android/Broiler.Input.Text.Android.csproj" />
+    <Project Path="Broiler.Input/Broiler.Input.Text/Broiler.Input.Text.csproj" />
+    <Project Path="Broiler.Input/Broiler.Input.Touch.Android/Broiler.Input.Touch.Android.csproj" />
+    <Project Path="Broiler.Input/Broiler.Input.Touch/Broiler.Input.Touch.csproj" />
+    <Project Path="Broiler.Input/Broiler.Input/Broiler.Input.csproj" />
+  </Folder>
+  <Folder Name="/Dependencies/Broiler.Media/">
+    <Project Path="Broiler.Media/Broiler.Media.Image/Broiler.Media.Image.csproj" />
+    <Project Path="Broiler.Media/Broiler.Media/Broiler.Media.csproj" />
+  </Folder>
+  <Folder Name="/Dependencies/Broiler.UI/">
+    <Project Path="Broiler.UI/src/Abstractions/Commands/Broiler.UI.Button/Broiler.UI.Button.csproj" />
+    <Project Path="Broiler.UI/src/Abstractions/Commands/Broiler.UI.Menu/Broiler.UI.Menu.csproj" />
+    <Project Path="Broiler.UI/src/Abstractions/Commands/Broiler.UI.ToggleButton/Broiler.UI.ToggleButton.csproj" />
+    <Project Path="Broiler.UI/src/Abstractions/Commands/Broiler.UI.Toolbar/Broiler.UI.Toolbar.csproj" />
+    <Project Path="Broiler.UI/src/Abstractions/Content/Broiler.UI.Label/Broiler.UI.Label.csproj" />
+    <Project Path="Broiler.UI/src/Abstractions/Layout/Broiler.UI.Splitter/Broiler.UI.Splitter.csproj" />
+    <Project Path="Broiler.UI/src/Abstractions/Shell/Broiler.UI.Dialog/Broiler.UI.Dialog.csproj" />
+    <Project Path="Broiler.UI/src/Abstractions/Shell/Broiler.UI.FileDialog/Broiler.UI.FileDialog.csproj" />
+    <Project Path="Broiler.UI/src/Abstractions/Shell/Broiler.UI.FontDialog/Broiler.UI.FontDialog.csproj" />
+    <Project Path="Broiler.UI/src/Abstractions/Shell/Broiler.UI.Window/Broiler.UI.Window.csproj" />
+    <Project Path="Broiler.UI/src/Abstractions/Text/Broiler.UI.Edit/Broiler.UI.Edit.csproj" />
+    <Project Path="Broiler.UI/src/Abstractions/Text/Broiler.UI.FormatCodeView/Broiler.UI.FormatCodeView.csproj" />
+    <Project Path="Broiler.UI/src/Abstractions/Text/Broiler.UI.RichEdit/Broiler.UI.RichEdit.csproj" />
+    <Project Path="Broiler.UI/src/Abstractions/ValueAndSelection/Broiler.UI.ListView/Broiler.UI.ListView.csproj" />
+    <Project Path="Broiler.UI/src/Foundation/Broiler.UI.Standard/Broiler.UI.Standard.csproj" />
+    <Project Path="Broiler.UI/src/Foundation/Broiler.UI/Broiler.UI.csproj" />
+    <Project Path="Broiler.UI/src/Implementations/Standard/Commands/Broiler.UI.Button.Standard/Broiler.UI.Button.Standard.csproj" />
+    <Project Path="Broiler.UI/src/Implementations/Standard/Commands/Broiler.UI.Menu.Standard/Broiler.UI.Menu.Standard.csproj" />
+    <Project Path="Broiler.UI/src/Implementations/Standard/Commands/Broiler.UI.ToggleButton.Standard/Broiler.UI.ToggleButton.Standard.csproj" />
+    <Project Path="Broiler.UI/src/Implementations/Standard/Commands/Broiler.UI.Toolbar.Standard/Broiler.UI.Toolbar.Standard.csproj" />
+    <Project Path="Broiler.UI/src/Implementations/Standard/Content/Broiler.UI.Label.Standard/Broiler.UI.Label.Standard.csproj" />
+    <Project Path="Broiler.UI/src/Implementations/Standard/Layout/Broiler.UI.Splitter.Standard/Broiler.UI.Splitter.Standard.csproj" />
+    <Project Path="Broiler.UI/src/Implementations/Standard/Shell/Broiler.UI.FileDialog.Standard/Broiler.UI.FileDialog.Standard.csproj" />
+    <Project Path="Broiler.UI/src/Implementations/Standard/Shell/Broiler.UI.FontDialog.Standard/Broiler.UI.FontDialog.Standard.csproj" />
+    <Project Path="Broiler.UI/src/Implementations/Standard/Shell/Broiler.UI.Window.Standard/Broiler.UI.Window.Standard.csproj" />
+    <Project Path="Broiler.UI/src/Implementations/Standard/Text/Broiler.UI.Edit.Standard/Broiler.UI.Edit.Standard.csproj" />
+    <Project Path="Broiler.UI/src/Implementations/Standard/Text/Broiler.UI.FormatCodeView.Standard/Broiler.UI.FormatCodeView.Standard.csproj" />
+    <Project Path="Broiler.UI/src/Implementations/Standard/Text/Broiler.UI.RichEdit.Standard/Broiler.UI.RichEdit.Standard.csproj" />
+    <Project Path="Broiler.UI/src/Implementations/Standard/ValueAndSelection/Broiler.UI.ListView.Standard/Broiler.UI.ListView.Standard.csproj" />
+  </Folder>
+  <Folder Name="/Dependencies/src/">
+    <Project Path="src/Broiler.App.Android/Broiler.App.Android.csproj" />
+    <Project Path="src/Broiler.Writer.FormatCodes/Broiler.Writer.FormatCodes.csproj" />
+    <Project Path="src/Broiler.Writer/Broiler.Writer.Core.csproj" />
+  </Folder>
+</Solution>

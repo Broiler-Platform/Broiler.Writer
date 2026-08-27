@@ -1,0 +1,37 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0-android36.0</TargetFramework>
+    <SupportedOSPlatformVersion>24</SupportedOSPlatformVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <LangVersion>latest</LangVersion>
+    <RootNamespace>Broiler.Writer.Android</RootNamespace>
+    <AssemblyName>Broiler.Writer.Android</AssemblyName>
+    <ApplicationId>org.broiler.writer</ApplicationId>
+    <ApplicationTitle>Broiler Writer</ApplicationTitle>
+    <ApplicationVersion>1</ApplicationVersion>
+    <ApplicationDisplayVersion>0.1.0</ApplicationDisplayVersion>
+    <!-- The ABI set, overridable for a single-ABI package (the preview package's arm64 APK).
+         It goes through a Broiler-owned property rather than passing RuntimeIdentifiers itself on
+         the command line: that would be an MSBuild global property, so it would reach every
+         referenced net10.0 library too, and a library restored without it fails NETSDK1047 asking
+         for a 'net10.0/android-arm64' target it has no reason to have. Only this head reads
+         BroilerAndroidAbis, so the override lands where it means something. -->
+    <BroilerAndroidAbis Condition="'$(BroilerAndroidAbis)' == ''">android-arm64;android-x64</BroilerAndroidAbis>
+    <RuntimeIdentifiers>$(BroilerAndroidAbis)</RuntimeIdentifiers>
+    <EmbedAssembliesIntoApk>true</EmbedAssembliesIntoApk>
+    <RunAOTCompilation>false</RunAOTCompilation>
+    <PublishTrimmed>false</PublishTrimmed>
+    <AndroidPackageFormat Condition="'$(Configuration)' == 'Release'">aab</AndroidPackageFormat>
+    <AndroidPackageFormat Condition="'$(Configuration)' != 'Release'">apk</AndroidPackageFormat>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Broiler.App.Android\Broiler.App.Android.csproj" />
+    <ProjectReference Include="..\Broiler.Writer\Broiler.Writer.Core.csproj" />
+  </ItemGroup>
+
+</Project>

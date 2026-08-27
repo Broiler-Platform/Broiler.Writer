@@ -1,0 +1,12 @@
+{
+  "profiles": {
+    "Broiler.Writer.WebAssembly": {
+      "commandName": "Project",
+      "launchBrowser": true,
+      "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "Development"
+      },
+      "applicationUrl": "https://localhost:37471;http://localhost:37472"
+    }
+  }
+}

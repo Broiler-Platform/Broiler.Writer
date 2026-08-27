@@ -1,0 +1,37 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <LangVersion>latest</LangVersion>
+    <RootNamespace>Broiler.Writer</RootNamespace>
+    <AssemblyName>Broiler.Writer.Linux</AssemblyName>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <Configurations>Debug;Release;Debug-Linux;Release-Linux</Configurations>
+    <RuntimeIdentifier Condition="'$(Configuration)' == 'Debug-Linux' Or '$(Configuration)' == 'Release-Linux'">linux-x64</RuntimeIdentifier>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="..\Broiler.App\LinuxInputCoordinator.cs" Link="LinuxInputCoordinator.cs" />
+    <Compile Include="..\Broiler.App\LinuxX11Clipboard.cs" Link="LinuxX11Clipboard.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Broiler.Writer\Broiler.Writer.Core.csproj" />
+    <!-- The PDF codec is referenced by the heads that register it, never by the
+         shared Writer core: a head must not acquire it transitively (PDF roadmap §10.1). -->
+    <ProjectReference Include="..\..\Broiler.Documents\Broiler.Documents.Pdf\Broiler.Documents.Pdf.csproj" />
+    <ProjectReference Include="..\..\Broiler.Media\Broiler.Media.Image.Managed\Broiler.Media.Image.Managed.csproj" />
+    <ProjectReference Include="..\..\Broiler.Graphics\Broiler.Graphics.Linux\Broiler.Graphics.Linux.csproj" />
+    <ProjectReference Include="..\..\Broiler.Graphics\Broiler.Graphics.Linux.OpenGL\Broiler.Graphics.Linux.OpenGL.csproj" />
+    <ProjectReference Include="..\..\Broiler.Input\Broiler.Input.Keyboard.Linux\Broiler.Input.Keyboard.Linux.csproj" />
+    <ProjectReference Include="..\..\Broiler.Input\Broiler.Input.Linux\Broiler.Input.Linux.csproj" />
+    <ProjectReference Include="..\..\Broiler.Input\Broiler.Input.Mouse.Linux\Broiler.Input.Mouse.Linux.csproj" />
+  </ItemGroup>
+
+</Project>

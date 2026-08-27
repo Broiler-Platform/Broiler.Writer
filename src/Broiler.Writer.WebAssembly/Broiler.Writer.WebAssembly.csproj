@@ -1,0 +1,75 @@
+<Project Sdk="Microsoft.NET.Sdk.WebAssembly">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <LangVersion>latest</LangVersion>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <OverrideHtmlAssetPlaceholders>true</OverrideHtmlAssetPlaceholders>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <IsPackable>false</IsPackable>
+    <RootNamespace>Broiler.Writer.WebAssembly</RootNamespace>
+    <AssemblyName>Broiler.Writer.WebAssembly</AssemblyName>
+    <!-- Publishing this browser-wasm app untrimmed crashes the mono runtime at boot
+         (AppContext.Setup). Trim on every publish path — direct `dotnet publish` of this project AND
+         a hosted publish through Broiler.Office.Server (BOSS), where the pubxml profile does not
+         apply. Full AOT still layers on top with -p:RunAOTCompilation=true. -->
+    <PublishTrimmed>true</PublishTrimmed>
+	  <AssemblyVersion>1.0.0.1</AssemblyVersion>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Direct-Canvas 2D backend + graphics core (matches the Broiler.UI WebAssembly demo). -->
+    <ProjectReference Include="..\..\Broiler.Graphics\Broiler.Graphics.WebAssembly\Broiler.Graphics.WebAssembly.csproj" />
+    <ProjectReference Include="..\..\Broiler.Graphics\Broiler.Graphics\Broiler.Graphics.csproj" />
+
+    <!-- Input contracts: pointer, keyboard, and committed/composition text. -->
+    <ProjectReference Include="..\..\Broiler.Input\Broiler.Input\Broiler.Input.csproj" />
+    <ProjectReference Include="..\..\Broiler.Input\Broiler.Input.Keyboard\Broiler.Input.Keyboard.csproj" />
+    <ProjectReference Include="..\..\Broiler.Input\Broiler.Input.Mouse\Broiler.Input.Mouse.csproj" />
+    <ProjectReference Include="..\..\Broiler.Input\Broiler.Input.Text\Broiler.Input.Text.csproj" />
+
+    <!-- Document codecs: the same RTF / DOCX / HTML / Markdown stack the desktop Writer uses. -->
+    <ProjectReference Include="..\..\Broiler.Documents\Broiler.Documents\Broiler.Documents.csproj" />
+    <ProjectReference Include="..\..\Broiler.Documents\Broiler.Documents.Docx\Broiler.Documents.Docx.csproj" />
+    <ProjectReference Include="..\..\Broiler.Documents\Broiler.Documents.Html\Broiler.Documents.Html.csproj" />
+    <ProjectReference Include="..\..\Broiler.Documents\Broiler.Documents.Markdown\Broiler.Documents.Markdown.csproj" />
+    <ProjectReference Include="..\..\Broiler.Documents\Broiler.Documents.Model\Broiler.Documents.Model.csproj" />
+    <ProjectReference Include="..\..\Broiler.Documents\Broiler.Documents.Rtf\Broiler.Documents.Rtf.csproj" />
+
+    <!-- Broiler.UI Standard controls composing the Writer shell. -->
+    <ProjectReference Include="..\..\Broiler.UI\src\Foundation\Broiler.UI.Standard\Broiler.UI.Standard.csproj" />
+    <ProjectReference Include="..\..\Broiler.UI\src\Implementations\Standard\Shell\Broiler.UI.Window.Standard\Broiler.UI.Window.Standard.csproj" />
+    <ProjectReference Include="..\..\Broiler.UI\src\Implementations\Standard\Content\Broiler.UI.Label.Standard\Broiler.UI.Label.Standard.csproj" />
+    <ProjectReference Include="..\..\Broiler.UI\src\Implementations\Standard\Commands\Broiler.UI.Button.Standard\Broiler.UI.Button.Standard.csproj" />
+    <ProjectReference Include="..\..\Broiler.UI\src\Implementations\Standard\Commands\Broiler.UI.ToggleButton.Standard\Broiler.UI.ToggleButton.Standard.csproj" />
+    <ProjectReference Include="..\..\Broiler.UI\src\Implementations\Standard\Commands\Broiler.UI.Menu.Standard\Broiler.UI.Menu.Standard.csproj" />
+    <ProjectReference Include="..\..\Broiler.UI\src\Abstractions\Commands\Broiler.UI.Toolbar\Broiler.UI.Toolbar.csproj" />
+    <ProjectReference Include="..\..\Broiler.UI\src\Implementations\Standard\Commands\Broiler.UI.Toolbar.Standard\Broiler.UI.Toolbar.Standard.csproj" />
+    <ProjectReference Include="..\..\Broiler.UI\src\Implementations\Standard\Text\Broiler.UI.Edit.Standard\Broiler.UI.Edit.Standard.csproj" />
+    <ProjectReference Include="..\..\Broiler.UI\src\Implementations\Standard\Shell\Broiler.UI.Dialog.Standard\Broiler.UI.Dialog.Standard.csproj" />
+    <ProjectReference Include="..\..\Broiler.UI\src\Abstractions\Shell\Broiler.UI.FontDialog\Broiler.UI.FontDialog.csproj" />
+    <ProjectReference Include="..\..\Broiler.UI\src\Implementations\Standard\Shell\Broiler.UI.FontDialog.Standard\Broiler.UI.FontDialog.Standard.csproj" />
+
+    <!-- RichEdit: the document editing surface. -->
+    <ProjectReference Include="..\..\Broiler.UI\src\Abstractions\Text\Broiler.UI.RichEdit\Broiler.UI.RichEdit.csproj" />
+    <ProjectReference Include="..\..\Broiler.UI\src\Implementations\Standard\Text\Broiler.UI.RichEdit.Standard\Broiler.UI.RichEdit.Standard.csproj" />
+    <ProjectReference Include="..\..\Broiler.UI\src\Implementations\Standard\Text\Broiler.UI.FormatCodeView.Standard\Broiler.UI.FormatCodeView.Standard.csproj" />
+    <ProjectReference Include="..\..\Broiler.UI\src\Implementations\Standard\Layout\Broiler.UI.Splitter.Standard\Broiler.UI.Splitter.Standard.csproj" />
+    <ProjectReference Include="..\Broiler.Writer.FormatCodes\Broiler.Writer.FormatCodes.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Only fingerprint the app entry module. The direct-Canvas backend module is loaded from
+         managed code (JSHost.ImportAsync) by a stable literal URL, so it must not be renamed. -->
+    <StaticWebAssetFingerprintPattern Include="MainJs" Pattern="main.js" Expression="#[.{fingerprint}]!" />
+  </ItemGroup>
+
+  <!-- Vendor the canonical Canvas 2D replay module from the backend into this app's wwwroot so it
+       publishes as a stable static asset. The backend project owns the source of truth. -->
+  <Target Name="SyncCanvasReplayModule" BeforeTargets="BeforeBuild;BeforePublish">
+    <Copy SourceFiles="..\..\Broiler.Graphics\Broiler.Graphics.WebAssembly\wwwroot\broiler.graphics.webassembly.js" DestinationFolder="$(MSBuildProjectDirectory)\wwwroot" SkipUnchangedFiles="true" />
+  </Target>
+
+</Project>

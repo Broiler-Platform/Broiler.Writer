@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="icon" href="data:,">
+    <title>Broiler Writer — WebAssembly</title>
+    <style>
+        :root {
+            color-scheme: light;
+            font-family: "Segoe UI", Inter, ui-sans-serif, system-ui, sans-serif;
+            --host-bg: #d8e1eb;
+            --status-bg: #dbeafe;
+            --status-fg: #1d4ed8;
+        }
+        * { box-sizing: border-box; }
+        html, body, main { width: 100%; height: 100%; margin: 0; overflow: hidden; }
+        body { background: var(--host-bg); }
+        #writer-status {
+            position: fixed; z-index: 2; top: 16px; left: 50%; transform: translateX(-50%);
+            display: inline-flex; align-items: center; min-height: 34px;
+            padding: 7px 14px; border-radius: 999px; font-weight: 600;
+            background: var(--status-bg); color: var(--status-fg); box-shadow: 0 4px 16px rgba(15, 30, 50, .18);
+        }
+        /* The ID rule above sets an explicit `display`, which outranks the UA `[hidden]` rule; restore
+           it so `statusLine.hidden = true` (set once the managed UI takes over) actually hides the
+           loading pill instead of leaving it floating over the canvas. */
+        #writer-status[hidden] { display: none; }
+        #writer-status[data-state="failed"] { background: #fee2e2; color: #991b1b; }
+        #writer-host {
+            position: relative; width: 100%; height: 100%; overflow: hidden; background: var(--host-bg);
+        }
+        #writer-canvas { display: block; width: 100%; height: 100%; outline: none; touch-action: none; }
+        #writer-canvas:focus-visible { box-shadow: inset 0 0 0 3px rgba(37, 99, 235, .45); }
+        /* A single hidden native editor funnels keyboard, IME composition, and trusted clipboard
+           events to the managed editor that currently holds focus. */
+        #writer-text-input {
+            position: absolute; z-index: -1; opacity: .01; border: 0; padding: 0; margin: 0;
+            resize: none; overflow: hidden; color: transparent; background: transparent;
+            caret-color: transparent; white-space: pre; pointer-events: none;
+        }
+        #error-panel { position: fixed; z-index: 3; inset: auto 16px 16px; max-height: 40vh; overflow: auto; padding: 14px 16px; border-radius: 12px; border: 1px solid #fecaca; background: #fef2f2; color: #991b1b; box-shadow: 0 8px 24px rgba(50, 15, 15, .18); }
+        #error { white-space: pre-wrap; overflow-wrap: anywhere; font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: .8rem; }
+    </style>
+</head>
+<body>
+<main>
+    <div id="writer-status" role="status">Loading Broiler Writer…</div>
+
+    <div id="writer-host">
+        <canvas id="writer-canvas" width="1280" height="800" tabindex="0" role="application"
+                aria-label="Broiler Writer document surface"></canvas>
+        <textarea id="writer-text-input" aria-label="Text editor" autocomplete="off"
+                  autocapitalize="off" spellcheck="false"></textarea>
+    </div>
+
+    <div id="error-panel" hidden>
+        <strong>Managed failure</strong>
+        <div id="error"></div>
+    </div>
+</main>
+<script type="importmap"></script>
+<script type="module" src="main#[.{fingerprint}].js"></script>
+</body>
+</html>
