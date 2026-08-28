@@ -77,6 +77,21 @@ register `Broiler.Documents.Pdf` themselves, for **opening only**, so that no he
 the codec transitively. `Broiler.Writer.FormatCodes.Tests` asserts that this separation
 holds.
 
+## Dialogs
+
+Open, Save As, Insert Picture and Font are **real top-level OS windows** on the Windows head:
+each can be moved onto another monitor, is ordered by the window manager, and carries the one
+title bar Broiler.UI draws for it rather than a second native caption. Broiler.UI calls this
+breaking out (its ADR 0025 and 0026) and makes it the default for every owned window and
+dialog; the Windows head supplies the `IUiWindowHost` capability that makes it possible, in
+`WriterWindowsUiHost`, and each broken-out dialog gets its own `WriterHostWindow` — a second
+Direct2D window that does not own the message loop, so closing a dialog never quits the Writer.
+
+The Linux, Android and WebAssembly heads do not offer the capability, so their dialogs stay
+logical subwindows rendered inside the main viewport. That is the documented fallback rather
+than a failure: a head either answers `IUiWindowHost` or does not, and Broiler.UI keeps the
+dialog inside its owner when it does not.
+
 ## Solutions
 
 Each head has a focused solution containing exactly its transitive closure, so opening one
@@ -184,7 +199,7 @@ There is no `Directory.Build.targets`. Broiler.Browser uses one solely to rewrit
 | `src/Broiler.Writer` | Shared application (`Broiler.Writer.Core`) — window, menu, toolbar, RichEdit surface, palette, format registry |
 | `src/Broiler.Writer.FormatCodes` | Reveal-codes synchronization, structured editing and host policy |
 | `src/Broiler.Writer.FormatCodes.Tests` | xUnit suite — format codes, document load, image render, PDF policy, desktop host smoke |
-| `src/Broiler.Writer.Windows` | Windows head — `WinExe`, Direct2D, Win32 clipboard |
+| `src/Broiler.Writer.Windows` | Windows head — `WinExe`, Direct2D, Win32 clipboard, and the break-out host that gives each dialog its own OS window |
 | `src/Broiler.Writer.Linux` | Linux head — X11 clipboard and input coordination |
 | `src/Broiler.Writer.Android` | Android head — activity, manifest, resources |
 | `src/Broiler.Writer.WebAssembly` | Browser head — direct-Canvas 2D backend, browser file picker and download |
