@@ -23,7 +23,7 @@ namespace Broiler.Writer;
 internal sealed class WriterWindowsUiHost : WriterUiHost, IUiWindowHost
 {
     private readonly List<WriterHostWindow> _hostWindows = [];
-    private readonly Func<IntPtr> _getOwnerHandle;
+    private readonly Func<BWindow?> _getOwnerWindow;
     private readonly Func<string?>? _getClipboardText;
     private readonly Action<string>? _setClipboardText;
 
@@ -32,21 +32,22 @@ internal sealed class WriterWindowsUiHost : WriterUiHost, IUiWindowHost
         Func<double> getScale,
         Action invalidate,
         Action<BRenderList> present,
-        Func<IntPtr> getOwnerHandle,
+        Func<BWindow?> getOwnerWindow,
         Func<string?>? getClipboardText = null,
         Action<string>? setClipboardText = null,
         Action<UiTextCaretInfo?>? caretChanged = null,
         Func<IBroilerRenderer?>? getRenderer = null)
         : base(getViewportSize, getScale, invalidate, present, getClipboardText, setClipboardText, caretChanged, getRenderer)
     {
-        _getOwnerHandle = getOwnerHandle ?? throw new ArgumentNullException(nameof(getOwnerHandle));
+        _getOwnerWindow = getOwnerWindow ?? throw new ArgumentNullException(nameof(getOwnerWindow));
         _getClipboardText = getClipboardText;
         _setClipboardText = setClipboardText;
     }
 
     public IUiHostWindow CreateHostWindow(UiHostWindowRequest request)
     {
-        var window = new WriterHostWindow(ToScreenPlacement(request), _getClipboardText, _setClipboardText);
+        BWindow? owner = _getOwnerWindow();
+        var window = new WriterHostWindow(ToScreenPlacement(owner, request), owner, _getClipboardText, _setClipboardText);
         _hostWindows.Add(window);
         window.Closed += (_, _) => _hostWindows.Remove(window);
         window.Show();
@@ -62,17 +63,17 @@ internal sealed class WriterWindowsUiHost : WriterUiHost, IUiWindowHost
     /// that far into the top-left corner of the screen instead. The client origin is in physical
     /// pixels and the placement is in device-independent ones, so it is scaled on the way through.
     /// </summary>
-    private UiHostWindowRequest ToScreenPlacement(UiHostWindowRequest request)
+    private UiHostWindowRequest ToScreenPlacement(BWindow? owner, UiHostWindowRequest request)
     {
         if (request.Placement.IsEmpty)
             return request;
 
-        IntPtr owner = _getOwnerHandle();
-        if (owner == IntPtr.Zero)
+        IntPtr ownerHandle = owner?.NativeHandle ?? IntPtr.Zero;
+        if (ownerHandle == IntPtr.Zero)
             return request;
 
         var origin = default(NativePoint);
-        if (!ClientToScreen(owner, ref origin))
+        if (!ClientToScreen(ownerHandle, ref origin))
             return request;
 
         double scale = Scale > 0 ? Scale : 1;

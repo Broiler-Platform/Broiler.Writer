@@ -42,7 +42,7 @@ internal sealed class WriterWindow : Direct2DWindow
             () => DpiScale,
             Invalidate,
             static _ => { },
-            () => NativeHandle,
+            () => this,
             ReadClipboardText,
             WriteClipboardText,
             getRenderer: () => Renderer);
