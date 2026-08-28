@@ -14,7 +14,7 @@ namespace Broiler.Writer;
 [SupportedOSPlatform("windows7.0")]
 internal sealed class WriterWindow : Direct2DWindow
 {
-    private readonly WriterUiHost _host;
+    private readonly WriterWindowsUiHost _host;
     private readonly WriterApp _app;
 
     // Created in OnCreated: the Win32 clipboard is addressed by window handle,
@@ -35,11 +35,14 @@ internal sealed class WriterWindow : Direct2DWindow
             RenderOptions = new BRenderOptions(Antialias: true, VSync: true, SubpixelText: true),
         })
     {
-        _host = new WriterUiHost(
+        // The Windows host, not the plain one: it offers IUiWindowHost, so a dialog breaks out
+        // into its own OS window instead of rendering inside this one.
+        _host = new WriterWindowsUiHost(
             () => ClientSize,
             () => DpiScale,
             Invalidate,
             static _ => { },
+            () => NativeHandle,
             ReadClipboardText,
             WriteClipboardText,
             getRenderer: () => Renderer);
@@ -86,7 +89,13 @@ internal sealed class WriterWindow : Direct2DWindow
     protected override void Dispose(bool disposing)
     {
         if (disposing)
+        {
+            // The app first: disposing its session closes any dialog that is still open, which
+            // tears down the host window it broke out into. The host then only has to sweep up
+            // whatever survived that.
             _app.Dispose();
+            _host.Dispose();
+        }
 
         base.Dispose(disposing);
     }

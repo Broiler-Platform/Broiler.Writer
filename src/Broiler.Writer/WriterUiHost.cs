@@ -4,7 +4,13 @@ using Broiler.UI;
 
 namespace Broiler.Writer;
 
-internal sealed class WriterUiHost : IUiHost, IUiClipboardHost, IUiTextInputHost, IUiImageHost, IDisposable
+/// <summary>
+/// The Writer's platform-neutral <see cref="IUiHost"/>. It is unsealed so a head that can open
+/// real secondary windows — currently only the Windows one — can add the optional
+/// <c>IUiWindowHost</c> capability on top without restating the rendering, clipboard, caret and
+/// image policy recorded here.
+/// </summary>
+internal class WriterUiHost : IUiHost, IUiClipboardHost, IUiTextInputHost, IUiImageHost, IDisposable
 {
     private readonly Func<BSize> _getViewportSize;
     private readonly Func<double> _getScale;
@@ -126,7 +132,9 @@ internal sealed class WriterUiHost : IUiHost, IUiClipboardHost, IUiTextInputHost
         }
     }
 
-    public void Dispose()
+    public void Dispose() => Dispose(true);
+
+    protected virtual void Dispose(bool disposing)
     {
     }
 }
