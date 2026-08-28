@@ -228,7 +228,7 @@ set.
 
 ### Known issues
 
-Four consequences of composing independently released components are worth knowing before
+Three consequences of composing independently released components are worth knowing before
 you file a bug:
 
 - **Some components compile more than once.** Because each component repository references
@@ -255,21 +255,6 @@ you file a bug:
   `Broiler.Dom` and `Broiler.Dom.Html`. It is left unsuppressed on purpose — it is a real
   upstream defect, and the fix belongs in `Broiler.DOM`. These are the only warnings a clean
   build still emits.
-
-- **Dialogs stay inside the main window.** `Broiler.UI` makes break-out the default for owned
-  windows and dialogs — each should be a real OS window the user can move to another monitor
-  (its ADR 0025 and 0026) — but the Writer's Open, Save As, Insert Picture and Font dialogs
-  all render as logical subwindows in the main viewport. Two things are missing, and neither
-  reports an error, because a host that cannot break out is *meant* to fall back this way.
-  `WriterUiHost` does not implement the optional `IUiWindowHost` capability, so
-  `UiWindow.CanBreakOut` is false and the automatic break-out at the end of `ShowModal` is
-  skipped. And the windowing surface a host window would need is not on `Broiler.Graphics`
-  `main`: `BWindowOptions.OwnsMessageLoop` and `Chrome`, and `BWindow.Show`, `Close`,
-  `SetTitle`, `SetWindowState` and `BeginMoveDrag`, live on the unmerged branch
-  `feature/owner-drawn-window-chrome`. Until that lands a secondary window would own the
-  thread's message loop and carry a native caption underneath the dialog's own title bar. The
-  same gap stops `Broiler.UI.Win32.Demo` compiling against the `Broiler.Graphics` commit that
-  `Broiler.UI` pins, so the fix belongs upstream in `Broiler.Graphics` first.
 
 ## License
 

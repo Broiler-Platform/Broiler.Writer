@@ -39,6 +39,7 @@ internal sealed class WriterHostWindow : Direct2DWindow, IUiHostWindow, IUiWindo
 
     public WriterHostWindow(
         UiHostWindowRequest request,
+        BWindow? owner,
         Func<string?>? getClipboardText,
         Action<string>? setClipboardText)
         : base(new BWindowOptions
@@ -53,6 +54,12 @@ internal sealed class WriterHostWindow : Direct2DWindow, IUiHostWindow, IUiWindo
             OwnsMessageLoop = false,
             Chrome = request.Chrome == UiHostWindowChrome.Owner ? BWindowChrome.Owner : BWindowChrome.System,
             Resizable = request.Resizable,
+
+            // A modal dialog is owned by the window it blocks. Broiler.UI already refuses that
+            // window's input, but refusing input does not keep the dialog in front of it: without
+            // native ownership the user can raise the main window over a dialog it cannot respond
+            // to, which reads as a hang. Ownership is what locks the z-order.
+            Owner = request.IsModal ? owner : null,
         })
     {
         _host = new WriterUiHost(
