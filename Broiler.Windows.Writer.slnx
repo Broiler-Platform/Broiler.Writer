@@ -36,6 +36,7 @@
   <Folder Name="/Dependencies/Broiler.Media/">
     <Project Path="Broiler.Media/src/Broiler.Media.Image.Managed/Broiler.Media.Image.Managed.csproj" />
     <Project Path="Broiler.Media/src/Broiler.Media.Image/Broiler.Media.Image.csproj" />
+    <Project Path="Broiler.Media/src/Broiler.Media.Video.Windows/Broiler.Media.Video.Windows.csproj" />
     <Project Path="Broiler.Media/src/Broiler.Media.Video/Broiler.Media.Video.csproj" />
     <Project Path="Broiler.Media/src/Broiler.Media/Broiler.Media.csproj" />
   </Folder>
