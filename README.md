@@ -92,6 +92,19 @@ logical subwindows rendered inside the main viewport. That is the documented fal
 than a failure: a head either answers `IUiWindowHost` or does not, and Broiler.UI keeps the
 dialog inside its owner when it does not.
 
+## Toolbar
+
+The toolbar is wider than the window every head opens, and it does not wrap. What does not fit
+moves into a drop-down behind a `»` chevron at its end rather than being drawn past the edge
+and clipped away — `StandardToolbar` overflows by default now (`UiToolbarOverflow.Menu`), and
+`UiToolbarOverflow.Clip` is the old behaviour for a host that guarantees its own width.
+
+Everything from the first item that does not fit onward moves, so the order in the drop-down
+is the order on the bar, and the drop-down flows into columns rather than growing taller than
+the window. Arrowing along the bar still reaches every item it holds: focus landing on an
+overflowed one brings the drop-down with it. A control with a list of its own — the zoom
+picker — works from inside the drop-down as it does on the bar.
+
 ## Zoom
 
 The document view reads at 25% to 400% of the size the document states. The toolbar carries

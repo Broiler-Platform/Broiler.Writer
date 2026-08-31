@@ -673,6 +673,12 @@ internal sealed class BrowserWriterDemo : IDisposable
             BorderColor = WriterPalette.MenuRule,
             SeparatorColor = WriterPalette.MenuRule,
             CornerRadius = 0,
+
+            // The bar is wider than the window on every head, so what does not
+            // fit goes behind the chevron rather than off the edge.
+            Foreground = WriterPalette.Title,
+            PopupBackground = WriterPalette.MenuPopup,
+            Font = new BFontStyle("Segoe UI", 15),
         };
 
         StandardButton newButton = ToolbarAction("New", 50, NewDocument);
