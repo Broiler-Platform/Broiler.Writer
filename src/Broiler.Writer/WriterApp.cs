@@ -240,6 +240,9 @@ internal sealed class WriterApp : IDisposable
     /// <summary>The menu bar, so a test can reach a command surface the user reaches by opening a menu.</summary>
     internal StandardMenu Menu => _menu;
 
+    /// <summary>The toolbar, so a test can check that nothing on it is drawn past its edge.</summary>
+    internal StandardToolbar Toolbar => _toolbar;
+
     public BRenderList RenderFrame() => _session.RenderFrame();
 
     public void Dispatch(UiInputEvent input)
@@ -609,6 +612,12 @@ internal sealed class WriterApp : IDisposable
             BorderColor = WriterPalette.MenuRule,
             SeparatorColor = WriterPalette.MenuRule,
             CornerRadius = 0,
+
+            // The bar is wider than the window on every head, so what does not
+            // fit goes behind the chevron rather than off the edge.
+            Foreground = WriterPalette.Title,
+            PopupBackground = WriterPalette.MenuPopup,
+            Font = new BFontStyle("Segoe UI", 15),
         };
         StandardButton newButton = ToolbarAction("New", 50, NewDocument);
         StandardButton openButton = ToolbarAction("Open", 56, ShowOpenDialog);
