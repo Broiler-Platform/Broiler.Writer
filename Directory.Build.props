@@ -1,5 +1,14 @@
 <Project>
 
+  <!-- Broiler.UI vendors its own Broiler.Documents so it can build alone.
+       This repo has one too, and building both puts two assemblies named
+       Broiler.Documents.Model in the output - whichever wins, the other half
+       of the build was compiled against the loser. Point Broiler.UI at ours
+       so there is only one. -->
+  <PropertyGroup>
+    <BroilerDocumentsRoot>$(MSBuildThisFileDirectory)Broiler.Documents</BroilerDocumentsRoot>
+  </PropertyGroup>
+
   <PropertyGroup>
     <!-- Broiler.Graphics.Direct2D and the Windows head target net10.0-windows. Restoring
          them from a non-Windows host (a `dotnet restore` on the Linux runner that walks the
