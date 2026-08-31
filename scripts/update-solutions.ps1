@@ -1,4 +1,4 @@
-[CmdletBinding()]
+﻿[CmdletBinding()]
 param(
     [switch] $Verify
 )
@@ -84,6 +84,11 @@ function Resolve-ProjectReference {
     $resolvedInclude = $resolvedInclude.Replace(
         '$(BroilerGraphicsPath)',
         (Join-Path $repositoryRoot 'Broiler.Graphics/src/Broiler.Graphics/Broiler.Graphics.csproj'))
+    # A root rather than a project: Broiler.UI reaches its Documents references
+    # through it, so a consumer with its own copy builds one of each assembly.
+    $resolvedInclude = $resolvedInclude.Replace(
+        '$(BroilerDocumentsRoot)',
+        (Join-Path $repositoryRoot 'Broiler.Documents'))
 
 
     if ($resolvedInclude.Contains('$(')) {
