@@ -38,7 +38,19 @@ public sealed class WriterDocumentLoadTests
         app.LoadDocument(stream, "table.docx");
 
         Assert.Contains(app.LastReadDiagnostics, diagnostic => diagnostic.Code == "docx.read.summary");
-        Assert.Contains(app.LastReadDiagnostics, diagnostic => diagnostic.Code == "docx.table.flattened");
+    }
+
+    [Fact(Timeout = 600000)]
+    public void A_Table_Opens_As_A_Table()
+    {
+        using WriterApp app = CreateApp();
+        using var stream = new MemoryStream(TableDocx("cell"), writable: false);
+        app.LoadDocument(stream, "table.docx");
+
+        // It used to open as the cell's paragraphs and a note saying the grid
+        // around them had been thrown away.
+        Assert.NotEmpty(app.Document.Tables);
+        Assert.DoesNotContain(app.LastReadDiagnostics, diagnostic => diagnostic.Code == "docx.table.flattened");
     }
 
     [Fact(Timeout = 600000)]
@@ -141,8 +153,8 @@ public sealed class WriterDocumentLoadTests
         // that count to what they actually said.
         string notes = WriterNotes.Describe(app.LastReadDiagnostics);
 
-        Assert.Contains("docx.table.flattened", notes, StringComparison.Ordinal);
         Assert.Contains("docx.read.summary", notes, StringComparison.Ordinal);
+        Assert.Contains("table(s)", notes, StringComparison.Ordinal);
     }
 
 }
