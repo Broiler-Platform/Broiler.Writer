@@ -33,6 +33,27 @@ public sealed class WriterDesktopHostSmokeTests
         Assert.True(restored.Count > 0);
     }
 
+    [Fact(Timeout = 600000)]
+    public void The_Toolbar_Offers_Justify_Beside_The_Other_Alignments()
+    {
+        var host = new Broiler.Writer.WriterUiHost(
+            () => new BSize(1200, 800),
+            () => 1,
+            () => { },
+            _ => { });
+        using var app = new Broiler.Writer.WriterApp(host, () => { });
+
+        string[] labels = app.RenderFrame().Commands
+            .OfType<BRenderCommand.DrawText>()
+            .Select(command => command.Text.Text)
+            .ToArray();
+
+        Assert.Contains("Left", labels);
+        Assert.Contains("Center", labels);
+        Assert.Contains("Right", labels);
+        Assert.Contains("Justify", labels);
+    }
+
     private static UiInputEvent Key(string name, KeyboardModifierState modifiers)
     {
         var header = new InputEventHeader(

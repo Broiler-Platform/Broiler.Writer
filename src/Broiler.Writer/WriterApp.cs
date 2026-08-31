@@ -339,6 +339,7 @@ internal sealed class WriterApp : IDisposable
         AddRichEditCommand(dispatcher, "paragraph.left", RichEditCommand.AlignLeft);
         AddRichEditCommand(dispatcher, "paragraph.center", RichEditCommand.AlignCenter);
         AddRichEditCommand(dispatcher, "paragraph.right", RichEditCommand.AlignRight);
+        AddRichEditCommand(dispatcher, "paragraph.justify", RichEditCommand.AlignJustify);
         AddRichEditCommand(dispatcher, "paragraph.bullets", RichEditCommand.BulletList);
         AddRichEditCommand(dispatcher, "paragraph.numbered", RichEditCommand.NumberedList);
         AddRichEditCommand(dispatcher, "paragraph.indent", RichEditCommand.Indent);
@@ -392,6 +393,7 @@ internal sealed class WriterApp : IDisposable
         paragraph.Children.Add(RichEditItem("left", "Align left", "paragraph.left", RichEditCommand.AlignLeft, 'L', checkable: true));
         paragraph.Children.Add(RichEditItem("center", "Align center", "paragraph.center", RichEditCommand.AlignCenter, 'C', checkable: true));
         paragraph.Children.Add(RichEditItem("right", "Align right", "paragraph.right", RichEditCommand.AlignRight, 'R', checkable: true));
+        paragraph.Children.Add(RichEditItem("justify", "Justify", "paragraph.justify", RichEditCommand.AlignJustify, 'J', checkable: true));
         paragraph.Children.Add(RichEditItem("bullets", "Bullets", "paragraph.bullets", RichEditCommand.BulletList, 'B', checkable: true));
         paragraph.Children.Add(RichEditItem("numbered", "Numbered", "paragraph.numbered", RichEditCommand.NumberedList, 'N', checkable: true));
         paragraph.Children.Add(RichEditItem("indent", "Indent", "paragraph.indent", RichEditCommand.Indent, 'I'));
@@ -488,6 +490,7 @@ internal sealed class WriterApp : IDisposable
         StandardToggleButton leftButton = ToolbarToggle("Left", RichEditCommand.AlignLeft, 48, BFontWeight.Normal);
         StandardToggleButton centerButton = ToolbarToggle("Center", RichEditCommand.AlignCenter, 54, BFontWeight.Normal);
         StandardToggleButton rightButton = ToolbarToggle("Right", RichEditCommand.AlignRight, 48, BFontWeight.Normal);
+        StandardToggleButton justifyButton = ToolbarToggle("Justify", RichEditCommand.AlignJustify, 56, BFontWeight.Normal);
         StandardToggleButton bulletsButton = ToolbarToggle("Bullets", RichEditCommand.BulletList, 58, BFontWeight.Normal);
         StandardToggleButton numberedButton = ToolbarToggle("Numbered", RichEditCommand.NumberedList, 70, BFontWeight.Normal);
         StandardButton indentButton = ToolbarCommand("Indent", RichEditCommand.Indent, 58);
@@ -514,6 +517,7 @@ internal sealed class WriterApp : IDisposable
             toolbar.AddChild(leftButton);
             toolbar.AddChild(centerButton);
             toolbar.AddChild(rightButton);
+            toolbar.AddChild(justifyButton);
             toolbar.AddChild(bulletsButton);
             toolbar.AddChild(numberedButton);
             toolbar.AddChild(indentButton);
@@ -1253,6 +1257,7 @@ internal sealed class WriterApp : IDisposable
             RichEditCommand.AlignLeft => "Align left",
             RichEditCommand.AlignCenter => "Align center",
             RichEditCommand.AlignRight => "Align right",
+            RichEditCommand.AlignJustify => "Justify",
             RichEditCommand.BulletList => "Bullet list",
             RichEditCommand.NumberedList => "Numbered list",
             RichEditCommand.SetFont => "Font",
