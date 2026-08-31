@@ -65,6 +65,7 @@
     <Project Path="Broiler.UI/src/Implementations/Standard/Commands/Broiler.UI.Toolbar.Standard/Broiler.UI.Toolbar.Standard.csproj" />
     <Project Path="Broiler.UI/src/Implementations/Standard/Content/Broiler.UI.Label.Standard/Broiler.UI.Label.Standard.csproj" />
     <Project Path="Broiler.UI/src/Implementations/Standard/Layout/Broiler.UI.Splitter.Standard/Broiler.UI.Splitter.Standard.csproj" />
+    <Project Path="Broiler.UI/src/Implementations/Standard/Shell/Broiler.UI.Dialog.Standard/Broiler.UI.Dialog.Standard.csproj" />
     <Project Path="Broiler.UI/src/Implementations/Standard/Shell/Broiler.UI.FileDialog.Standard/Broiler.UI.FileDialog.Standard.csproj" />
     <Project Path="Broiler.UI/src/Implementations/Standard/Shell/Broiler.UI.FontDialog.Standard/Broiler.UI.FontDialog.Standard.csproj" />
     <Project Path="Broiler.UI/src/Implementations/Standard/Shell/Broiler.UI.Window.Standard/Broiler.UI.Window.Standard.csproj" />
