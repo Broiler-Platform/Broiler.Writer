@@ -10,6 +10,7 @@ using Broiler.Input.Keyboard;
 using Broiler.UI;
 using Broiler.UI.Button.Standard;
 using Broiler.UI.Dialog;
+using Broiler.UI.Dialog.Standard;
 using Broiler.UI.FileDialog;
 using Broiler.UI.FileDialog.Standard;
 using Broiler.UI.FontDialog.Standard;
@@ -63,6 +64,7 @@ internal sealed class WriterApp : IDisposable
     private string _lastDirectory = Environment.CurrentDirectory;
     private string _lastAction = "Ready";
     private IReadOnlyList<DocumentDiagnostic> _lastReadDiagnostics = Array.Empty<DocumentDiagnostic>();
+    private string _lastReadFileName = "this document";
 
     private static readonly BSize FileDialogPreferredSize = new(740, 430);
     private static readonly BSize FontDialogPreferredSize = new(520, 322);
@@ -411,6 +413,8 @@ internal sealed class WriterApp : IDisposable
         view.Children.Add(_formatCodesMenuItem);
 
         var help = new UiMenuItem("help", "Help") { AccessKey = 'H' };
+        help.Children.Add(new UiMenuItem("notes", "Notes for this document...") { CommandName = "help.notes", AccessKey = 'N' });
+        dispatcher.Add(new StandardCommand("help.notes", ShowDocumentNotes, () => _lastReadDiagnostics.Count > 0));
         help.Children.Add(new UiMenuItem("about", "About Broiler Writer") { CommandName = "help.about", AccessKey = 'A' });
         dispatcher.Add(new StandardCommand("help.about", ShowAbout));
 
@@ -891,6 +895,25 @@ internal sealed class WriterApp : IDisposable
         RefreshUi();
     }
 
+    /// <summary>
+    /// Shows what the last read reported. The status bar can say a document
+    /// opened with notes; this is where the user finds out what they were.
+    /// </summary>
+    private void ShowDocumentNotes()
+    {
+        if (_lastReadDiagnostics.Count == 0)
+        {
+            _lastAction = "No notes for this document";
+            RefreshUi();
+            return;
+        }
+
+        StandardDialog dialog = WriterNotes.CreateDialog(_lastReadFileName, _lastReadDiagnostics);
+        dialog.ShowModal(_rootWindow, GetFontDialogPlacement());
+        _lastAction = "Notes for " + _lastReadFileName;
+        RefreshUi();
+    }
+
     private void ShowAbout()
     {
         _lastAction = "Broiler Writer preview: Broiler.UI window, menu, and StandardRichEdit";
@@ -1011,6 +1034,7 @@ internal sealed class WriterApp : IDisposable
             hints: new DocumentSourceHints(fileName: fullPath));
 
         _lastReadDiagnostics = selection.Result.Diagnostics;
+        _lastReadFileName = Path.GetFileName(fullPath);
         LogReadDiagnostics(selection.Codec?.Name ?? "no codec", fullPath, selection.Result);
         return selection;
     }

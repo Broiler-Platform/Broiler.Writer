@@ -129,4 +129,20 @@ public sealed class WriterDocumentLoadTests
 
         return buffer.ToArray();
     }
+
+    [Fact(Timeout = 600000)]
+    public void The_Notes_A_Read_Produced_Can_Be_Read_Back_Out()
+    {
+        using WriterApp app = CreateApp();
+        using var stream = new MemoryStream(TableDocx("cell"), writable: false);
+        app.LoadDocument(stream, "table.docx");
+
+        // The status bar says how many notes there were. This is the path from
+        // that count to what they actually said.
+        string notes = WriterNotes.Describe(app.LastReadDiagnostics);
+
+        Assert.Contains("docx.table.flattened", notes, StringComparison.Ordinal);
+        Assert.Contains("docx.read.summary", notes, StringComparison.Ordinal);
+    }
+
 }
