@@ -1,0 +1,5 @@
+# A .slnx is a Visual Studio format and Windows tooling writes it with CRLF, so
+# pin the working-tree ending here rather than leaving it to whatever each
+# developer has core.autocrlf set to. The stored blob stays LF, so this fixes
+# only what a checkout produces and rewrites no content.
+*.slnx text eol=crlf

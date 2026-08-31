@@ -350,11 +350,34 @@ foreach ($definition in $manifest.solutions) {
         }
     }
     else {
-        [IO.File]::WriteAllText($solutionPath, $expectedText, $utf8WithoutBom)
-        Write-Host ("Updated {0} ({1} roots, {2} projects)." -f
-            $definition.path,
-            @($definition.roots).Count,
-            $projects.Count)
+        # The solution text is built with LF because that is what -Verify compares
+        # against, but a .slnx is a Visual Studio format and this working tree holds
+        # them with CRLF. Writing the LF form left all five files modified after a
+        # run that changed nothing about them.
+        $fileText = $expectedText.Replace("`r`n", "`n").Replace("`n", "`r`n")
+        $current = if (Test-Path -LiteralPath $solutionPath -PathType Leaf) {
+            [IO.File]::ReadAllText($solutionPath)
+        }
+        else {
+            $null
+        }
+
+        # Written only when it differs. An unconditional write rewrites every
+        # solution on every run, which touches timestamps the build watches and
+        # reports work that did not happen.
+        if ($current -ceq $fileText) {
+            Write-Host ("Unchanged {0} ({1} roots, {2} projects)." -f
+                $definition.path,
+                @($definition.roots).Count,
+                $projects.Count)
+        }
+        else {
+            [IO.File]::WriteAllText($solutionPath, $fileText, $utf8WithoutBom)
+            Write-Host ("Updated {0} ({1} roots, {2} projects)." -f
+                $definition.path,
+                @($definition.roots).Count,
+                $projects.Count)
+        }
     }
 }
 
