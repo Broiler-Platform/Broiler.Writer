@@ -17,6 +17,8 @@ using Broiler.Input.Mouse;
 using Broiler.Input.Text;
 using Broiler.UI;
 using Broiler.UI.Button.Standard;
+using Broiler.UI.ComboBox;
+using Broiler.UI.ComboBox.Standard;
 using Broiler.UI.Dialog;
 using Broiler.UI.Edit.Standard;
 using Broiler.UI.FontDialog.Standard;
@@ -79,6 +81,10 @@ internal sealed class BrowserWriterDemo : IDisposable
     private readonly List<(UiMenuItem Item, RichEditCommand Command)> _richEditMenuItems = [];
     private readonly List<(StandardButton Button, RichEditCommand Command)> _toolbarActionButtons = [];
     private readonly List<(StandardToggleButton Button, RichEditCommand Command)> _toolbarToggleButtons = [];
+    private readonly List<(UiMenuItem Item, double Zoom)> _zoomMenuItems = [];
+    private StandardComboBox? _zoomCombo;
+    private double _zoom = WriterZoom.Default;
+    private bool _isControlHeld;
     private UiMenuItem? _fontMenuItem;
     private UiMenuItem? _formatCodesMenuItem;
     private StandardButton? _fontToolbarButton;
@@ -268,6 +274,19 @@ internal sealed class BrowserWriterDemo : IDisposable
         _dispatcher.Post(() =>
         {
             _buttons = (MouseButtons)buttons;
+
+            // Ctrl and the wheel zooms rather than scrolls, and is answered
+            // before the session sees it. The page listener already refuses the
+            // browser's own zoom for this canvas, so the gesture is ours to take.
+            WriterZoomStep wheelStep = horizontal
+                ? WriterZoomStep.None
+                : WriterZoom.StepForWheel(_isControlHeld, deltaNotches);
+            if (wheelStep != WriterZoomStep.None)
+            {
+                StepZoom(wheelStep);
+                return;
+            }
+
             _session.DispatchInput(UiInputEvent.FromMouseWheel(new MouseWheelEvent(
                 Header(PointerDevice, timestampMilliseconds),
                 InputPoint.ClientDeviceIndependentPixels(x, y),
@@ -280,6 +299,14 @@ internal sealed class BrowserWriterDemo : IDisposable
         _dispatcher.Post(() =>
         {
             var modifierState = (KeyboardModifierState)modifiers;
+            _isControlHeld = (modifierState & KeyboardModifierState.Control) != KeyboardModifierState.None;
+
+            WriterZoomStep zoomStep = WriterZoom.StepFor(keyName, nativeKeyCode, modifierState, down);
+            if (zoomStep != WriterZoomStep.None)
+            {
+                StepZoom(zoomStep);
+                return;
+            }
 
             if (WriterFormatCodesShortcut.IsToggle(keyName, modifierState, down, repeat))
             {
@@ -400,6 +427,10 @@ internal sealed class BrowserWriterDemo : IDisposable
         dispatcher.Add(new StandardCommand("file.save", SaveDocument));
         dispatcher.Add(new StandardCommand("file.save-as", SaveDocumentAs));
         dispatcher.Add(new StandardCommand("view.formatting-codes", ToggleFormattingCodes));
+        dispatcher.Add(new StandardCommand("view.zoom.in", () => StepZoom(WriterZoomStep.In)));
+        dispatcher.Add(new StandardCommand("view.zoom.out", () => StepZoom(WriterZoomStep.Out)));
+        dispatcher.Add(new StandardCommand("view.zoom.reset", () => StepZoom(WriterZoomStep.Reset)));
+        AddZoomLevelCommands(dispatcher);
         AddFormatCodeCommands(dispatcher);
         dispatcher.Add(new StandardCommand("format.font", ShowFontDialog, () => _editor.GetCommandState(RichEditCommand.SetFont).IsEnabled));
         AddRichEditCommand(dispatcher, "edit.undo", RichEditCommand.Undo);
@@ -477,6 +508,10 @@ internal sealed class BrowserWriterDemo : IDisposable
             IsChecked = true,
         };
         view.Children.Add(_formatCodesMenuItem);
+        view.Children.Add(new UiMenuItem("zoom-in", "Zoom in") { CommandName = "view.zoom.in", AccessKey = 'I' });
+        view.Children.Add(new UiMenuItem("zoom-out", "Zoom out") { CommandName = "view.zoom.out", AccessKey = 'O' });
+        view.Children.Add(new UiMenuItem("zoom-reset", "Actual size") { CommandName = "view.zoom.reset", AccessKey = 'A' });
+        view.Children.Add(CreateZoomMenu());
 
         var help = new UiMenuItem("help", "Help") { AccessKey = 'H' };
         help.Children.Add(new UiMenuItem("about", "About Broiler Writer") { CommandName = "help.about", AccessKey = 'A' });
@@ -500,6 +535,101 @@ internal sealed class BrowserWriterDemo : IDisposable
         menu.SetItems([file, edit, format, view, help]);
         return menu;
     }
+
+    /// <summary>
+    /// One command per level on the ladder, named after the percentage it
+    /// selects, so the menu and the toolbar reach the zoom the same way the
+    /// desktop head does.
+    /// </summary>
+    private void AddZoomLevelCommands(StandardCommandDispatcher dispatcher)
+    {
+        foreach (double level in WriterZoom.Levels)
+        {
+            double zoom = level;
+            dispatcher.Add(new StandardCommand(ZoomCommandName(zoom), () => ApplyZoom(zoom)));
+        }
+    }
+
+    private static string ZoomCommandName(double zoom) =>
+        "view.zoom." + Math.Round(zoom * 100).ToString("0", CultureInfo.InvariantCulture);
+
+    /// <summary>The ladder as a checkable submenu, which is also where the current level is stated.</summary>
+    private UiMenuItem CreateZoomMenu()
+    {
+        var zoom = new UiMenuItem("zoom", "Zoom") { AccessKey = 'Z' };
+        foreach (double level in WriterZoom.Levels)
+        {
+            var item = new UiMenuItem(
+                "zoom-" + Math.Round(level * 100).ToString("0", CultureInfo.InvariantCulture),
+                WriterZoom.Describe(level))
+            {
+                CommandName = ZoomCommandName(level),
+                IsCheckable = true,
+                IsChecked = WriterZoom.Same(level, _zoom),
+            };
+            _zoomMenuItems.Add((item, level));
+            zoom.Children.Add(item);
+        }
+
+        return zoom;
+    }
+
+    /// <summary>The toolbar's zoom picker: it shows the level and drops down the whole ladder.</summary>
+    private StandardComboBox CreateZoomCombo()
+    {
+        var combo = new StandardComboBox
+        {
+            PreferredSize = new BSize(74, 30),
+            MaxDropDownItems = WriterZoom.Levels.Count,
+            ItemHeight = 26,
+            Font = new BFontStyle("Segoe UI", 13),
+            Background = WriterPalette.ToolbarButton,
+            Foreground = WriterPalette.Title,
+            BorderColor = WriterPalette.ToolbarButtonBorder,
+            PopupBackground = WriterPalette.MenuPopup,
+            SelectedBackground = WriterPalette.MenuSelected,
+            FocusRing = WriterPalette.Accent,
+            CornerRadius = 5,
+        };
+
+        var items = new List<UiComboBoxItem>(WriterZoom.Levels.Count);
+        foreach (double level in WriterZoom.Levels)
+            items.Add(new UiComboBoxItem(ZoomCommandName(level), WriterZoom.Describe(level)));
+        combo.SetItems(items);
+        combo.SelectIndex(Math.Max(0, WriterZoom.IndexOf(_zoom)));
+
+        // Only a choice that differs is acted on: RefreshUi drives the selection
+        // back from the zoom, and answering that would report a zoom the user
+        // never asked for.
+        combo.SelectionChanged += (_, e) =>
+        {
+            if ((uint)e.NewIndex >= (uint)WriterZoom.Levels.Count)
+                return;
+
+            double level = WriterZoom.Levels[e.NewIndex];
+            if (!WriterZoom.Same(level, _zoom))
+                ApplyZoom(level);
+        };
+        return combo;
+    }
+
+    /// <summary>
+    /// Reads the document at <paramref name="zoom"/>. The editor is where the
+    /// number lives; the menu, the picker and the status line are told from here.
+    /// </summary>
+    private void ApplyZoom(double zoom)
+    {
+        double resolved = WriterZoom.Normalize(zoom);
+        bool changed = !WriterZoom.Same(resolved, _zoom);
+        _zoom = resolved;
+        _editor.Zoom = resolved;
+        _lastAction = changed
+            ? "Zoom " + WriterZoom.Describe(resolved)
+            : "Zoom already " + WriterZoom.Describe(resolved);
+        RefreshUi();
+    }
+
+    private void StepZoom(WriterZoomStep step) => ApplyZoom(WriterZoom.Apply(_zoom, step));
 
     private void AddFormatCodeCommands(StandardCommandDispatcher dispatcher)
     {
@@ -565,6 +695,13 @@ internal sealed class BrowserWriterDemo : IDisposable
         StandardToggleButton numberedButton = ToolbarToggle("Numbered", RichEditCommand.NumberedList, 70, BFontWeight.Normal);
         StandardButton indentButton = ToolbarCommand("Indent", RichEditCommand.Indent, 58);
         StandardButton outdentButton = ToolbarCommand("Outdent", RichEditCommand.Outdent, 64);
+        // Ahead of the formatting groups rather than after them: this toolbar is
+        // already wider than the window it opens in, and a control at the end is
+        // one the user never sees.
+        StandardButton zoomOutButton = ToolbarAction("-", 30, () => StepZoom(WriterZoomStep.Out));
+        StandardButton zoomInButton = ToolbarAction("+", 30, () => StepZoom(WriterZoomStep.In));
+        StandardComboBox zoomCombo = CreateZoomCombo();
+        _zoomCombo = zoomCombo;
 
         toolbar.AddChild(newButton);
         toolbar.AddChild(openButton);
@@ -572,6 +709,9 @@ internal sealed class BrowserWriterDemo : IDisposable
         toolbar.AddChild(saveAsButton);
         toolbar.AddChild(undoButton);
         toolbar.AddChild(redoButton);
+        toolbar.AddChild(zoomOutButton);
+        toolbar.AddChild(zoomCombo);
+        toolbar.AddChild(zoomInButton);
         toolbar.AddChild(fontButton);
         toolbar.AddChild(boldButton);
         toolbar.AddChild(italicButton);
@@ -587,6 +727,7 @@ internal sealed class BrowserWriterDemo : IDisposable
         toolbar.AddChild(outdentButton);
 
         toolbar.SetSeparatorBefore(undoButton, true);
+        toolbar.SetSeparatorBefore(zoomOutButton, true);
         toolbar.SetSeparatorBefore(fontButton, true);
         toolbar.SetSeparatorBefore(leftButton, true);
         toolbar.SetSeparatorBefore(indentButton, true);
@@ -1028,6 +1169,14 @@ internal sealed class BrowserWriterDemo : IDisposable
 
         if (_formatCodesMenuItem is not null)
             _formatCodesMenuItem.IsChecked = _content.IsFormatCodesVisible;
+
+        foreach ((UiMenuItem item, double level) in _zoomMenuItems)
+            item.IsChecked = WriterZoom.Same(level, _zoom);
+
+        int zoomIndex = WriterZoom.IndexOf(_zoom);
+        if (_zoomCombo is not null && zoomIndex >= 0)
+            _zoomCombo.SelectIndex(zoomIndex);
+
         _status.Text = BuildStatus();
         BrowserInterop.ScheduleFrame();
     }
@@ -1043,7 +1192,8 @@ internal sealed class BrowserWriterDemo : IDisposable
         string pane = _content.IsFormatCodesVisible
             ? (_formatCodesController.IsProjectionPending ? "Formatting Codes updating" : "Formatting Codes shown")
             : "Formatting Codes hidden";
-        return paragraphText + " | " + charText + " | " + selection + " | " + style + " | " + pane + " | " + _lastAction;
+        return paragraphText + " | " + charText + " | " + selection + " | " + style +
+               " | " + WriterZoom.Describe(_zoom) + " | " + pane + " | " + _lastAction;
     }
 
     private string CurrentStyleText()

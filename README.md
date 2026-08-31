@@ -92,6 +92,21 @@ logical subwindows rendered inside the main viewport. That is the documented fal
 than a failure: a head either answers `IUiWindowHost` or does not, and Broiler.UI keeps the
 dialog inside its owner when it does not.
 
+## Zoom
+
+The document view reads at 25% to 400% of the size the document states. The toolbar carries
+the picker and its two steps, and **View → Zoom** offers the same ladder with the current
+level checked; **Ctrl+plus**, **Ctrl+minus**, **Ctrl+0** and **Ctrl+wheel** reach it from the
+keyboard and mouse. The compact Android toolbar has no room for the group and reaches zoom
+through the View menu, as it does alignment and lists.
+
+Zoom is a property of the view. `StandardRichEdit.Zoom` scales every measurement layout takes
+from the document — font sizes, indents, tab stops, picture sizes, the page and its margins —
+and nothing it takes from the control, so the text grows inside chrome that stays where it is
+and wraps to the column the window actually has. Nothing scaled is written back: a document
+saves at the size it was authored at whatever it is being read at. `WriterZoom` holds the
+ladder and the key policy, shared by the desktop and browser heads.
+
 ## Solutions
 
 Each head has a focused solution containing exactly its transitive closure, so opening one
@@ -99,11 +114,11 @@ does not drag in another platform's backends.
 
 | Solution | Entry point | Projects |
 |---|---|---|
-| `Broiler.Windows.Writer.slnx` | `src/Broiler.Writer.Windows` | 54 |
-| `Broiler.Linux.Writer.slnx` | `src/Broiler.Writer.Linux` | 57 |
-| `Broiler.Android.Writer.slnx` | `src/Broiler.Writer.Android` | 56 |
-| `Broiler.WebAssembly.Writer.slnx` | `src/Broiler.Writer.WebAssembly` | 49 |
-| `Broiler.Writer.Tests.slnx` | `src/Broiler.Writer.FormatCodes.Tests` | 52 |
+| `Broiler.Windows.Writer.slnx` | `src/Broiler.Writer.Windows` | 58 |
+| `Broiler.Linux.Writer.slnx` | `src/Broiler.Writer.Linux` | 60 |
+| `Broiler.Android.Writer.slnx` | `src/Broiler.Writer.Android` | 59 |
+| `Broiler.WebAssembly.Writer.slnx` | `src/Broiler.Writer.WebAssembly` | 51 |
+| `Broiler.Writer.Tests.slnx` | `src/Broiler.Writer.FormatCodes.Tests` | 55 |
 
 The solutions are **generated, not hand-edited**. `eng/solutions.json` declares each entry
 point and the platform boundaries it must not cross; `scripts/update-solutions.ps1` walks the
@@ -197,8 +212,8 @@ There is no `Directory.Build.targets`. Broiler.Browser uses one solely to rewrit
 | Path | Contents |
 |---|---|
 | `src/Broiler.Writer` | Shared application (`Broiler.Writer.Core`) — window, menu, toolbar, RichEdit surface, palette, format registry |
-| `src/Broiler.Writer.FormatCodes` | Reveal-codes synchronization, structured editing and host policy |
-| `src/Broiler.Writer.FormatCodes.Tests` | xUnit suite — format codes, document load, image render, PDF policy, desktop host smoke |
+| `src/Broiler.Writer.FormatCodes` | Reveal-codes synchronization, structured editing, and the host policy the heads share — Formatting Codes shortcuts and the zoom ladder |
+| `src/Broiler.Writer.FormatCodes.Tests` | xUnit suite — format codes, document load, image render, PDF policy, zoom, desktop host smoke |
 | `src/Broiler.Writer.Windows` | Windows head — `WinExe`, Direct2D, Win32 clipboard, and the break-out host that gives each dialog its own OS window |
 | `src/Broiler.Writer.Linux` | Linux head — X11 clipboard and input coordination |
 | `src/Broiler.Writer.Android` | Android head — activity, manifest, resources |

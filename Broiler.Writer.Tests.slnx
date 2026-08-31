@@ -51,6 +51,7 @@
     <Project Path="Broiler.UI/src/Abstractions/Text/Broiler.UI.Edit/Broiler.UI.Edit.csproj" />
     <Project Path="Broiler.UI/src/Abstractions/Text/Broiler.UI.FormatCodeView/Broiler.UI.FormatCodeView.csproj" />
     <Project Path="Broiler.UI/src/Abstractions/Text/Broiler.UI.RichEdit/Broiler.UI.RichEdit.csproj" />
+    <Project Path="Broiler.UI/src/Abstractions/ValueAndSelection/Broiler.UI.ComboBox/Broiler.UI.ComboBox.csproj" />
     <Project Path="Broiler.UI/src/Abstractions/ValueAndSelection/Broiler.UI.ListView/Broiler.UI.ListView.csproj" />
     <Project Path="Broiler.UI/src/Foundation/Broiler.UI.Standard/Broiler.UI.Standard.csproj" />
     <Project Path="Broiler.UI/src/Foundation/Broiler.UI/Broiler.UI.csproj" />
@@ -67,6 +68,7 @@
     <Project Path="Broiler.UI/src/Implementations/Standard/Text/Broiler.UI.Edit.Standard/Broiler.UI.Edit.Standard.csproj" />
     <Project Path="Broiler.UI/src/Implementations/Standard/Text/Broiler.UI.FormatCodeView.Standard/Broiler.UI.FormatCodeView.Standard.csproj" />
     <Project Path="Broiler.UI/src/Implementations/Standard/Text/Broiler.UI.RichEdit.Standard/Broiler.UI.RichEdit.Standard.csproj" />
+    <Project Path="Broiler.UI/src/Implementations/Standard/ValueAndSelection/Broiler.UI.ComboBox.Standard/Broiler.UI.ComboBox.Standard.csproj" />
     <Project Path="Broiler.UI/src/Implementations/Standard/ValueAndSelection/Broiler.UI.ListView.Standard/Broiler.UI.ListView.Standard.csproj" />
   </Folder>
   <Folder Name="/Dependencies/src/">
