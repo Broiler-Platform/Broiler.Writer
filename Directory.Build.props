@@ -7,6 +7,10 @@
        so there is only one. -->
   <PropertyGroup>
     <BroilerDocumentsRoot>$(MSBuildThisFileDirectory)Broiler.Documents</BroilerDocumentsRoot>
+    <BroilerGraphicsRoot>$(MSBuildThisFileDirectory)Broiler.Graphics</BroilerGraphicsRoot>
+    <BroilerInputRoot>$(MSBuildThisFileDirectory)Broiler.Input</BroilerInputRoot>
+    <BroilerMediaRoot>$(MSBuildThisFileDirectory)Broiler.Media</BroilerMediaRoot>
+    <BroilerDomRoot>$(MSBuildThisFileDirectory)Broiler.DOM</BroilerDomRoot>
   </PropertyGroup>
 
   <PropertyGroup>

@@ -89,6 +89,18 @@ function Resolve-ProjectReference {
     $resolvedInclude = $resolvedInclude.Replace(
         '$(BroilerDocumentsRoot)',
         (Join-Path $repositoryRoot 'Broiler.Documents'))
+    $resolvedInclude = $resolvedInclude.Replace(
+        '$(BroilerGraphicsRoot)',
+        (Join-Path $repositoryRoot 'Broiler.Graphics'))
+    $resolvedInclude = $resolvedInclude.Replace(
+        '$(BroilerInputRoot)',
+        (Join-Path $repositoryRoot 'Broiler.Input'))
+    $resolvedInclude = $resolvedInclude.Replace(
+        '$(BroilerMediaRoot)',
+        (Join-Path $repositoryRoot 'Broiler.Media'))
+    $resolvedInclude = $resolvedInclude.Replace(
+        '$(BroilerDomRoot)',
+        (Join-Path $repositoryRoot 'Broiler.DOM'))
 
 
     if ($resolvedInclude.Contains('$(')) {
