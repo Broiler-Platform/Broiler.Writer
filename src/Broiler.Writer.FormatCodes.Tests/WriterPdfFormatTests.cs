@@ -2,6 +2,8 @@ using System.Text;
 using Broiler.Documents;
 using Broiler.Documents.Model;
 using Broiler.Documents.Pdf;
+using Broiler.Documents.Pdf.Filters;
+using Broiler.Documents.Pdf.Images;
 using Broiler.Graphics;
 using Broiler.UI.FileDialog;
 
@@ -152,6 +154,28 @@ public sealed class WriterPdfFormatTests
     }
 
     [Fact(Timeout = 600000)]
+    public void The_Desktop_Composition_Carries_A_Jpeg_Decoder_And_Nothing_Else()
+    {
+        PdfCodecServices desktop = DesktopPdfCodecServices();
+
+        // IP-005 cleared baseline sequential DCT, so the heads hand the codec a
+        // decoder for it and a page drawing a JPEG reports what was decoded
+        // rather than a decoder this build does not have.
+        Assert.True(desktop.SupportsFilter(PdfFilterNames.Dct));
+
+        // Referencing Broiler.Documents.Pdf.Images links its CCITT, JBIG2 and
+        // JPX adapters too. Composing a filter is what enables it, not linking
+        // the assembly that holds it, and none of these is composed.
+        Assert.False(desktop.SupportsFilter(PdfFilterNames.CcittFax));
+        Assert.False(desktop.SupportsFilter(PdfFilterNames.Jbig2));
+        Assert.False(desktop.SupportsFilter(PdfFilterNames.Jpx));
+
+        // The decision stays the head's. A build that composes nothing still
+        // links no image decoder, which is what the boundary is for.
+        Assert.False(PdfCodecServices.Base.SupportsFilter(PdfFilterNames.Dct));
+    }
+
+    [Fact(Timeout = 600000)]
     public void Saving_As_Pdf_Is_Refused_Even_Where_Pdf_Opens()
     {
         using WriterApp app = CreateApp(DesktopFormats());
@@ -177,9 +201,24 @@ public sealed class WriterPdfFormatTests
     }
 
     /// <summary>What the Windows and Linux heads compose.</summary>
+    /// <remarks>
+    /// A hand-copy of both heads' <c>CreateDocumentFormats</c>, and deliberately
+    /// so: the roadmap forbids a shared catalog the tests and every head could
+    /// read from, because that is exactly how PDF would reach Android and
+    /// WebAssembly without either head asking for it (§10.1). The copy is what
+    /// <see cref="The_Desktop_Composition_Carries_A_Jpeg_Decoder_And_Nothing_Else"/>
+    /// exists to keep honest.
+    /// </remarks>
     private static WriterDocumentFormats DesktopFormats() =>
         WriterDocumentFormats.CreateDefault().With(
-            new WriterDocumentFormat(new PdfDocumentCodec(), "PDF", WriterFormatCapabilities.Open));
+            new WriterDocumentFormat(
+                new PdfDocumentCodec(DesktopPdfCodecServices()),
+                "PDF",
+                WriterFormatCapabilities.Open));
+
+    /// <summary>The service graph both desktop heads hand the PDF codec.</summary>
+    private static PdfCodecServices DesktopPdfCodecServices() =>
+        PdfCodecServices.Base.WithStreamFilters(new JpegStreamFilter());
 
     private static bool FilterMentionsPdf(UiFileDialogFilter filter) =>
         filter.Pattern.Contains("*.pdf", StringComparison.OrdinalIgnoreCase);
