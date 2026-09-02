@@ -84,6 +84,14 @@ internal sealed class WriterApp : IDisposable
     /// </summary>
     private int _replacingDocument;
     private string _lastDirectory = Environment.CurrentDirectory;
+
+    /// <summary>
+    /// The decisions made about this document's pictures. Replaced when a
+    /// document is opened, and added to when one is inserted, so a save writes
+    /// exactly the resources this session decided on.
+    /// </summary>
+    private DocumentConversionContextBuilder _resources =
+        new(DocumentResourcePolicy.AllowOwnDocuments);
     private string _lastAction = "Ready";
 
     /// <summary>
@@ -1178,13 +1186,18 @@ internal sealed class WriterApp : IDisposable
 
             _lastDirectory = Path.GetDirectoryName(fullPath) ?? _lastDirectory;
             BSize size = WriterImageFormats.MeasureDisplaySize(bytes, MaxInsertedPictureWidth);
-            var image = new InlineImage(
-                bytes,
-                contentType,
-                size.Width,
-                size.Height,
-                altText: Path.GetFileNameWithoutExtension(fullPath),
-                name: Path.GetFileNameWithoutExtension(fullPath));
+            // A picture the user picked from their own disk is theirs, and
+            // admitting it here is what lets a later save write it out.
+            InlineImage image = _resources.AdmitImage(
+                new InlineImage(
+                    bytes,
+                    contentType,
+                    size.Width,
+                    size.Height,
+                    altText: Path.GetFileNameWithoutExtension(fullPath),
+                    name: Path.GetFileNameWithoutExtension(fullPath)),
+                DocumentResourceProvenance.CallerSupplied,
+                DocumentResourceDisposition.Embedded);
 
             // The rich-paste primitive is the only insertion path that carries a
             // style of its own; InsertText takes the caret's style, which has no
@@ -1401,9 +1414,20 @@ internal sealed class WriterApp : IDisposable
     /// </summary>
     private DocumentCodecSelection ReadDocument(string fullPath, DocumentInput input)
     {
+        // The Writer opens files its user chose, so reading their pictures and
+        // saving them again is what was asked for. The policy is stated here
+        // rather than inherited, and a host with a different relationship to its
+        // input would state a different one.
         DocumentCodecSelection selection = _documentCatalog.SelectAndRead(
             input,
-            hints: new DocumentSourceHints(fileName: fullPath));
+            new DocumentReadOptions(resourcePolicy: DocumentResourcePolicy.AllowOwnDocuments),
+            new DocumentSourceHints(fileName: fullPath));
+
+        // The decisions this read made travel with the document until it is
+        // replaced, so a picture that came out of the file can go back into one.
+        _resources = DocumentConversionContextBuilder.Continuing(
+            selection.Result.Resources,
+            DocumentResourcePolicy.AllowOwnDocuments);
 
         _lastReadDiagnostics = selection.Result.Diagnostics;
         _lastReadFileName = Path.GetFileName(fullPath);
@@ -1519,7 +1543,10 @@ internal sealed class WriterApp : IDisposable
                 _documentFormats.DescribeSaveExtensions() + ".");
 
         using var stream = new MemoryStream();
-        DocumentWriteResult result = format.Codec.Write(document, stream);
+        DocumentWriteResult result = format.Codec.Write(
+            document,
+            stream,
+            new DocumentWriteOptions(resources: _resources.Build()));
         bytes = stream.ToArray();
         return result;
     }

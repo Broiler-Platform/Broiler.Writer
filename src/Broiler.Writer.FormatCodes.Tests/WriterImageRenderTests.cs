@@ -1,4 +1,5 @@
 using System.Runtime.CompilerServices;
+using Broiler.Documents;
 using Broiler.Documents.Model;
 using Broiler.Graphics;
 using Broiler.Media;
@@ -38,11 +39,14 @@ public sealed class WriterImageRenderTests
         using var app = new WriterApp(host, () => { });
 
         var image = new InlineImage(RedDotPng, "image/png", 48, 24, "a red dot");
+
+        (image, DocumentWriteOptions writeOptions) = Writable(image);
         byte[] docx = Broiler.Documents.Docx.DocxDocumentCodec.WriteToArray(
             RichTextDocument.FromParagraphs(
             [
                 RichTextParagraph.Create(InlineImage.PlaceholderText, InlineStyle.Default with { Image = image }),
-            ]));
+            ]),
+            writeOptions);
 
         using var stream = new MemoryStream(docx, writable: false);
         Assert.True(app.LoadDocument(stream, "picture.docx"));
@@ -69,11 +73,14 @@ public sealed class WriterImageRenderTests
         using var app = new WriterApp(host, () => { });
 
         var image = new InlineImage(RedDotPng, "image/png", 64, 64, "a red square");
+
+        (image, DocumentWriteOptions writeOptions) = Writable(image);
         byte[] docx = Broiler.Documents.Docx.DocxDocumentCodec.WriteToArray(
             RichTextDocument.FromParagraphs(
             [
                 RichTextParagraph.Create(InlineImage.PlaceholderText, InlineStyle.Default with { Image = image }),
-            ]));
+            ]),
+            writeOptions);
 
         using var stream = new MemoryStream(docx, writable: false);
         Assert.True(app.LoadDocument(stream, "picture.docx"));
@@ -110,6 +117,7 @@ public sealed class WriterImageRenderTests
         // still readable, and the editor must render rather than throw.
         byte[] brokenBytes = [.. RedDotPng[..8], 0, 0, 0, 0];
         var broken = new InlineImage(brokenBytes, "image/png", 40, 20);
+        (broken, DocumentWriteOptions writeOptions) = Writable(broken);
         byte[] docx = Broiler.Documents.Docx.DocxDocumentCodec.WriteToArray(
             RichTextDocument.FromParagraphs(
             [
@@ -132,4 +140,23 @@ public sealed class WriterImageRenderTests
     private static readonly byte[] RedDotPng = Convert.FromBase64String(
         "iVBORw0KGgoAAAANSUhEUgAAAAgAAAAICAIAAABLbSncAAAAEUlEQVR4" +
         "2mP4z8CAFTEMLQkAKP8/wc53yE8AAAAASUVORK5CYII=");
+
+    /// <summary>
+    /// Admits <paramref name="image"/> under a policy that permits writing it,
+    /// and returns the image plus the options a writer needs.
+    /// </summary>
+    /// <remarks>
+    /// A fixture written without a decision comes out with no picture in it, so
+    /// a test that needs a DOCX containing one has to say under which decision.
+    /// </remarks>
+    private static (InlineImage Image, DocumentWriteOptions Options) Writable(InlineImage image)
+    {
+        var builder = new DocumentConversionContextBuilder(DocumentResourcePolicy.AllowOwnDocuments);
+        InlineImage admitted = builder.AdmitImage(
+            image,
+            DocumentResourceProvenance.CallerSupplied,
+            DocumentResourceDisposition.Embedded);
+
+        return (admitted, new DocumentWriteOptions(resources: builder.Build()));
+    }
 }
