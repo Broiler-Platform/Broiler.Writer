@@ -51,11 +51,10 @@
       ════════════════════════════════════════════════════════════════════
 
       Every code below was measured against a clean Rebuild of all five solutions with this
-      NoWarn removed, so this list suppresses only what this repository actually emits.
-      Nothing here is authored in Broiler.Writer itself: the nullable warnings come from a
-      component submodule and from the vendored Android glue, and the platform warning is a
-      false positive. Adding a code speculatively costs the signal a warning is supposed to
-      carry — measure first.
+      NoWarn removed, so this list suppresses only what this repository actually emits, and
+      only where it emits it. Nothing here is authored in Broiler.Writer itself: all three
+      codes come from component submodules. Adding a code speculatively costs the signal a
+      warning is supposed to carry — measure first, and suppress it where it is raised.
 
       Note that Broiler.Input and Broiler.Media do not chain to this file (their
       Directory.Build.props deliberately does not import a parent), so their own policy
@@ -68,8 +67,9 @@
         Linux                    26  CS8625 x14, CS8618 x8, CS8602 x4
         Tests                    24  CS8625 x14, CS8618 x8, CS8602 x2
         WebAssembly              24  CS8625 x14, CS8618 x8, CS8602 x2
-        Android                  48  CA1416 x16, CS8625 x14, CS8618 x8,
-                                     CS8604 x4, CS8601 x2, CS8603 x2
+        Android                  48  the same 24, plus CA1416 x16, CS8604 x4,
+                                     CS8601 x2 and CS8603 x2 — suppressed in the
+                                     one project that raises them, not here
 
       ── Nullable Reference Type Warnings ──────────────────────────────
       CS8602 : Dereference of a possibly null reference
@@ -87,34 +87,24 @@
                 enough that a targeted fix upstream in Broiler.Dom.Html would retire the
                 whole group. Re-measure after a submodule bump rather than assuming.
 
-      CS8601 : Possible null reference assignment
-      CS8603 : Possible null reference return
-      CS8604 : Possible null reference argument
+      ── Suppressed elsewhere, on purpose ──────────────────────────────
+      CS8601, CS8603, CS8604 and CA1416 are also emitted by this repository, but only ever by
+      src/Broiler.App.Android — the vendored .NET for Android glue — so they are suppressed
+      in that project rather than here, and documented there in full.
 
-      Reason  : Raised only in src/Broiler.App.Android, against .NET for Android binding
-                signatures that are annotated non-nullable but documented to accept null
-                (Canvas.DrawColor's PorterDuff.Mode, Bitmap.CreateBitmap's Bitmap.Config).
-      Future  : Revisit when the Android bindings tighten their nullability annotations.
+      They used to be in the NoWarn at the end of this block. Repo-wide was broader than the
+      measurement justified:
+      the same codes describe ordinary mistakes in hand-written application code, so a CS8601
+      newly introduced in Broiler.Writer.Core would have disappeared behind a suppression that
+      exists for Android binding signatures. Suppress a code where it is raised, not
+      everywhere, whenever the measurement says one project raises it.
 
-      ── Platform Compatibility ────────────────────────────────────────
-      CA1416 : Call site reachable on all platforms but API is version-gated
-
-      Reason  : src/Broiler.App.Android targets a minimum SDK of 24 and calls
-                WindowInsets.GetInsets (30), Insets members (29) and
-                LockHardwareCanvas (26) behind `Build.VERSION.SdkInt` checks the analyzer
-                does not recognise as guards. The legacy branches already carry targeted
-                `#pragma warning disable CS0618, CA1422`, so the runtime gating is real.
-      Future  : No action expected; the guard is correct and the analyzer is imprecise.
-
-      ── Scope ─────────────────────────────────────────────────────────
-      CS8601, CS8603, CS8604 and CA1416 are raised only by the Android solution, but are
-      suppressed for every project here. That is broader than the measurement justifies: a
-      CS8601 newly introduced in Broiler.Writer.Core would be silenced by a suppression that
-      exists for the Android glue. Narrowing them to the Android head is worth doing, and is
-      left as its own change rather than folded into a re-measurement.
+      The three codes that remain here stay here because their source is a component submodule
+      rather than a project of ours, so there is no project file of this repository's to put
+      them in.
       ════════════════════════════════════════════════════════════════════
     -->
-    <NoWarn>$(NoWarn);CS8601;CS8602;CS8603;CS8604;CS8618;CS8625;CA1416</NoWarn>
+    <NoWarn>$(NoWarn);CS8602;CS8618;CS8625</NoWarn>
   </PropertyGroup>
 
 </Project>
