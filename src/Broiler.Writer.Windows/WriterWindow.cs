@@ -17,6 +17,9 @@ internal sealed class WriterWindow : Direct2DWindow
     /// <summary>How often to look at the clock while a tooltip is waiting. Roughly 30 Hz.</summary>
     private const double TooltipTickMilliseconds = 33;
 
+    /// <summary>The icon is drawn once at this size and let the shell scale it down.</summary>
+    private const int AppIconPixels = 64;
+
     private readonly WriterWindowsUiHost _host;
     private readonly WriterApp _app;
 
@@ -66,6 +69,11 @@ internal sealed class WriterWindow : Direct2DWindow
         // The app named the document before this window existed, and SetTitle is a no-op until it
         // does, so the caption is pushed once more now that there is something to push it to.
         SetTitle(_app.WindowTitle);
+
+        // The window carried the runtime's default icon, which says .NET rather than Writer. It is
+        // drawn from the same geometry as the toolbar icons rather than shipped as an .ico: one
+        // description, every size, no binary in the tree.
+        SetIcon(WriterApp.CreateAppIcon(AppIconPixels));
     }
 
     /// <summary>

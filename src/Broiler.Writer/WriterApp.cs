@@ -1736,6 +1736,13 @@ internal sealed class WriterApp : IDisposable
         _setWindowTitle?.Invoke(title);
     }
 
+    /// <summary>
+    /// The application's mark, at the size a window manager asked for. Drawn from the same
+    /// geometry as the toolbar icons, in the Writer's own colours.
+    /// </summary>
+    internal static BPixelBuffer CreateAppIcon(int size) =>
+        WriterIcons.RenderAppIcon(size, WriterPalette.Page, WriterPalette.Accent, WriterPalette.Title);
+
     /// <summary>The name of the open document, with no decoration.</summary>
     internal string DocumentName => _documentName;
 

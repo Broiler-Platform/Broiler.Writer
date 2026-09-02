@@ -26,6 +26,27 @@ public static class WriterIcons
     /// <summary>The side of the square every icon is authored on.</summary>
     public const double DesignExtent = 16;
 
+    /// <summary>
+    /// Rasterises <see cref="AppMark"/> for a window manager, which wants pixels rather than
+    /// geometry. Transparent outside the tile, so the rounded corners are actually rounded.
+    /// </summary>
+    public static BPixelBuffer RenderAppIcon(int size, BColor page, BColor tile, BColor ink)
+    {
+        if (size <= 0)
+            throw new ArgumentOutOfRangeException(nameof(size), "An icon needs a positive size.");
+
+        var list = new BRenderList();
+        AppMark(list, new BRect(0, 0, size, size), page, tile, ink);
+
+        using var renderer = new BImageRenderer();
+        using BBitmap bitmap = renderer.RenderToImage(
+            list,
+            BSurfaceDescriptor.Default(new BSize(size, size)),
+            new BFrameContext(BColor.FromArgb(0, 0, 0, 0)));
+
+        return bitmap.ToPixelBuffer();
+    }
+
     /// <summary>The weight of a drawn line, in design units.</summary>
     private const double Stroke = 1.4;
 
@@ -191,6 +212,28 @@ public static class WriterIcons
         }
     }
 
+    /// <summary>
+    /// The application's own mark: a page with lines of writing on it, on a filled tile.
+    /// </summary>
+    /// <remarks>
+    /// Drawn rather than shipped as an .ico for the same reason as the rest - one description at
+    /// every size, and no binary asset in the tree. The tile is what makes it legible at 16px in a
+    /// title bar: an outline-only mark disappears against a light caption.
+    /// </remarks>
+    public static void AppMark(BRenderList list, BRect box, BColor page, BColor tile, BColor ink)
+    {
+        var backdrop = new Pen(list, box, tile);
+        backdrop.RoundedRect(0, 0, 16, 16, 3.4);
+
+        var paper = new Pen(list, box, page);
+        paper.Rect(3.6, 2.4, 8.8, 11.2);
+
+        var text = new Pen(list, box, ink);
+        text.Bar(5.2, 5, 5.6, 1.2);
+        text.Bar(5.2, 7.6, 5.6, 1.2);
+        text.Bar(5.2, 10.2, 3.4, 1.2);
+    }
+
     public static void Indent(BRenderList list, BRect box, BColor color) => Shift(list, box, color, right: true);
 
     public static void Outdent(BRenderList list, BRect box, BColor color) => Shift(list, box, color, right: false);
@@ -237,6 +280,9 @@ public static class WriterIcons
 
         public void Rect(double x, double y, double width, double height) =>
             list.FillRect(new BRect(X(x), Y(y), S(width), S(height)), color);
+
+        public void RoundedRect(double x, double y, double width, double height, double radius) =>
+            list.FillRoundedRect(new BRect(X(x), Y(y), S(width), S(height)), color, S(radius), S(radius));
 
         /// <summary>A filled circle, which a rounded rectangle is when its radius is half its side.</summary>
         public void Dot(double x, double y, double diameter) =>

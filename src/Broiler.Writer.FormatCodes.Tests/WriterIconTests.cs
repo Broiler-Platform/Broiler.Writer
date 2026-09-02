@@ -109,6 +109,21 @@ public sealed class WriterIconTests
             $"{name} did not grow with its box: {smallBounds.Width} then {largeBounds.Width}.");
     }
 
+    [Fact(Timeout = 600000)]
+    public void The_Application_Mark_Rasterises_To_Something_A_Window_Manager_Can_Use()
+    {
+        BPixelBuffer icon = WriterIcons.RenderAppIcon(64, BColor.White, BColor.Blue, BColor.Black);
+
+        Assert.Equal(64, icon.Width);
+        Assert.Equal(64, icon.Height);
+
+        // Opaque in the middle, where the tile is, and transparent in the very corner, which is
+        // what makes the rounded corners round rather than blue squares.
+        using var bitmap = new BBitmap(icon);
+        Assert.Equal(255, bitmap.GetPixel(32, 32).A);
+        Assert.Equal(0, bitmap.GetPixel(0, 0).A);
+    }
+
     private static IEnumerable<BRect> DrawnGeometry(BRenderList list)
     {
         foreach (BRenderCommand command in list.Commands)
