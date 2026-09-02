@@ -59,6 +59,7 @@
     <Project Path="Broiler.UI/src/Abstractions/Text/Broiler.UI.RichEdit/Broiler.UI.RichEdit.csproj" />
     <Project Path="Broiler.UI/src/Abstractions/ValueAndSelection/Broiler.UI.ComboBox/Broiler.UI.ComboBox.csproj" />
     <Project Path="Broiler.UI/src/Abstractions/ValueAndSelection/Broiler.UI.ListView/Broiler.UI.ListView.csproj" />
+    <Project Path="Broiler.UI/src/Abstractions/ValueAndSelection/Broiler.UI.SpinBox/Broiler.UI.SpinBox.csproj" />
     <Project Path="Broiler.UI/src/Foundation/Broiler.UI.Standard/Broiler.UI.Standard.csproj" />
     <Project Path="Broiler.UI/src/Foundation/Broiler.UI/Broiler.UI.csproj" />
     <Project Path="Broiler.UI/src/Implementations/Standard/Commands/Broiler.UI.Button.Standard/Broiler.UI.Button.Standard.csproj" />
@@ -77,6 +78,7 @@
     <Project Path="Broiler.UI/src/Implementations/Standard/Text/Broiler.UI.RichEdit.Standard/Broiler.UI.RichEdit.Standard.csproj" />
     <Project Path="Broiler.UI/src/Implementations/Standard/ValueAndSelection/Broiler.UI.ComboBox.Standard/Broiler.UI.ComboBox.Standard.csproj" />
     <Project Path="Broiler.UI/src/Implementations/Standard/ValueAndSelection/Broiler.UI.ListView.Standard/Broiler.UI.ListView.Standard.csproj" />
+    <Project Path="Broiler.UI/src/Implementations/Standard/ValueAndSelection/Broiler.UI.SpinBox.Standard/Broiler.UI.SpinBox.Standard.csproj" />
   </Folder>
   <Folder Name="/Dependencies/src/">
     <Project Path="src/Broiler.App.Android/Broiler.App.Android.csproj" />

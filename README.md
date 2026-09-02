@@ -96,6 +96,25 @@ logical subwindows rendered inside the main viewport. That is the documented fal
 than a failure: a head either answers `IUiWindowHost` or does not, and Broiler.UI keeps the
 dialog inside its owner when it does not.
 
+## Fonts
+
+The font dialog lists the fonts this machine has, not a fixed set of well-known names. Where the
+list comes from is a graphics question, so `Broiler.Graphics` answers it through `BSystemFonts`:
+the Direct2D backend registers DirectWrite's system font collection, and every other head falls
+back to reading family names out of the files in the platform's font directories.
+
+The two do not agree about what a family is, and on Windows only DirectWrite's answer is one the
+renderer can honour. It groups faces into weight-stretch-style families, so "Arial Black" is not a
+family — it is Arial at weight 900, reached through the dialog's weight box. A name the file scan
+produces but `CreateTextFormat` cannot resolve is silently replaced with Segoe UI, which is what
+about sixty of the file scan's 270 names would be here.
+
+The Linux and Android heads draw through the software rasterizer, which resolves a family to a
+file rather than to a host font service. Both call `BSystemFonts.InstallFontFileResolver()` in
+their composition root, so a family picked in the dialog is drawn in its own face instead of in
+the one fallback face the rasterizer discovered. The Windows head needs no equivalent: Direct2D
+lays every run out through DirectWrite.
+
 ## Toolbar
 
 The toolbar is wider than the window every head opens, and it does not wrap. What does not fit
