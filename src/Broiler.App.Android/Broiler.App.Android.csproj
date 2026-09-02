@@ -11,6 +11,50 @@
     <IsPackable>false</IsPackable>
   </PropertyGroup>
 
+  <!--
+    ════════════════════════════════════════════════════════════════════
+    Suppressed Build Warnings — Documentation
+    ════════════════════════════════════════════════════════════════════
+
+    These four codes are raised by this project and by nothing else in the repository, so
+    they are suppressed here rather than in the root Directory.Build.props. Suppressing them
+    repo-wide would silence the same codes in hand-written application code — a CS8601 newly
+    introduced in Broiler.Writer.Core would disappear behind a suppression that exists for
+    .NET for Android binding signatures.
+
+    Measured 2026-09-02, against a clean Rebuild of all five solutions with every NoWarn
+    lifted: 4x CS8604, 2x CS8601, 2x CS8603 and 16x CA1416, all in this project, and none of
+    the four raised anywhere else.
+
+    ── Nullable Reference Type Warnings ──────────────────────────────
+    CS8601 : Possible null reference assignment
+    CS8603 : Possible null reference return
+    CS8604 : Possible null reference argument
+
+    Reason  : .NET for Android binding signatures that are annotated non-nullable but are
+              documented to accept null (Canvas.DrawColor's PorterDuff.Mode,
+              Bitmap.CreateBitmap's Bitmap.Config).
+    Future  : Revisit when the Android bindings tighten their nullability annotations.
+
+    ── Platform Compatibility ────────────────────────────────────────
+    CA1416 : Call site reachable on all platforms but API is version-gated
+
+    Reason  : This project targets a minimum SDK of 24 and calls WindowInsets.GetInsets (30),
+              Insets members (29) and LockHardwareCanvas (26) behind `Build.VERSION.SdkInt`
+              checks the analyzer does not recognise as guards. The legacy branches already
+              carry targeted `#pragma warning disable CS0618, CA1422`, so the runtime gating
+              is real.
+    Future  : No action expected; the guard is correct and the analyzer is imprecise.
+
+    The nullable warnings the component submodules raise (CS8602, CS8618, CS8625) stay in the
+    root Directory.Build.props, because they are not this project's and are not this
+    project's to describe.
+    ════════════════════════════════════════════════════════════════════
+  -->
+  <PropertyGroup>
+    <NoWarn>$(NoWarn);CS8601;CS8603;CS8604;CA1416</NoWarn>
+  </PropertyGroup>
+
   <ItemGroup>
     <ProjectReference Include="..\..\Broiler.Graphics\src\Broiler.Graphics\Broiler.Graphics.csproj" />
     <ProjectReference Include="..\..\Broiler.Input\src\Broiler.Input.Android\Broiler.Input.Android.csproj" />
