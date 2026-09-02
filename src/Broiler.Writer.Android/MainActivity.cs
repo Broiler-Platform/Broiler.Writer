@@ -37,6 +37,12 @@ public sealed class MainActivity : Activity
         base.OnCreate(savedInstanceState);
         Window?.SetSoftInputMode(SoftInput.AdjustResize);
 
+        // Composition root for fonts: this head draws through the software rasterizer, which
+        // otherwise renders every family in the one face it discovered — so the font dialog would
+        // list /system/fonts and then draw all of it the same. The Windows head needs no
+        // equivalent, because Direct2D lays out through DirectWrite.
+        Broiler.Graphics.BSystemFonts.InstallFontFileResolver();
+
         _view = new AndroidBroilerView(this, WriterPalette.Canvas);
         _host = new WriterUiHost(
             () => _view.ViewportSize,

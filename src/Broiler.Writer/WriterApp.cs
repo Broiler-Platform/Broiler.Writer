@@ -98,7 +98,7 @@ internal sealed class WriterApp : IDisposable
     private string _lastReadFileName = "this document";
 
     private static readonly BSize FileDialogPreferredSize = new(820, 520);
-    private static readonly BSize FontDialogPreferredSize = new(520, 322);
+    private static readonly BSize FontDialogPreferredSize = new(560, 384);
     private static readonly UiFileDialogFilter[] OpenPictureFileFilters =
     [
         new("Images", "*.png;*.jpg;*.jpeg;*.gif;*.bmp;*.webp", ".png"),
@@ -1223,6 +1223,8 @@ internal sealed class WriterApp : IDisposable
         {
             PreferredSize = FontDialogPreferredSize,
             SelectedFont = CurrentEditorFont(),
+            Underline = _editor.GetCommandState(RichEditCommand.Underline).IsToggled,
+            Strikethrough = _editor.GetCommandState(RichEditCommand.Strikethrough).IsToggled,
             SampleText = "Broiler Writer font preview",
             TitleFont = new BFontStyle("Segoe UI", 14, BFontWeight.SemiBold),
             LabelFont = new BFontStyle("Segoe UI", 13),
@@ -1230,7 +1232,7 @@ internal sealed class WriterApp : IDisposable
         dialog.ResultCompleted += (_, e) =>
         {
             if (e.Result.Kind == UiDialogResultKind.Accepted)
-                ApplySelectedFont(dialog.SelectedFont);
+                ApplySelectedFont(dialog.SelectedFont, dialog.Underline, dialog.Strikethrough);
         };
 
         dialog.ShowFontModal(_rootWindow, GetFontDialogPlacement());
@@ -1238,14 +1240,31 @@ internal sealed class WriterApp : IDisposable
         RefreshUi();
     }
 
-    private void ApplySelectedFont(BFontStyle font)
+    private void ApplySelectedFont(BFontStyle font, bool underline, bool strikethrough)
     {
         bool ran = _editor.ExecuteCommand(RichEditCommand.SetFont, font);
+        ran |= ApplyDecoration(RichEditCommand.Underline, underline);
+        ran |= ApplyDecoration(RichEditCommand.Strikethrough, strikethrough);
         _lastAction = ran
             ? "Font: " + font.FamilyName + " " + font.SizeInPixels.ToString("0.###", CultureInfo.InvariantCulture)
             : "Font unavailable";
         _session.SetFocus(_editor);
         RefreshUi();
+    }
+
+    /// <summary>
+    /// Puts one decoration into the state the dialog settled on. The editor's commands toggle
+    /// rather than set, so this asks what it is first and only runs the command when the two
+    /// disagree — running it unconditionally would turn off the underline the dialog was asked to
+    /// leave on.
+    /// </summary>
+    private bool ApplyDecoration(RichEditCommand command, bool wanted)
+    {
+        RichEditCommandState state = _editor.GetCommandState(command);
+        if (!state.IsEnabled || state.IsToggled == wanted)
+            return false;
+
+        return _editor.ExecuteCommand(command);
     }
 
     /// <summary>
