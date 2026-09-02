@@ -1,6 +1,8 @@
 using System;
 using System.Runtime.InteropServices;
 using System.Runtime.Versioning;
+using Broiler.Documents.Pdf;
+using Broiler.Documents.Pdf.Images;
 
 namespace Broiler.Writer;
 
@@ -53,9 +55,40 @@ internal static class Program
     private static WriterDocumentFormats CreateDocumentFormats() =>
         WriterDocumentFormats.CreateDefault().With(
             new WriterDocumentFormat(
-                new Broiler.Documents.Pdf.PdfDocumentCodec(),
+                new Broiler.Documents.Pdf.PdfDocumentCodec(CreatePdfServices()),
                 "PDF",
                 WriterFormatCapabilities.Open));
+
+    /// <summary>
+    /// The PDF service graph this head composes: the JPEG decoder, and nothing
+    /// else.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Composing a filter is what puts a picture on the page. Since the §6.2
+    /// conversion context landed, a decoded image is admitted by the caller's
+    /// resource policy and projected into the document, so this is the line that
+    /// decides whether a PDF's photographs are visible in the Writer or reported
+    /// as skipped.
+    /// </para>
+    /// <para>
+    /// <strong>Why JPEG and nothing else.</strong> Not because the others are
+    /// uncleared — IP-008 approved JBIG2 and IP-009 retired the fax patent
+    /// position — but because both of their decode paths rest on
+    /// <c>SRC-017</c>, which is pending: the fax decoder needs T.4's transcribed
+    /// code tables and JBIG2's MMR regions decode through that same decoder. A
+    /// pending row still blocks, so neither is composed into anything that
+    /// ships. JPEG 2000 has no entropy decoder to compose at all.
+    /// </para>
+    /// <para>
+    /// Referencing <c>Broiler.Documents.Pdf.Images</c> links those adapters even
+    /// so. Linking is not composing, and the composition test asserts the
+    /// difference.
+    /// </para>
+    /// </remarks>
+    private static PdfCodecServices CreatePdfServices() =>
+        PdfCodecServices.Base.WithStreamFilters(new JpegStreamFilter());
+
 
     private const uint MbOk = 0x00000000;
     private const uint MbIconError = 0x00000010;
