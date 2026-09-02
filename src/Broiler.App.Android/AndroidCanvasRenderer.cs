@@ -212,14 +212,14 @@ public sealed class AndroidCanvasRenderer : IBroilerRenderer
     private void DrawText(Canvas canvas, BRenderCommand.DrawText command)
     {
         BTextRun run = command.Text;
-        if (string.IsNullOrEmpty(run.Text) || run.Color.A == 0 || run.Font.SizeInPixels <= 0)
+        if (string.IsNullOrEmpty(run.Text) || run.Color.A == 0 || run.Font.Size <= 0)
             return;
 
         ConfigureFill(run.Color);
-        _paint.TextSize = (float)run.Font.SizeInPixels;
+        _paint.TextSize = (float)run.Font.Size;
         _paint.SetTypeface(ResolveTypeface(run.Font));
         _paint.TextSkewX = run.Font.Slant is BFontSlant.Italic or BFontSlant.Oblique ? -0.25f : 0f;
-        float baseline = (float)(command.Origin.Y + (run.Font.SizeInPixels * 0.8));
+        float baseline = (float)(command.Origin.Y + (run.Font.Size * 0.8));
         canvas.DrawText(run.Text, (float)command.Origin.X, baseline, _paint);
     }
 

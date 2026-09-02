@@ -1253,13 +1253,23 @@ internal sealed class WriterApp : IDisposable
         RefreshUi();
     }
 
+    /// <summary>
+    /// Applies what the font dialog returned, whose size is in points.
+    /// </summary>
+    /// <remarks>
+    /// The editor takes a font in its own units, so the point size the user chose
+    /// is converted on the way in. What is reported back to them is the number
+    /// they picked, not the one the editor stored.
+    /// </remarks>
     private void ApplySelectedFont(BFontStyle font, bool underline, bool strikethrough)
     {
-        bool ran = _editor.ExecuteCommand(RichEditCommand.SetFont, font);
+        BFontStyle editorFont = font with { Size = BFontStyle.PointsToPixels(font.Size) };
+
+        bool ran = _editor.ExecuteCommand(RichEditCommand.SetFont, editorFont);
         ran |= ApplyDecoration(RichEditCommand.Underline, underline);
         ran |= ApplyDecoration(RichEditCommand.Strikethrough, strikethrough);
         _lastAction = ran
-            ? "Font: " + font.FamilyName + " " + font.SizeInPixels.ToString("0.###", CultureInfo.InvariantCulture)
+            ? "Font: " + font.FamilyName + " " + font.Size.ToString("0.###", CultureInfo.InvariantCulture)
             : "Font unavailable";
         _session.SetFocus(_editor);
         RefreshUi();
@@ -1321,13 +1331,26 @@ internal sealed class WriterApp : IDisposable
         _lastAction = "Ready";
     }
 
+    /// <summary>
+    /// The caret's font as the font dialog should show it: size in <b>points</b>.
+    /// </summary>
+    /// <remarks>
+    /// A font dialog shows points, because that is the number a person means when
+    /// they say twelve, and it is the number the document stores. The editor
+    /// measures in its own device-independent pixels, so the caret's fallback is
+    /// converted and the document's own size is used as it stands. This used to
+    /// hand the dialog whichever number came first, so the size a user saw for a
+    /// twelve-point document depended on whether that document had said anything.
+    /// </remarks>
     private BFontStyle CurrentEditorFont()
     {
         InlineStyle style = _editor.CaretInlineStyle;
         return _editor.Font with
         {
             FamilyName = string.IsNullOrWhiteSpace(style.FontFamily) ? _editor.Font.FamilyName : style.FontFamily,
-            SizeInPixels = style.FontSize is > 0 ? style.FontSize.Value : _editor.Font.SizeInPixels,
+            Size = style.FontSize is > 0
+                ? style.FontSize.Value
+                : BFontStyle.PixelsToPoints(_editor.Font.Size),
             Weight = style.Bold ? BFontWeight.Bold : _editor.Font.Weight,
             Slant = style.Italic ? BFontSlant.Italic : _editor.Font.Slant,
         };
