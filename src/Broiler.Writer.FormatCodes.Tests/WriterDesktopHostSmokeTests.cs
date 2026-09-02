@@ -43,15 +43,21 @@ public sealed class WriterDesktopHostSmokeTests
             _ => { });
         using var app = new Broiler.Writer.WriterApp(host, () => { });
 
-        string[] labels = app.RenderFrame().Commands
-            .OfType<BRenderCommand.DrawText>()
-            .Select(command => command.Text.Text)
+        app.RenderFrame();
+
+        // The four alignments are icons rather than words now, so what is asserted is that each is
+        // on the bar under its own name. That is the thing that actually matters - the name is
+        // what a screen reader reads out and what the overflow drop-down finds the control by -
+        // and reading it back is not weaker than reading a caption off the frame, only different.
+        string[] names = app.Toolbar.Children
+            .Where(child => child.Visibility == UiVisibility.Visible && child.Bounds.Width > 0)
+            .Select(child => child.GetSemanticNode().Name)
             .ToArray();
 
-        Assert.Contains("Left", labels);
-        Assert.Contains("Center", labels);
-        Assert.Contains("Right", labels);
-        Assert.Contains("Justify", labels);
+        Assert.Contains("Left", names);
+        Assert.Contains("Center", names);
+        Assert.Contains("Right", names);
+        Assert.Contains("Justify", names);
     }
 
     private static UiInputEvent Key(string name, KeyboardModifierState modifiers)

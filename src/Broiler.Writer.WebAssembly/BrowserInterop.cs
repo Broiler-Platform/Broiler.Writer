@@ -15,6 +15,13 @@ internal static partial class BrowserInterop
     internal static partial void ScheduleFrame();
 
     /// <summary>Sets the CSS cursor for the canvas (managed → page).</summary>
+    /// <summary>
+    /// Sets the page title. A browser tab is where this application's caption lives, so the
+    /// document's name goes here rather than into a title bar it does not have.
+    /// </summary>
+    [JSImport("writer.setTitle", "main.js")]
+    internal static partial void SetTitle(string title);
+
     [JSImport("writer.setCursor", "main.js")]
     internal static partial void SetCursor(string cursor);
 

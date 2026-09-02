@@ -67,7 +67,14 @@ internal static class LinuxWriterRunner
             () => clipboard is not null && clipboard.TryGetText(out string text) ? text : null,
             text => clipboard?.SetText(text),
             getRenderer: () => renderer);
-        using WriterApp app = new(host, () => closeRequested = true, documentFormats: documentFormats);
+        // The X11 window can be renamed now, so the Linux head tracks the open document in its
+        // title bar the way the Windows one does. Offscreen there is no window to rename, and the
+        // callback is simply absent rather than a no-op that pretends otherwise.
+        using WriterApp app = new(
+            host,
+            () => closeRequested = true,
+            documentFormats: documentFormats,
+            setWindowTitle: x11Window is null ? null : x11Window.SetTitle);
 
         await using LinuxInputCoordinator input = new(canUseEvdev, Console.WriteLine, externalPointer: x11Window is not null);
         await input.InitializeAsync(cancellationToken).ConfigureAwait(false);
