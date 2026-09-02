@@ -72,7 +72,7 @@ internal sealed class WriterApp : IDisposable
     private IReadOnlyList<DocumentDiagnostic> _lastReadDiagnostics = Array.Empty<DocumentDiagnostic>();
     private string _lastReadFileName = "this document";
 
-    private static readonly BSize FileDialogPreferredSize = new(740, 430);
+    private static readonly BSize FileDialogPreferredSize = new(820, 520);
     private static readonly BSize FontDialogPreferredSize = new(520, 322);
     private static readonly UiFileDialogFilter[] OpenPictureFileFilters =
     [
