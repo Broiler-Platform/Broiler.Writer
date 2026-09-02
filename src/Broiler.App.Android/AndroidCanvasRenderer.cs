@@ -156,6 +156,9 @@ public sealed class AndroidCanvasRenderer : IBroilerRenderer
                 using (var rect = ToRectF(strokeRounded.Rect))
                     canvas.DrawRoundRect(rect, (float)strokeRounded.RadiusX, (float)strokeRounded.RadiusY, _paint);
                 break;
+            case BRenderCommand.FillTriangle triangle:
+                FillTriangle(canvas, triangle);
+                break;
             case BRenderCommand.DrawText text:
                 DrawText(canvas, text);
                 break;
@@ -181,7 +184,29 @@ public sealed class AndroidCanvasRenderer : IBroilerRenderer
             case BRenderCommand.PopTransform:
                 canvas.Restore();
                 break;
+
+            // A command this renderer has never heard of is a bug somewhere, but dropping it
+            // silently makes that bug invisible on device and visible nowhere else - this switch
+            // had no default arm at all, so a new command kind compiled cleanly and simply did not
+            // draw on Android. Say so instead.
+            default:
+                throw new NotSupportedException($"Unknown render command: {command.GetType().Name}");
         }
+    }
+
+    /// <summary>
+    /// Fills a triangle. Android's Canvas has no triangle call either, so the three corners become
+    /// a closed Path - the same shape every other backend draws, which is the point of the command.
+    /// </summary>
+    private void FillTriangle(Canvas canvas, BRenderCommand.FillTriangle command)
+    {
+        ConfigureFill(command.Color);
+        using var path = new global::Android.Graphics.Path();
+        path.MoveTo((float)command.A.X, (float)command.A.Y);
+        path.LineTo((float)command.B.X, (float)command.B.Y);
+        path.LineTo((float)command.C.X, (float)command.C.Y);
+        path.Close();
+        canvas.DrawPath(path, _paint);
     }
 
     private void DrawText(Canvas canvas, BRenderCommand.DrawText command)

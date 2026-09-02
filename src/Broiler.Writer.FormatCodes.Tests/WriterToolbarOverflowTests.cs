@@ -8,15 +8,34 @@ using Broiler.UI.Toolbar;
 namespace Broiler.Writer.FormatCodes.Tests;
 
 /// <summary>
-/// The Writer's toolbar is wider than the window every head opens, and it clips
-/// rather than wraps. What does not fit goes behind the chevron at its end, so
+/// The Writer's toolbar does not wrap. What does not fit goes behind the chevron at its end, so
 /// no command is drawn past the edge and left unreachable.
 /// </summary>
+/// <remarks>
+/// These used to run at the Windows head's own 1120px, because the bar of text buttons was wider
+/// than any window it opened in. Icon buttons brought its natural width down to well under that,
+/// so the head no longer overflows at all - which is the point of the change, and means the
+/// overflow behaviour has to be exercised at a width that still triggers it. 1120 is now the case
+/// that must NOT overflow, and <see cref="NarrowWidth"/> is the one that must.
+/// </remarks>
 public sealed class WriterToolbarOverflowTests
 {
-    /// <summary>The client size the Windows head asks for, which is where this first showed.</summary>
+    /// <summary>The client size the Windows head asks for. The whole bar fits here now.</summary>
     private const double WindowsHeadWidth = 1120;
     private const double WindowsHeadHeight = 780;
+
+    /// <summary>
+    /// Narrow enough that the last group overflows. Chosen by reading the bar's own DesiredSize
+    /// (896) rather than guessed at, and left a wide margin below it so a future icon a few pixels
+    /// wider does not silently stop this from overflowing.
+    /// </summary>
+    private const double NarrowWidth = 800;
+
+    /// <summary>
+    /// Narrower still: enough that the zoom picker itself lands in the drop-down. The picker is
+    /// the eighth control on the bar, so most of it has to overflow before the picker does.
+    /// </summary>
+    private const double PickerOverflowWidth = 340;
 
     [Fact(Timeout = 600000)]
     public void The_Bar_Overflows_Rather_Than_Clipping()
@@ -71,12 +90,15 @@ public sealed class WriterToolbarOverflowTests
     {
         using WriterApp app = CreateApp();
         app.RenderFrame();
-        Assert.DoesNotContain("Outdent", DrawnText(app));
+
+        // By name rather than by drawn text: Outdent is an icon now, and its caption survives only
+        // as the name it reports - which is exactly what a screen reader and the drop-down use.
+        Assert.DoesNotContain(app.Toolbar.Children, child => IsOnTheBar(app, child, "Outdent"));
 
         Click(app, Middle(app.Toolbar.OverflowButtonBounds));
 
         Assert.True(app.Toolbar.IsOverflowOpen);
-        Assert.Contains("Outdent", DrawnText(app));
+        Assert.Contains(app.Toolbar.OverflowItems, item => IsLabelled(app, item, "Outdent"));
     }
 
     [Fact(Timeout = 600000)]
@@ -98,13 +120,12 @@ public sealed class WriterToolbarOverflowTests
     [Fact(Timeout = 600000)]
     public void A_Window_Wide_Enough_For_Everything_Shows_No_Chevron()
     {
-        using WriterApp app = CreateApp(2200, WindowsHeadHeight);
-
-        string[] drawn = DrawnText(app);
+        using WriterApp app = CreateApp(WindowsHeadWidth, WindowsHeadHeight);
+        app.RenderFrame();
 
         Assert.Empty(app.Toolbar.OverflowItems);
-        Assert.DoesNotContain("»", drawn);
-        Assert.Contains("Outdent", drawn);
+        Assert.DoesNotContain("»", DrawnText(app));
+        Assert.Contains(app.Toolbar.Children, child => IsOnTheBar(app, child, "Outdent"));
     }
 
     [Fact(Timeout = 600000)]
@@ -113,7 +134,7 @@ public sealed class WriterToolbarOverflowTests
         // Narrow enough that the zoom group overflows too. The picker has a list
         // of its own, and a list inside a list is the case the bar has to route
         // rather than read as a press on itself.
-        using WriterApp app = CreateApp(480, 820);
+        using WriterApp app = CreateApp(PickerOverflowWidth, 820);
         app.RenderFrame();
         StandardComboBox picker = Assert.Single(app.Toolbar.OverflowItems.OfType<StandardComboBox>());
 
@@ -138,7 +159,7 @@ public sealed class WriterToolbarOverflowTests
 
     // --- Harness -----------------------------------------------------------
 
-    private static WriterApp CreateApp(double width = WindowsHeadWidth, double height = WindowsHeadHeight)
+    private static WriterApp CreateApp(double width = NarrowWidth, double height = WindowsHeadHeight)
     {
         var host = new WriterUiHost(
             () => new BSize(width, height),
@@ -147,6 +168,13 @@ public sealed class WriterToolbarOverflowTests
             _ => { });
         return new WriterApp(host, () => { });
     }
+
+    /// <summary>Whether a control is on the bar under the given name, rather than in the drop-down.</summary>
+    private static bool IsOnTheBar(WriterApp app, UiElement child, string text) =>
+        child.Visibility == UiVisibility.Visible &&
+        !app.Toolbar.OverflowItems.Contains(child) &&
+        child.Bounds.Width > 0 &&
+        IsLabelled(app, child, text);
 
     private static string[] DrawnText(WriterApp app) =>
         app.RenderFrame().Commands

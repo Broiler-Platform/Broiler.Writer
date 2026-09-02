@@ -315,6 +315,8 @@ setModuleImports('main.js', {
     writer: {
         scheduleFrame: () => scheduleFrame(),
         setCursor: cursor => { if (canvas) canvas.style.cursor = CURSORS[cursor] || 'default'; },
+        // The tab is this application's title bar, so the open document's name belongs here.
+        setTitle: title => { document.title = title; },
         ready: (logicalWidth, logicalHeight) => {
             attachInput();
             observedWidth = Math.max(1, Math.round(host.clientWidth || logicalWidth));

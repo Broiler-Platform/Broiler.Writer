@@ -35,6 +35,7 @@ using Broiler.UI.Splitter.Standard;
 using Broiler.UI.ToggleButton.Standard;
 using Broiler.UI.Toolbar;
 using Broiler.UI.Toolbar.Standard;
+using Broiler.UI.Tooltip.Standard;
 using Broiler.UI.Window.Standard;
 using Broiler.Writer.FormatCodes;
 
@@ -69,8 +70,15 @@ internal sealed class BrowserWriterDemo : IDisposable
     private readonly WriterContent _content;
     private readonly StandardMenu _menu;
     private readonly StandardToolbar _toolbar;
-    private readonly StandardLabel _title;
+    private readonly StandardLabel _paneHeader;
     private readonly StandardLabel _status;
+    private readonly StandardLabel _statusState;
+    private string _documentName = UntitledDocumentName;
+    private bool _isModified;
+    private int _replacingDocument;
+    private string? _problem;
+    private readonly StandardTooltip _tooltip;
+    private readonly StandardTooltipController _tooltips;
     private readonly DocumentCodecCatalog _documentCatalog = new(new DocumentCodec[]
     {
         new RtfDocumentCodec(),
@@ -162,15 +170,25 @@ internal sealed class BrowserWriterDemo : IDisposable
 
         _menu = CreateMenu();
         _toolbar = CreateToolbar();
-        _title = new StandardLabel
+        // The document's name is the page title now, where a browser expects to find it, so the
+        // heading that used to repeat it inside the window is gone and the workspace starts
+        // directly under the toolbar.
+        _paneHeader = new StandardLabel
         {
-            Text = "Untitled document",
-            Font = new BFontStyle("Segoe UI", 20, BFontWeight.SemiBold),
-            Foreground = WriterPalette.Title,
+            Text = "Formatting Codes",
+            Font = new BFontStyle("Segoe UI", 12, BFontWeight.SemiBold),
+            Foreground = WriterPalette.Muted,
         };
         _status = new StandardLabel
         {
-            Text = "Ready",
+            Text = string.Empty,
+            Font = new BFontStyle("Segoe UI", 13),
+            Foreground = WriterPalette.Muted,
+            Trimming = UiTextTrimming.CharacterEllipsis,
+        };
+        _statusState = new StandardLabel
+        {
+            Text = string.Empty,
             Font = new BFontStyle("Segoe UI", 13),
             Foreground = WriterPalette.Muted,
             Trimming = UiTextTrimming.CharacterEllipsis,
@@ -184,18 +202,41 @@ internal sealed class BrowserWriterDemo : IDisposable
             ActiveBorderColor = WriterPalette.Accent,
             BorderThickness = 1,
         };
+        // Icon buttons say nothing about themselves, so resting on one has to name the command.
+        _tooltip = new StandardTooltip
+        {
+            Font = new BFontStyle("Segoe UI", 12),
+            Background = WriterPalette.MenuPopup,
+            Foreground = WriterPalette.Title,
+            BorderColor = WriterPalette.EditorBorder,
+        };
+        _tooltips = new StandardTooltipController(_tooltip);
         _content = new WriterContent(
-            _menu, _toolbar, _title, _editor, _formatCodesSplitter, _formatCodesView, _status);
+            _menu,
+            _toolbar,
+            _editor,
+            _formatCodesSplitter,
+            _paneHeader,
+            _formatCodesView,
+            _status,
+            _statusState);
         _rootWindow.AddChild(_content);
+        _rootWindow.OpenOwnedWindow(_tooltip, new BRect(0, 0, 1, 1));
+        _tooltip.Deactivate();
 
         SeedDocument();
+        UpdateWindowTitle();
         _formatCodesController = new WriterFormatCodesController(
             _editor, _formatCodesView, _session.Dispatcher);
         _session.AddRoot(_rootWindow);
         _session.SetFocus(_editor);
 
         _editor.SelectionChanged += (_, _) => RefreshUi();
-        _editor.DocumentChanged += (_, _) => RefreshUi();
+        _editor.DocumentChanged += (_, _) =>
+        {
+            MarkModified();
+            RefreshUi();
+        };
         _editor.CommandExecuted += (_, e) =>
         {
             if (e.Command != RichEditCommand.InsertText)
@@ -242,6 +283,11 @@ internal sealed class BrowserWriterDemo : IDisposable
 
         _dispatcher.Drain();
         _host.BeginFrame();
+        // A tooltip counting out its delay needs frames to notice the clock, and an animation
+        // frame is what a browser has instead of a timer. Only while one is waiting.
+        if (_tooltips.Tick() || _tooltips.IsWaiting)
+            BrowserInterop.ScheduleFrame();
+
         _session.RenderFrame();
         PublishFrameState();
     }
@@ -254,6 +300,8 @@ internal sealed class BrowserWriterDemo : IDisposable
                 Header(PointerDevice, timestampMilliseconds),
                 InputPoint.ClientDeviceIndependentPixels(x, y),
                 _buttons)));
+            if (_tooltips.PointerMoved(new BPoint(x, y)))
+                BrowserInterop.ScheduleFrame();
             UpdateCursor(x, y);
         });
 
@@ -386,12 +434,15 @@ internal sealed class BrowserWriterDemo : IDisposable
                 DocumentReadResult result = ReadDocument(name, bytes);
                 _currentDocumentName = name;
                 _hasSavedName = true;
-                _title.Text = name;
+                SetDocumentName(name, modified: false);
                 _lastAction = result.Diagnostics.Count == 0
                     ? "Opened " + name
                     : "Opened " + name + " with " + result.Diagnostics.Count.ToString(CultureInfo.InvariantCulture) + " note(s)";
-                _editor.Document = result.Document;
-                _editor.Selection = RichTextRange.Caret(_editor.Document.Start);
+                ReplaceDocument(() =>
+                {
+                    _editor.Document = result.Document;
+                    _editor.Selection = RichTextRange.Caret(_editor.Document.Start);
+                });
                 _session.SetFocus(_editor);
             }
             catch (Exception ex) when (IsDocumentException(ex))
@@ -660,15 +711,24 @@ internal sealed class BrowserWriterDemo : IDisposable
 
     // ---- Toolbar ----------------------------------------------------------------------------
 
+    /// <summary>The side of an icon button, and of the icon inside it.</summary>
+    private const double IconButtonExtent = 30;
+
+    private const double IconExtent = 16;
+
     private StandardToolbar CreateToolbar()
     {
         var toolbar = new StandardToolbar
         {
             Title = "Document toolbar",
-            PreferredSize = new BSize(0, 42),
+            PreferredSize = new BSize(0, 40),
             Orientation = UiToolbarOrientation.Horizontal,
             Padding = 5,
-            Spacing = 4,
+            Spacing = 3,
+
+            // Groups are opened with space rather than with rules. Six drawn lines across the bar
+            // would be the heaviest thing in the window.
+            GroupExtent = 9,
             Background = WriterPalette.ToolbarSurface,
             BorderColor = WriterPalette.MenuRule,
             SeparatorColor = WriterPalette.MenuRule,
@@ -681,31 +741,36 @@ internal sealed class BrowserWriterDemo : IDisposable
             Font = new BFontStyle("Segoe UI", 15),
         };
 
-        StandardButton newButton = ToolbarAction("New", 50, NewDocument);
-        StandardButton openButton = ToolbarAction("Open", 56, RequestOpenDocument);
-        StandardButton saveButton = ToolbarAction("Save", 54, SaveDocument);
-        StandardButton saveAsButton = ToolbarAction("Save As", 62, SaveDocumentAs);
-        StandardButton undoButton = ToolbarCommand("Undo", RichEditCommand.Undo, 52);
-        StandardButton redoButton = ToolbarCommand("Redo", RichEditCommand.Redo, 52);
-        StandardButton fontButton = ToolbarAction("Font...", 62, ShowFontDialog);
+        StandardButton newButton = ToolbarAction("New", "New document (Ctrl+N)", NewDocument, WriterIcons.NewDocument);
+        StandardButton openButton = ToolbarAction("Open", "Open... (Ctrl+O)", RequestOpenDocument, WriterIcons.OpenDocument);
+        StandardButton saveButton = ToolbarAction("Save", "Save (Ctrl+S)", SaveDocument, WriterIcons.Save);
+        StandardButton saveAsButton = ToolbarAction("Save as", "Save as...", SaveDocumentAs, WriterIcons.SaveAs);
+        StandardButton undoButton = ToolbarCommand("Undo", "Undo (Ctrl+Z)", RichEditCommand.Undo, WriterIcons.Undo);
+        StandardButton redoButton = ToolbarCommand("Redo", "Redo (Ctrl+Y)", RichEditCommand.Redo, WriterIcons.Redo);
+
+        // Font and the zoom level keep their words: a typeface name and a percentage are values,
+        // not commands, and no picture states either of them. B, I, U and S stay letters for the
+        // same reason in reverse - a letterform is the one icon a font draws better than geometry.
+        StandardButton fontButton = ToolbarText("Font...", "Font...", 62, ShowFontDialog);
         _fontToolbarButton = fontButton;
-        StandardToggleButton boldButton = ToolbarToggle("B", RichEditCommand.Bold, 34, BFontWeight.Bold);
-        StandardToggleButton italicButton = ToolbarToggle("I", RichEditCommand.Italic, 34, BFontWeight.Normal, BFontSlant.Italic);
-        StandardToggleButton underlineButton = ToolbarToggle("U", RichEditCommand.Underline, 34, BFontWeight.Normal);
-        StandardToggleButton strikeButton = ToolbarToggle("S", RichEditCommand.Strikethrough, 34, BFontWeight.Normal);
-        StandardButton clearButton = ToolbarCommand("Clear", RichEditCommand.ClearFormatting, 54);
-        StandardToggleButton leftButton = ToolbarToggle("Left", RichEditCommand.AlignLeft, 48, BFontWeight.Normal);
-        StandardToggleButton centerButton = ToolbarToggle("Center", RichEditCommand.AlignCenter, 54, BFontWeight.Normal);
-        StandardToggleButton rightButton = ToolbarToggle("Right", RichEditCommand.AlignRight, 48, BFontWeight.Normal);
-        StandardToggleButton bulletsButton = ToolbarToggle("Bullets", RichEditCommand.BulletList, 58, BFontWeight.Normal);
-        StandardToggleButton numberedButton = ToolbarToggle("Numbered", RichEditCommand.NumberedList, 70, BFontWeight.Normal);
-        StandardButton indentButton = ToolbarCommand("Indent", RichEditCommand.Indent, 58);
-        StandardButton outdentButton = ToolbarCommand("Outdent", RichEditCommand.Outdent, 64);
+        StandardToggleButton boldButton = ToolbarToggle("B", "Bold (Ctrl+B)", RichEditCommand.Bold, BFontWeight.Bold);
+        StandardToggleButton italicButton = ToolbarToggle("I", "Italic (Ctrl+I)", RichEditCommand.Italic, BFontWeight.Normal, BFontSlant.Italic);
+        StandardToggleButton underlineButton = ToolbarToggle("U", "Underline (Ctrl+U)", RichEditCommand.Underline, BFontWeight.Normal);
+        StandardToggleButton strikeButton = ToolbarToggle("S", "Strikethrough", RichEditCommand.Strikethrough, BFontWeight.Normal);
+        StandardButton clearButton = ToolbarCommand("Clear", "Clear formatting", RichEditCommand.ClearFormatting, WriterIcons.ClearFormatting);
+        StandardToggleButton leftButton = ToolbarToggle("Left", "Align left (Ctrl+L)", RichEditCommand.AlignLeft, BFontWeight.Normal, icon: WriterIcons.AlignLeft);
+        StandardToggleButton centerButton = ToolbarToggle("Center", "Align center (Ctrl+E)", RichEditCommand.AlignCenter, BFontWeight.Normal, icon: WriterIcons.AlignCenter);
+        StandardToggleButton rightButton = ToolbarToggle("Right", "Align right (Ctrl+R)", RichEditCommand.AlignRight, BFontWeight.Normal, icon: WriterIcons.AlignRight);
+        StandardToggleButton bulletsButton = ToolbarToggle("Bullets", "Bullet list", RichEditCommand.BulletList, BFontWeight.Normal, icon: WriterIcons.BulletList);
+        StandardToggleButton numberedButton = ToolbarToggle("Numbered", "Numbered list", RichEditCommand.NumberedList, BFontWeight.Normal, icon: WriterIcons.NumberedList);
+        StandardButton indentButton = ToolbarCommand("Indent", "Indent", RichEditCommand.Indent, WriterIcons.Indent);
+        StandardButton outdentButton = ToolbarCommand("Outdent", "Outdent", RichEditCommand.Outdent, WriterIcons.Outdent);
+
         // Ahead of the formatting groups rather than after them: this toolbar is
         // already wider than the window it opens in, and a control at the end is
         // one the user never sees.
-        StandardButton zoomOutButton = ToolbarAction("-", 30, () => StepZoom(WriterZoomStep.Out));
-        StandardButton zoomInButton = ToolbarAction("+", 30, () => StepZoom(WriterZoomStep.In));
+        StandardButton zoomOutButton = ToolbarText("-", "Zoom out (Ctrl+minus)", IconButtonExtent, () => StepZoom(WriterZoomStep.Out));
+        StandardButton zoomInButton = ToolbarText("+", "Zoom in (Ctrl+plus)", IconButtonExtent, () => StepZoom(WriterZoomStep.In));
         StandardComboBox zoomCombo = CreateZoomCombo();
         _zoomCombo = zoomCombo;
 
@@ -732,18 +797,25 @@ internal sealed class BrowserWriterDemo : IDisposable
         toolbar.AddChild(indentButton);
         toolbar.AddChild(outdentButton);
 
-        toolbar.SetSeparatorBefore(undoButton, true);
-        toolbar.SetSeparatorBefore(zoomOutButton, true);
-        toolbar.SetSeparatorBefore(fontButton, true);
-        toolbar.SetSeparatorBefore(leftButton, true);
-        toolbar.SetSeparatorBefore(indentButton, true);
+        // File | history | zoom | character | paragraph | lists | indent, all gaps and no rules.
+        toolbar.SetBreakBefore(undoButton, UiToolbarBreak.Gap);
+        toolbar.SetBreakBefore(zoomOutButton, UiToolbarBreak.Gap);
+        toolbar.SetBreakBefore(fontButton, UiToolbarBreak.Gap);
+        toolbar.SetBreakBefore(leftButton, UiToolbarBreak.Gap);
+        toolbar.SetBreakBefore(bulletsButton, UiToolbarBreak.Gap);
+        toolbar.SetBreakBefore(indentButton, UiToolbarBreak.Gap);
 
         return toolbar;
     }
 
-    private StandardButton ToolbarAction(string text, double width, Action action)
+    /// <summary>An icon button that runs an application action.</summary>
+    private StandardButton ToolbarAction(
+        string text,
+        string tip,
+        Action action,
+        Action<BRenderList, BRect, BColor> icon)
     {
-        StandardButton button = CreateToolbarButton(text, width);
+        StandardButton button = CreateToolbarButton(text, tip, IconButtonExtent, icon);
         button.Clicked += (_, _) =>
         {
             action();
@@ -752,9 +824,25 @@ internal sealed class BrowserWriterDemo : IDisposable
         return button;
     }
 
-    private StandardButton ToolbarCommand(string text, RichEditCommand command, double width)
+    /// <summary>A button that keeps its caption, for the values no picture states.</summary>
+    private StandardButton ToolbarText(string text, string tip, double width, Action action)
     {
-        StandardButton button = CreateToolbarButton(text, width);
+        StandardButton button = CreateToolbarButton(text, tip, width, icon: null);
+        button.Clicked += (_, _) =>
+        {
+            action();
+            RefreshUi();
+        };
+        return button;
+    }
+
+    private StandardButton ToolbarCommand(
+        string text,
+        string tip,
+        RichEditCommand command,
+        Action<BRenderList, BRect, BColor> icon)
+    {
+        StandardButton button = CreateToolbarButton(text, tip, IconButtonExtent, icon);
         button.Clicked += (_, _) => RunRichEditCommand(command);
         _toolbarActionButtons.Add((button, command));
         return button;
@@ -762,18 +850,22 @@ internal sealed class BrowserWriterDemo : IDisposable
 
     private StandardToggleButton ToolbarToggle(
         string text,
+        string tip,
         RichEditCommand command,
-        double width,
         BFontWeight weight,
-        BFontSlant slant = BFontSlant.Normal)
+        BFontSlant slant = BFontSlant.Normal,
+        Action<BRenderList, BRect, BColor>? icon = null)
     {
         var button = new StandardToggleButton
         {
             Text = text,
-            PreferredSize = new BSize(width, 30),
+            ToolTipText = tip,
+            PreferredSize = new BSize(IconButtonExtent, IconButtonExtent),
             Font = new BFontStyle("Segoe UI", 13, weight, slant),
-            PaddingX = 8,
+            PaddingX = 7,
             PaddingY = 5,
+            IconPainter = icon,
+            IconExtent = IconExtent,
             Background = WriterPalette.ToolbarButton,
             CheckedBackground = WriterPalette.ToolbarButtonActive,
             IndeterminateBackground = WriterPalette.ToolbarButtonActive,
@@ -790,14 +882,23 @@ internal sealed class BrowserWriterDemo : IDisposable
         return button;
     }
 
-    private static StandardButton CreateToolbarButton(string text, double width) =>
+    private static StandardButton CreateToolbarButton(
+        string text,
+        string tip,
+        double width,
+        Action<BRenderList, BRect, BColor>? icon) =>
         new()
         {
+            // The caption stays set even when an icon is what gets drawn: it is the name the
+            // button reports to a screen reader, and the name the overflow drop-down finds it by.
             Text = text,
-            PreferredSize = new BSize(width, 30),
+            ToolTipText = tip,
+            PreferredSize = new BSize(width, IconButtonExtent),
             Font = new BFontStyle("Segoe UI", 13),
-            PaddingX = 8,
+            PaddingX = 7,
             PaddingY = 5,
+            IconPainter = icon,
+            IconExtent = IconExtent,
             Background = WriterPalette.ToolbarButton,
             Foreground = WriterPalette.Title,
             BorderColor = WriterPalette.ToolbarButtonBorder,
@@ -837,8 +938,8 @@ internal sealed class BrowserWriterDemo : IDisposable
     {
         _currentDocumentName = "Untitled document";
         _hasSavedName = false;
-        _editor.SetPlainText(string.Empty);
-        _title.Text = "Untitled document";
+        ReplaceDocument(() => _editor.SetPlainText(string.Empty));
+        SetDocumentName(UntitledDocumentName, modified: false);
         _lastAction = "New document";
         _session.SetFocus(_editor);
         RefreshUi();
@@ -885,7 +986,7 @@ internal sealed class BrowserWriterDemo : IDisposable
             BrowserInterop.DownloadFile(resolved, Convert.ToBase64String(bytes));
             _currentDocumentName = resolved;
             _hasSavedName = true;
-            _title.Text = resolved;
+            SetDocumentName(resolved, modified: false);
             _lastAction = result.Diagnostics.Count == 0
                 ? "Saved " + resolved
                 : "Saved " + resolved + " with " + result.Diagnostics.Count.ToString(CultureInfo.InvariantCulture) + " note(s)";
@@ -1087,7 +1188,7 @@ internal sealed class BrowserWriterDemo : IDisposable
             caret?.SelectionStart ?? 0,
             caret?.SelectionLength ?? 0,
             focusedIsText,
-            _status.Text,
+            _status.Text + " · " + _statusState.Text,
             darkTheme: false);
     }
 
@@ -1095,10 +1196,10 @@ internal sealed class BrowserWriterDemo : IDisposable
 
     private void SeedDocument()
     {
-        _editor.SetPlainText(
+        ReplaceDocument(() => _editor.SetPlainText(
             "Broiler Writer\n" +
             "This browser build is a Broiler.UI window with a Broiler-rendered menu and StandardRichEdit document surface, presented through the direct-Canvas 2D backend.\n" +
-            "Use the Edit and Format menus, or keyboard shortcuts such as Ctrl+B, Ctrl+I, Ctrl+U, Ctrl+Z, and Ctrl+Y. Open and Save round-trip through the Broiler.Documents RTF, DOCX, HTML, and Markdown codecs.");
+            "Use the Edit and Format menus, or keyboard shortcuts such as Ctrl+B, Ctrl+I, Ctrl+U, Ctrl+Z, and Ctrl+Y. Open and Save round-trip through the Broiler.Documents RTF, DOCX, HTML, and Markdown codecs."));
 
         RichTextPosition start = _editor.Document.Start;
         RichTextPosition end = _editor.Document.ParagraphEnd(start);
@@ -1183,23 +1284,80 @@ internal sealed class BrowserWriterDemo : IDisposable
         if (_zoomCombo is not null && zoomIndex >= 0)
             _zoomCombo.SelectIndex(zoomIndex);
 
-        _status.Text = BuildStatus();
+        _status.Text = BuildStatusFacts();
+        _statusState.Text = BuildStatusState();
         BrowserInterop.ScheduleFrame();
     }
 
-    private string BuildStatus()
+    /// <summary>What the status line says on the left: what is in the document.</summary>
+    private string BuildStatusFacts()
     {
         int paragraphs = _editor.Document.ParagraphCount;
         int chars = _editor.GetPlainText().Length;
-        string selection = _editor.Selection.IsEmpty ? "No selection" : "Selection active";
-        string style = CurrentStyleText();
         string paragraphText = paragraphs.ToString(CultureInfo.InvariantCulture) + (paragraphs == 1 ? " paragraph" : " paragraphs");
         string charText = chars.ToString(CultureInfo.InvariantCulture) + (chars == 1 ? " character" : " characters");
-        string pane = _content.IsFormatCodesVisible
-            ? (_formatCodesController.IsProjectionPending ? "Formatting Codes updating" : "Formatting Codes shown")
-            : "Formatting Codes hidden";
-        return paragraphText + " | " + charText + " | " + selection + " | " + style +
-               " | " + WriterZoom.Describe(_zoom) + " | " + pane + " | " + _lastAction;
+        string facts = paragraphText + " · " + charText;
+        return _editor.Selection.IsEmpty ? facts : facts + " · selection";
+    }
+
+    /// <summary>
+    /// What it says on the right: the state you are working in, and anything that went wrong.
+    /// </summary>
+    private string BuildStatusState()
+    {
+        string state = CurrentStyleText() + " · " + WriterZoom.Describe(_zoom);
+        return _problem is null ? state : _problem + " · " + state;
+    }
+
+    /// <summary>What a document with no file behind it is called.</summary>
+    private const string UntitledDocumentName = "Untitled document";
+
+    /// <summary>The application's own name, which the page title ends with.</summary>
+    private const string ApplicationName = "Broiler Writer";
+
+    /// <summary>
+    /// Names the document, and says whether it has unsaved changes. In a browser the page title is
+    /// the caption, so that is where it goes.
+    /// </summary>
+    private void SetDocumentName(string? name, bool modified)
+    {
+        _problem = null;
+        _documentName = string.IsNullOrWhiteSpace(name) ? UntitledDocumentName : name;
+        _isModified = modified;
+        UpdateWindowTitle();
+    }
+
+    private void MarkModified()
+    {
+        // A load raises DocumentChanged exactly as a keystroke does.
+        if (_replacingDocument > 0 || _isModified)
+            return;
+
+        _isModified = true;
+        UpdateWindowTitle();
+    }
+
+    private void ReplaceDocument(Action replace)
+    {
+        _replacingDocument++;
+        try
+        {
+            replace();
+        }
+        finally
+        {
+            _replacingDocument--;
+        }
+    }
+
+    /// <summary>The page title: the document, then the application, with a dot for unsaved changes.</summary>
+    internal string WindowTitle =>
+        (_isModified ? "• " : string.Empty) + _documentName + " — " + ApplicationName;
+
+    private void UpdateWindowTitle()
+    {
+        _rootWindow.Title = WindowTitle;
+        BrowserInterop.SetTitle(WindowTitle);
     }
 
     private string CurrentStyleText()
@@ -1249,49 +1407,69 @@ internal sealed class BrowserWriterDemo : IDisposable
     ];
 
     // ---- Layout -----------------------------------------------------------------------------
-
+    /// <summary>
+    /// The window's contents: menu, toolbar, document, the Formatting Codes panel, and the status
+    /// line.
+    /// </summary>
+    /// <remarks>
+    /// The document's name used to sit here as a large heading above the editor. It has moved to
+    /// the title bar, which is where an application says what is open; repeating it inside the
+    /// window cost a row of vertical space and said nothing the caption did not. The workspace
+    /// starts directly under the toolbar now.
+    ///
+    /// Formatting Codes is a panel rather than a second editor that happens to be underneath one.
+    /// It has a header naming it and a splitter drawn as its top edge, so it reads as something
+    /// attached to the window rather than as a document that lost its frame - and when it is
+    /// hidden, its header and splitter go with it and the document takes the whole space.
+    /// </remarks>
     private sealed class WriterContent : UiElement
     {
         private const double Margin = 24;
-        private const double TitleTop = 18;
-        private const double ToolbarHeight = 42;
-        private const double StatusHeight = 24;
+        private const double ToolbarHeight = 40;
+        private const double WorkspaceTop = 14;
+        private const double StatusHeight = 22;
+        private const double StatusGap = 12;
+        private const double PaneHeaderHeight = 20;
         private const double MinWidth = 900;
         private const double MinHeight = 620;
 
         private readonly StandardMenu _menu;
         private readonly StandardToolbar _toolbar;
-        private readonly StandardLabel _title;
         private readonly StandardRichEdit _editor;
         private readonly StandardSplitter _formatCodesSplitter;
+        private readonly StandardLabel _paneHeader;
         private readonly StandardFormatCodeView _formatCodesView;
         private readonly StandardLabel _status;
+        private readonly StandardLabel _statusState;
         private bool _isFormatCodesVisible = true;
 
         public WriterContent(
             StandardMenu menu,
             StandardToolbar toolbar,
-            StandardLabel title,
             StandardRichEdit editor,
             StandardSplitter formatCodesSplitter,
+            StandardLabel paneHeader,
             StandardFormatCodeView formatCodesView,
-            StandardLabel status)
+            StandardLabel status,
+            StandardLabel statusState)
         {
             _menu = menu;
             _toolbar = toolbar;
-            _title = title;
             _editor = editor;
             _formatCodesSplitter = formatCodesSplitter;
+            _paneHeader = paneHeader;
             _formatCodesView = formatCodesView;
             _status = status;
+            _statusState = statusState;
 
             AddChild(_menu);
             AddChild(_toolbar);
-            AddChild(_title);
             AddChild(_editor);
             AddChild(_formatCodesSplitter);
+            AddChild(_paneHeader);
             AddChild(_formatCodesView);
             AddChild(_status);
+            AddChild(_statusState);
         }
 
         public bool IsFormatCodesVisible
@@ -1302,58 +1480,84 @@ internal sealed class BrowserWriterDemo : IDisposable
                 if (_isFormatCodesVisible == value)
                     return;
                 _isFormatCodesVisible = value;
-                _formatCodesSplitter.Visibility = value ? UiVisibility.Visible : UiVisibility.Collapsed;
-                _formatCodesView.Visibility = value ? UiVisibility.Visible : UiVisibility.Collapsed;
+                UiVisibility visibility = value ? UiVisibility.Visible : UiVisibility.Collapsed;
+                _formatCodesSplitter.Visibility = visibility;
+                _paneHeader.Visibility = visibility;
+                _formatCodesView.Visibility = visibility;
                 Invalidate(UiInvalidationKind.Measure | UiInvalidationKind.Arrange | UiInvalidationKind.Render);
             }
         }
 
+        /// <summary>The height the pane's own chrome takes above the code view, or zero when hidden.</summary>
+        private double PaneChromeHeight =>
+            _isFormatCodesVisible ? WriterFormatCodesLayout.SplitterThickness + PaneHeaderHeight : 0;
+
         protected override BSize MeasureCore(BSize availableSize)
         {
-            double width = double.IsInfinity(availableSize.Width) ? MinWidth : Math.Max(MinWidth, availableSize.Width);
-            double height = double.IsInfinity(availableSize.Height) ? MinHeight : Math.Max(MinHeight, availableSize.Height);
+            double width = double.IsInfinity(availableSize.Width) ? MinWidth : Math.Max(0, availableSize.Width);
+            double height = double.IsInfinity(availableSize.Height) ? MinHeight : Math.Max(0, availableSize.Height);
             double contentWidth = Math.Max(0, width - (Margin * 2));
 
             _menu.Measure(new BSize(width, _menu.MenuBarHeight));
             _toolbar.Measure(new BSize(width, ToolbarHeight));
-            _title.Measure(new BSize(contentWidth, double.PositiveInfinity));
-            _editor.Measure(new BSize(contentWidth, Math.Max(240, height - 182)));
+            _editor.Measure(new BSize(contentWidth, Math.Max(240, height - ChromeHeight())));
             if (_isFormatCodesVisible)
             {
                 _formatCodesSplitter.Measure(new BSize(contentWidth, WriterFormatCodesLayout.SplitterThickness));
+                _paneHeader.Measure(new BSize(contentWidth, PaneHeaderHeight));
                 _formatCodesView.Measure(new BSize(contentWidth, Math.Max(WriterFormatCodesLayout.MinimumPaneHeight, height * 0.25)));
             }
             _status.Measure(new BSize(contentWidth, StatusHeight));
+            _statusState.Measure(new BSize(contentWidth, StatusHeight));
 
             return new BSize(width, height);
         }
 
+        /// <summary>
+        /// Everything above and below the workspace. Kept in one place because the editor's measure
+        /// and the arrange pass have to agree about it, and they used to agree by both containing
+        /// the number 182.
+        /// </summary>
+        private double ChromeHeight() =>
+            _menu.MenuBarHeight + ToolbarHeight + WorkspaceTop + StatusGap + StatusHeight + (Margin * 2);
+
         protected override void ArrangeCore(BRect finalRect)
         {
+            const double toolbarHeight = ToolbarHeight;
             _menu.Arrange(new BRect(finalRect.Left, finalRect.Top, finalRect.Width, _menu.MenuBarHeight));
-            _toolbar.Arrange(new BRect(finalRect.Left, finalRect.Top + _menu.MenuBarHeight, finalRect.Width, ToolbarHeight));
+            _toolbar.Arrange(new BRect(finalRect.Left, finalRect.Top + _menu.MenuBarHeight, finalRect.Width, toolbarHeight));
 
-            double x = finalRect.Left + Margin;
-            double y = finalRect.Top + _menu.MenuBarHeight + ToolbarHeight + TitleTop;
-            double width = Math.Max(0, finalRect.Width - (Margin * 2));
+            double margin = Margin;
+            double x = finalRect.Left + margin;
+            double y = finalRect.Top + _menu.MenuBarHeight + toolbarHeight + WorkspaceTop;
+            double width = Math.Max(0, finalRect.Width - (margin * 2));
 
-            _title.Arrange(new BRect(x, y, width, _title.DesiredSize.Height));
-            y += _title.DesiredSize.Height + 14;
+            double statusTop = finalRect.Bottom - margin - StatusHeight;
+            double workspaceHeight = Math.Max(0, statusTop - y - StatusGap);
 
-            double statusTop = finalRect.Bottom - Margin - StatusHeight;
-            double workspaceHeight = Math.Max(0, statusTop - y - 14);
+            // The pane's header and splitter come out of the workspace before it is split, so the
+            // ratio the splitter reports still means what it says about the two text surfaces.
+            double splitHeight = Math.Max(0, workspaceHeight - PaneChromeHeight);
             WriterFormatCodesLayoutResult layout = WriterFormatCodesLayout.Calculate(
-                workspaceHeight, _formatCodesSplitter.Value, _isFormatCodesVisible);
+                splitHeight, _formatCodesSplitter.Value, _isFormatCodesVisible);
+
             _editor.Arrange(new BRect(x, y, width, layout.EditorHeight));
             if (_isFormatCodesVisible)
             {
                 double splitterTop = y + layout.EditorHeight;
-                _formatCodesSplitter.DragExtent = Math.Max(1, workspaceHeight);
+                _formatCodesSplitter.DragExtent = Math.Max(1, splitHeight);
                 _formatCodesSplitter.Arrange(new BRect(x, splitterTop, width, layout.SplitterHeight));
-                _formatCodesView.Arrange(new BRect(
-                    x, splitterTop + layout.SplitterHeight, width, layout.PaneHeight));
+
+                double headerTop = splitterTop + layout.SplitterHeight;
+                _paneHeader.Arrange(new BRect(x, headerTop, width, PaneHeaderHeight));
+                _formatCodesView.Arrange(new BRect(x, headerTop + PaneHeaderHeight, width, layout.PaneHeight));
             }
-            _status.Arrange(new BRect(x, statusTop, width, StatusHeight));
+
+            // Facts on the left, state on the right. The right-hand label is placed by its own
+            // width rather than aligned, because a label does not align itself.
+            double stateWidth = Math.Min(width, _statusState.DesiredSize.Width);
+            _status.Arrange(new BRect(x, statusTop, Math.Max(0, width - stateWidth - 16), StatusHeight));
+            _statusState.Arrange(new BRect(x + width - stateWidth, statusTop, stateWidth, StatusHeight));
         }
 
         protected override void RenderCore(UiRenderContext context)

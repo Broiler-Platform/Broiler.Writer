@@ -52,6 +52,7 @@
     <Project Path="Broiler.UI/src/Abstractions/Shell/Broiler.UI.Dialog/Broiler.UI.Dialog.csproj" />
     <Project Path="Broiler.UI/src/Abstractions/Shell/Broiler.UI.FileDialog/Broiler.UI.FileDialog.csproj" />
     <Project Path="Broiler.UI/src/Abstractions/Shell/Broiler.UI.FontDialog/Broiler.UI.FontDialog.csproj" />
+    <Project Path="Broiler.UI/src/Abstractions/Shell/Broiler.UI.Tooltip/Broiler.UI.Tooltip.csproj" />
     <Project Path="Broiler.UI/src/Abstractions/Shell/Broiler.UI.Window/Broiler.UI.Window.csproj" />
     <Project Path="Broiler.UI/src/Abstractions/Text/Broiler.UI.Edit/Broiler.UI.Edit.csproj" />
     <Project Path="Broiler.UI/src/Abstractions/Text/Broiler.UI.FormatCodeView/Broiler.UI.FormatCodeView.csproj" />
@@ -69,6 +70,7 @@
     <Project Path="Broiler.UI/src/Implementations/Standard/Shell/Broiler.UI.Dialog.Standard/Broiler.UI.Dialog.Standard.csproj" />
     <Project Path="Broiler.UI/src/Implementations/Standard/Shell/Broiler.UI.FileDialog.Standard/Broiler.UI.FileDialog.Standard.csproj" />
     <Project Path="Broiler.UI/src/Implementations/Standard/Shell/Broiler.UI.FontDialog.Standard/Broiler.UI.FontDialog.Standard.csproj" />
+    <Project Path="Broiler.UI/src/Implementations/Standard/Shell/Broiler.UI.Tooltip.Standard/Broiler.UI.Tooltip.Standard.csproj" />
     <Project Path="Broiler.UI/src/Implementations/Standard/Shell/Broiler.UI.Window.Standard/Broiler.UI.Window.Standard.csproj" />
     <Project Path="Broiler.UI/src/Implementations/Standard/Text/Broiler.UI.Edit.Standard/Broiler.UI.Edit.Standard.csproj" />
     <Project Path="Broiler.UI/src/Implementations/Standard/Text/Broiler.UI.FormatCodeView.Standard/Broiler.UI.FormatCodeView.Standard.csproj" />

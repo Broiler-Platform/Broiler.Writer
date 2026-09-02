@@ -16,6 +16,7 @@ const OP_FILL_ROUNDED_RECT = 5;
 const OP_STROKE_ROUNDED_RECT = 6;
 const OP_DRAW_IMAGE = 7;
 const OP_DRAW_TEXT = 8;
+const OP_FILL_TRIANGLE = 9;
 
 const state = {
     canvas: null,
@@ -198,6 +199,21 @@ export function presentFrame(stream, streamLength, strings, backingWidth, backin
                 ctx.textBaseline = 'alphabetic';
                 ctx.textAlign = 'left';
                 ctx.fillText(text, bx, by);
+                break;
+            }
+            case OP_FILL_TRIANGLE: {
+                // The corners arrive already in device pixels, transformed individually rather
+                // than reduced to a bounding box - see CanvasReplayOp.FillTriangle.
+                const x0 = stream[i++], y0 = stream[i++];
+                const x1 = stream[i++], y1 = stream[i++];
+                const x2 = stream[i++], y2 = stream[i++];
+                ctx.fillStyle = color(stream[i++]);
+                ctx.beginPath();
+                ctx.moveTo(x0, y0);
+                ctx.lineTo(x1, y1);
+                ctx.lineTo(x2, y2);
+                ctx.closePath();
+                ctx.fill('nonzero');
                 break;
             }
             default:

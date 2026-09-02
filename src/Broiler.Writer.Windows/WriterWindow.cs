@@ -14,6 +14,9 @@ namespace Broiler.Writer;
 [SupportedOSPlatform("windows7.0")]
 internal sealed class WriterWindow : Direct2DWindow
 {
+    /// <summary>How often to look at the clock while a tooltip is waiting. Roughly 30 Hz.</summary>
+    private const double TooltipTickMilliseconds = 33;
+
     private readonly WriterWindowsUiHost _host;
     private readonly WriterApp _app;
 
@@ -46,10 +49,24 @@ internal sealed class WriterWindow : Direct2DWindow
             ReadClipboardText,
             WriteClipboardText,
             getRenderer: () => Renderer);
-        _app = new WriterApp(_host, CloseNativeWindow, documentFormats: documentFormats);
+        // The document's name belongs in the caption, so the Writer is given a way to put it there.
+        // SetTitle is safe from here: the app only ever renames from the UI thread.
+        _app = new WriterApp(
+            _host,
+            CloseNativeWindow,
+            documentFormats: documentFormats,
+            setWindowTitle: SetTitle,
+            setTicking: SetTicking);
     }
 
-    protected override void OnCreated() => _clipboard = new WindowsClipboard(NativeHandle);
+    protected override void OnCreated()
+    {
+        _clipboard = new WindowsClipboard(NativeHandle);
+
+        // The app named the document before this window existed, and SetTitle is a no-op until it
+        // does, so the caption is pushed once more now that there is something to push it to.
+        SetTitle(_app.WindowTitle);
+    }
 
     /// <summary>
     /// Null rather than empty when there is no clipboard to read: the host
@@ -64,6 +81,22 @@ internal sealed class WriterWindow : Direct2DWindow
     protected override BRenderList? BuildRenderList(BSize clientSize) => _app.RenderFrame();
 
     protected override void OnResized(BSize clientSize, double dpiScale) => _app.Invalidate();
+
+    /// <summary>
+    /// Runs a timer only while something is waiting on the clock - today, a tooltip counting out
+    /// its delay. A word processor draws when the document changes and not otherwise, so without a
+    /// tick the delay would never elapse; with a permanent one the window would redraw sixty times
+    /// a second to watch a pointer that is not moving.
+    /// </summary>
+    private void SetTicking(bool ticking)
+    {
+        if (ticking)
+            StartAnimationTimer(TooltipTickMilliseconds);
+        else
+            StopAnimationTimer();
+    }
+
+    protected override void OnAnimationTick() => _app.AnimationTick();
 
     protected override void OnPointerDown(BPointerEventArgs e) =>
         Dispatch(_legacyInput.FromPointerButton(e));
