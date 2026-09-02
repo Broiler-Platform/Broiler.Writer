@@ -85,8 +85,8 @@ public sealed class WriterImageTests
             InlineImage image = Assert.IsType<InlineImage>(SingleImage(reopened.Document));
             Assert.Equal(FourByTwoPng, image.Data.ToArray());
             Assert.Equal("image/png", image.ContentType);
-            Assert.Equal(4, image.Width, 3);
-            Assert.Equal(2, image.Height, 3);
+            Assert.Equal(4, image.Width!.Value, 3);
+            Assert.Equal(2, image.Height!.Value, 3);
         }
         finally
         {
