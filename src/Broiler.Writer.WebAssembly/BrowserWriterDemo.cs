@@ -1071,11 +1071,14 @@ internal sealed class BrowserWriterDemo : IDisposable
 
     private void ApplySelectedFont(BFontStyle font, bool underline, bool strikethrough)
     {
-        bool ran = _editor.ExecuteCommand(RichEditCommand.SetFont, font);
+        // The dialog works in points and the editor in its own units.
+        BFontStyle editorFont = font with { Size = BFontStyle.PointsToPixels(font.Size) };
+
+        bool ran = _editor.ExecuteCommand(RichEditCommand.SetFont, editorFont);
         ran |= ApplyDecoration(RichEditCommand.Underline, underline);
         ran |= ApplyDecoration(RichEditCommand.Strikethrough, strikethrough);
         _lastAction = ran
-            ? "Font: " + font.FamilyName + " " + font.SizeInPixels.ToString("0.###", CultureInfo.InvariantCulture)
+            ? "Font: " + font.FamilyName + " " + font.Size.ToString("0.###", CultureInfo.InvariantCulture)
             : "Font unavailable";
         _session.SetFocus(_editor);
         RefreshUi();
@@ -1102,7 +1105,11 @@ internal sealed class BrowserWriterDemo : IDisposable
         return _editor.Font with
         {
             FamilyName = string.IsNullOrWhiteSpace(style.FontFamily) ? _editor.Font.FamilyName : style.FontFamily,
-            SizeInPixels = style.FontSize is > 0 ? style.FontSize.Value : _editor.Font.SizeInPixels,
+            // Points, because that is what a font dialog shows and what the
+            // document stores; the editor's own fallback is in its units.
+            Size = style.FontSize is > 0
+                ? style.FontSize.Value
+                : BFontStyle.PixelsToPoints(_editor.Font.Size),
             Weight = style.Bold ? BFontWeight.Bold : _editor.Font.Weight,
             Slant = style.Italic ? BFontSlant.Italic : _editor.Font.Slant,
         };
