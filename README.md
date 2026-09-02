@@ -25,7 +25,7 @@ toolkit — lives in its own repository and is consumed here as a submodule.
 
 ## Getting started
 
-The dependency components are submodules, so the checkout must be recursive:
+The dependency components are submodules, so they have to be checked out:
 
 ```bash
 git clone --recurse-submodules https://github.com/Broiler-Platform/Broiler.Writer.git
@@ -34,8 +34,12 @@ git clone --recurse-submodules https://github.com/Broiler-Platform/Broiler.Write
 If you already cloned without them:
 
 ```bash
-git submodule update --init --recursive
+git submodule update --init
 ```
+
+`--recursive` is no longer needed. Each component repository carries nested checkouts of its
+own dependencies, but nothing this repository builds reaches them — see
+[How the composition holds together](#how-the-composition-holds-together).
 
 Build and run the Windows head:
 
@@ -210,12 +214,11 @@ the publish paths use. MSBuild understands only `Debug` and `Release` on its own
 this file a `-c Release-Linux` publish builds **unoptimized and with neither `RELEASE` nor
 `LINUX` defined**.
 
-It also carries the suppressed-warning list, with a documented reason for every code. That
-list was measured against a clean rebuild of all five solutions rather than inherited, and
-nothing in it is authored in this repository — the nullable warnings come from component
-submodules and from the vendored Android glue, and `CA1416` is a false positive against
-runtime `Build.VERSION.SdkInt` guards the analyzer cannot see through. `NU1504` is
-deliberately left visible; see *Known issues*.
+It also carries the suppressed-warning list, with a documented reason and a measurement for
+every code. Nothing in that list is authored in this repository: the codes come from the
+component submodules and from the vendored Android glue. The list is measured against a clean
+rebuild of all five solutions rather than inherited, and it is worth re-measuring after a
+submodule bump — a code that no longer fires costs the signal the warning is meant to carry.
 
 There is no `Directory.Build.targets`. Broiler.Browser uses one solely to rewrite
 `Broiler.HTML`'s stale component paths, and the Writer does not consume `Broiler.HTML`.
@@ -251,38 +254,50 @@ Six components are submodules, pinned to `main`:
 | `Broiler.UI` | Platform-neutral retained-mode UI toolkit |
 
 Each of those repositories carries nested checkouts of the components *it* depends on, so
-that it still builds standalone. `git submodule update --init --recursive` restores the whole
-set.
+that it still builds standalone. At the revisions pinned here, nothing in this repository's
+project closure reaches those nested copies, so `--recursive` costs some disk and nothing
+else; a plain `git submodule update --init` is enough to build and test.
 
-### Known issues
+### How the composition holds together
 
-Three consequences of composing independently released components are worth knowing before
-you file a bug:
+`Broiler.UI`, `Broiler.Documents` and `Broiler.Graphics` reach their own dependencies through
+`$(BroilerDocumentsRoot)`, `$(BroilerGraphicsRoot)`, `$(BroilerInputRoot)` and
+`$(BroilerDomRoot)`, which [`Directory.Build.props`](Directory.Build.props) points at this
+repository's top-level checkouts. That single indirection is what keeps one copy of each
+assembly in the build, and it is load-bearing in three places at once: if a bump reintroduces
+a literal relative path into a nested checkout, that component starts compiling twice, the
+folding table in [`scripts/update-solutions.ps1`](scripts/update-solutions.ps1) starts
+mattering again, and CI needs nested submodule initialisation back.
 
-- **Some components compile more than once.** Because each component repository references
-  its own nested checkouts by literal relative path, composing them here means
-  `Broiler.Media` and `Broiler.Media.Image` are compiled five times in a desktop head,
-  `Broiler.Graphics` four times, and `Broiler.Input`, `Broiler.Documents.Model` and
-  `Broiler.Documents.FormatCodes` twice. Every nested gitlink points at the same commit as
-  the top-level one, so the duplicates are assembly-identical and the build reports no
-  reference conflicts — but it is wasted work. The fix is a `$(BroilerGraphicsPath)`-style
-  property hook upstream in `Broiler.UI`, `Broiler.Graphics`, `Broiler.Media` and
-  `Broiler.Documents`, of the kind `Broiler.CSS` and `Broiler.HTML` already use. The solution
-  generator folds the nested paths onto the top-level ones, so the `.slnx` files list each
-  assembly once.
+So it is worth re-measuring after a submodule bump rather than assuming. Measured on
+2026-09-02 against the current pins:
 
-- **The nested `Broiler.DOM` gitlink is not on `main`.** `Broiler.Documents` pins its own
-  `Broiler.DOM` checkout at `433ec92`, a commit off `fix/wpt-1508-tokenizer-runs`, while the
-  top-level `Broiler.DOM` submodule here is on `main` at `8f13a22`. Both are checked out, so
-  `Broiler.Dom` is compiled from the older revision when it is reached through
-  `Broiler.Documents.Html`. Resolving it means bumping the gitlink upstream in
-  `Broiler.Documents`.
+| Check | Result |
+|---|---|
+| `ProjectReference` resolutions reaching a nested checkout | none, across all five solutions |
+| Distinct assemblies from a clean `Rebuild` | Windows 58, Linux 60, Tests 55, WebAssembly 51, Android 59 — no component built twice |
+| Warnings from a clean build of all five | none |
+| `NU` warnings from a forced restore of all five | none |
+| Build and test from a *non-recursive* checkout | verifies, builds and passes |
 
-- **`NU1504` on every restore.** The nested `Broiler.DOM` checkout lists
-  `Microsoft.SourceLink.GitHub` twice, so restore reports a duplicate `PackageReference` for
-  `Broiler.Dom` and `Broiler.Dom.Html`. It is left unsuppressed on purpose — it is a real
-  upstream defect, and the fix belongs in `Broiler.DOM`. These are the only warnings a clean
-  build still emits.
+Two caveats on reading those numbers. The Android build logs each project twice, once per
+ABI (`android-arm64` and `android-x64`); it compiles each assembly once and packages it into
+two `android/assets/<abi>/` folders, so the log is not evidence of duplicate compilation.
+And "no warnings" is after the suppressions documented in `Directory.Build.props` — see
+[Build configuration](#build-configuration).
+
+This section used to record three known issues: duplicate compilation, a nested `Broiler.DOM`
+gitlink pinned off `main`, and `NU1504` from a duplicate `Microsoft.SourceLink.GitHub`
+reference. All three have been fixed upstream. The last of them is instructive, because it
+was a consequence of the nesting rather than a plain mistake — `Broiler.DOM` now writes
+
+```xml
+<PackageReference Remove="Microsoft.SourceLink.GitHub" />
+<PackageReference Include="Microsoft.SourceLink.GitHub" Version="8.0.0" PrivateAssets="all" />
+```
+
+so that the import stays idempotent when one component is checked out inside another and
+both vendored copies of the props file are imported.
 
 ## License
 
