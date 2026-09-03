@@ -30,12 +30,13 @@
     <ProjectReference Include="..\..\Broiler.Input\src\Broiler.Input.Mouse\Broiler.Input.Mouse.csproj" />
     <ProjectReference Include="..\..\Broiler.Input\src\Broiler.Input.Text\Broiler.Input.Text.csproj" />
 
-    <!-- Document codecs: the same RTF / DOCX / HTML / Markdown stack the desktop Writer uses. -->
+    <!-- Document codecs: the same RTF / DOCX / ODT / HTML / Markdown stack the desktop Writer uses. -->
     <ProjectReference Include="..\..\Broiler.Documents\src\Broiler.Documents\Broiler.Documents.csproj" />
     <ProjectReference Include="..\..\Broiler.Documents\src\Broiler.Documents.Docx\Broiler.Documents.Docx.csproj" />
     <ProjectReference Include="..\..\Broiler.Documents\src\Broiler.Documents.Html\Broiler.Documents.Html.csproj" />
     <ProjectReference Include="..\..\Broiler.Documents\src\Broiler.Documents.Markdown\Broiler.Documents.Markdown.csproj" />
     <ProjectReference Include="..\..\Broiler.Documents\src\Broiler.Documents.Model\Broiler.Documents.Model.csproj" />
+    <ProjectReference Include="..\..\Broiler.Documents\src\Broiler.Documents.Odt\Broiler.Documents.Odt.csproj" />
     <ProjectReference Include="..\..\Broiler.Documents\src\Broiler.Documents.Rtf\Broiler.Documents.Rtf.csproj" />
 
     <!-- Broiler.UI Standard controls composing the Writer shell. -->

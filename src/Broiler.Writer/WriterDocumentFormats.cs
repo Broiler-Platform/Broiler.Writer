@@ -6,6 +6,7 @@ using Broiler.Documents;
 using Broiler.Documents.Docx;
 using Broiler.Documents.Html;
 using Broiler.Documents.Markdown;
+using Broiler.Documents.Odt;
 using Broiler.Documents.Rtf;
 using Broiler.UI.FileDialog;
 
@@ -20,8 +21,8 @@ namespace Broiler.Writer;
 /// The Writer used to hard-code its codec catalog and its two filter arrays, so
 /// every head — desktop, Android, WebAssembly — got exactly the same formats and
 /// adding one to the shared core added it everywhere. Composition roots build
-/// this instead: <see cref="CreateDefault"/> is the four formats every head has
-/// always had, and anything beyond that is registered by the head that wants it
+/// this instead: <see cref="CreateDefault"/> is the format set every head
+/// carries, and anything beyond that is registered by the head that wants it
 /// and reaches no other (PDF roadmap §10.1).
 /// </para>
 /// <para>
@@ -61,13 +62,24 @@ public sealed class WriterDocumentFormats
     }
 
     /// <summary>
-    /// The formats every Writer head has carried: RTF, DOCX, HTML and Markdown,
+    /// The formats every Writer head carries: RTF, DOCX, ODT, HTML and Markdown,
     /// all readable and writable. Each call composes its own codec instances.
     /// </summary>
+    /// <remarks>
+    /// RTF stays first because <see cref="DefaultExtension"/> is the first savable
+    /// format's extension, so reordering this list renames every untitled save.
+    /// ODT belongs here rather than in a per-head registration: it takes no
+    /// dependency beyond the ZIP and XML stack DOCX already uses, so no head has
+    /// a package-size, trimming, or AOT gate to pass for it the way every head
+    /// does for PDF. Its outstanding ODF rights row governs what may be *claimed*
+    /// for the format, which is a question for the component's roadmap and its
+    /// marketing copy rather than for this composition.
+    /// </remarks>
     public static WriterDocumentFormats CreateDefault() => new(
     [
         new WriterDocumentFormat(new RtfDocumentCodec(), "Rich Text Format"),
         new WriterDocumentFormat(new DocxDocumentCodec(), "Word Document"),
+        new WriterDocumentFormat(new OdtDocumentCodec(), "OpenDocument Text"),
         new WriterDocumentFormat(new HtmlDocumentCodec(), "HTML"),
         new WriterDocumentFormat(new MarkdownDocumentCodec(), "Markdown"),
     ]);

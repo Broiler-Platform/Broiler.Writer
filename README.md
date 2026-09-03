@@ -75,8 +75,8 @@ dotnet test Broiler.Writer.Tests.slnx -c Release
 
 ## Document formats
 
-`Broiler.Writer.Core` registers the RTF, DOCX, HTML and Markdown codecs for both opening and
-saving. PDF is deliberately **not** part of the shared set: the Windows and Linux heads
+`Broiler.Writer.Core` registers the RTF, DOCX, ODT, HTML and Markdown codecs for both opening
+and saving. PDF is deliberately **not** part of the shared set: the Windows and Linux heads
 register `Broiler.Documents.Pdf` themselves, for **opening only**, so that no head acquires
 the codec transitively. `Broiler.Writer.FormatCodes.Tests` asserts that this separation
 holds.
@@ -265,7 +265,7 @@ Six components are submodules, pinned to `main`:
 
 | Component | Purpose |
 |---|---|
-| `Broiler.Documents` | Document model and the RTF, DOCX, HTML, Markdown and PDF codecs |
+| `Broiler.Documents` | Document model and the RTF, DOCX, ODT, HTML, Markdown and PDF codecs |
 | `Broiler.DOM` | Canonical DOM, HTML tokenization, parsing, traversal, serialization |
 | `Broiler.Graphics` | Managed bitmap/codec/raster core plus platform backends |
 | `Broiler.Media` | Image, audio and video abstractions and managed codecs |

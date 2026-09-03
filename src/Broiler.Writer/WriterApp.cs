@@ -127,8 +127,8 @@ internal sealed class WriterApp : IDisposable
 
     /// <param name="documentFormats">
     /// The formats this Writer offers. Null composes
-    /// <see cref="WriterDocumentFormats.CreateDefault"/> — the RTF, DOCX, HTML and
-    /// Markdown set every head has always had. A head that carries more (the
+    /// <see cref="WriterDocumentFormats.CreateDefault"/> — the RTF, DOCX, ODT,
+    /// HTML and Markdown set every head carries. A head that carries more (the
     /// desktop heads register the PDF codec for opening) passes its own set here,
     /// which is what keeps that codec out of the heads that did not ask for it.
     /// </param>
