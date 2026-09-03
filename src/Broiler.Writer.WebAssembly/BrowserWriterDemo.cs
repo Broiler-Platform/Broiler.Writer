@@ -7,6 +7,7 @@ using Broiler.Documents.Docx;
 using Broiler.Documents.FormatCodes;
 using Broiler.Documents.Html;
 using Broiler.Documents.Markdown;
+using Broiler.Documents.Odt;
 using Broiler.Documents.Model;
 using Broiler.Documents.Rtf;
 using Broiler.Graphics;
@@ -56,7 +57,7 @@ internal sealed class BrowserWriterDemo : IDisposable
     private static readonly InputDeviceId TextDevice = InputDeviceId.FromOpaqueValue("browser-text");
 
     private const string DefaultDocumentExtension = ".rtf";
-    private const string OpenAcceptExtensions = ".rtf,.docx,.html,.htm,.md,.markdown";
+    private const string OpenAcceptExtensions = ".rtf,.docx,.odt,.html,.htm,.md,.markdown";
     private static readonly BSize FontDialogPreferredSize = new(560, 384);
 
     private readonly BrowserCanvasUiHost _host;
@@ -83,6 +84,7 @@ internal sealed class BrowserWriterDemo : IDisposable
     {
         new RtfDocumentCodec(),
         new DocxDocumentCodec(),
+        new OdtDocumentCodec(),
         new HtmlDocumentCodec(),
         new MarkdownDocumentCodec(),
     });
@@ -1022,9 +1024,10 @@ internal sealed class BrowserWriterDemo : IDisposable
         {
             ".rtf" => RtfWriter.Write(document, stream),
             ".docx" => DocxWriter.Write(document, stream),
+            ".odt" => OdtWriter.Write(document, stream),
             ".html" or ".htm" => HtmlWriter.Write(document, stream),
             ".md" or ".markdown" => MarkdownWriter.Write(document, stream),
-            _ => throw new NotSupportedException("Unsupported save format '" + extension + "'. Use .rtf, .docx, .html, or .md."),
+            _ => throw new NotSupportedException("Unsupported save format '" + extension + "'. Use .rtf, .docx, .odt, .html, or .md."),
         };
 
         bytes = stream.ToArray();
@@ -1225,7 +1228,7 @@ internal sealed class BrowserWriterDemo : IDisposable
         ReplaceDocument(() => _editor.SetPlainText(
             "Broiler Writer\n" +
             "This browser build is a Broiler.UI window with a Broiler-rendered menu and StandardRichEdit document surface, presented through the direct-Canvas 2D backend.\n" +
-            "Use the Edit and Format menus, or keyboard shortcuts such as Ctrl+B, Ctrl+I, Ctrl+U, Ctrl+Z, and Ctrl+Y. Open and Save round-trip through the Broiler.Documents RTF, DOCX, HTML, and Markdown codecs."));
+            "Use the Edit and Format menus, or keyboard shortcuts such as Ctrl+B, Ctrl+I, Ctrl+U, Ctrl+Z, and Ctrl+Y. Open and Save round-trip through the Broiler.Documents RTF, DOCX, ODT, HTML, and Markdown codecs."));
 
         RichTextPosition start = _editor.Document.Start;
         RichTextPosition end = _editor.Document.ParagraphEnd(start);

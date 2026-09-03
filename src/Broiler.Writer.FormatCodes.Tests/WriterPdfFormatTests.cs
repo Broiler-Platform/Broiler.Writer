@@ -171,9 +171,18 @@ public sealed class WriterPdfFormatTests
     [Fact(Timeout = 600000)]
     public void The_Formats_Still_Save_Every_Format_They_Advertise()
     {
-        using WriterApp app = CreateApp(DesktopFormats());
+        WriterDocumentFormats formats = DesktopFormats();
+        using WriterApp app = CreateApp(formats);
 
-        foreach (string extension in new[] { ".rtf", ".docx", ".html", ".md" })
+        // Derived from the set rather than listed, so a format added to the shared
+        // defaults is covered here instead of quietly staying untested.
+        string[] advertised = formats.Formats
+            .Where(format => format.CanSave)
+            .Select(format => format.DefaultExtension)
+            .ToArray();
+        Assert.Contains(".odt", advertised);
+
+        foreach (string extension in advertised)
         {
             using var destination = new MemoryStream();
             Assert.True(app.WriteDocument(destination, "document" + extension));
