@@ -68,6 +68,10 @@ public sealed class WriterDocumentFormats
     /// <remarks>
     /// RTF stays first because <see cref="DefaultExtension"/> is the first savable
     /// format's extension, so reordering this list renames every untitled save.
+    /// The display names are a claims decision rather than a matter of taste:
+    /// DOCX-IP-006 forbids a format label naming a vendor or its product, which
+    /// is why this list says "DOCX Document" where every other word processor
+    /// says "Word Document". <c>WriterDocumentFormatLabelTests</c> enforces it.
     /// ODT belongs here rather than in a per-head registration: it takes no
     /// dependency beyond the ZIP and XML stack DOCX already uses, so no head has
     /// a package-size, trimming, or AOT gate to pass for it the way every head
@@ -78,7 +82,7 @@ public sealed class WriterDocumentFormats
     public static WriterDocumentFormats CreateDefault() => new(
     [
         new WriterDocumentFormat(new RtfDocumentCodec(), "Rich Text Format"),
-        new WriterDocumentFormat(new DocxDocumentCodec(), "Word Document"),
+        new WriterDocumentFormat(new DocxDocumentCodec(), "DOCX Document"),
         new WriterDocumentFormat(new OdtDocumentCodec(), "OpenDocument Text"),
         new WriterDocumentFormat(new HtmlDocumentCodec(), "HTML"),
         new WriterDocumentFormat(new MarkdownDocumentCodec(), "Markdown"),
