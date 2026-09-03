@@ -159,4 +159,68 @@ public sealed class WriterImageRenderTests
 
         return (admitted, new DocumentWriteOptions(resources: builder.Build()));
     }
+
+    [Fact(Timeout = 600000)]
+    public void A_Picture_Masked_To_An_Ellipse_Reaches_The_Backend_With_Its_Corners_Cleared()
+    {
+        // The end of the chain, and the reason it is asserted here rather than in
+        // Broiler.UI: shaping a picture means decoding it, decoding needs a codec
+        // catalog a composition root registers, and this is where one is. In the
+        // UI component the same path falls back to handing the bytes over
+        // unshaped, which is correct there and proves nothing about the mask.
+        using var renderer = new BImageRenderer();
+        var host = new WriterUiHost(
+            () => new BSize(400, 400),
+            () => 1,
+            () => { },
+            _ => { },
+            getRenderer: () => renderer);
+        using var app = new WriterApp(host, () => { });
+
+        using var source = new BBitmap(64, 64);
+        source.Clear(new BColor(0x20, 0x40, 0x60, 0xFF));
+        var image = new InlineImage(
+            source.Encode(),
+            "image/png",
+            64,
+            64,
+            presentation: new ImagePresentation { Mask = ImageMask.Ellipse });
+
+        // Through a real DOCX, so the presentation is asserted to survive the
+        // whole path a user's document takes: written, read back, laid out, drawn.
+        (image, DocumentWriteOptions writeOptions) = Writable(image);
+        byte[] docx = Broiler.Documents.Docx.DocxDocumentCodec.WriteToArray(
+            RichTextDocument.FromParagraphs(
+            [
+                RichTextParagraph.Create(
+                    InlineImage.PlaceholderText, InlineStyle.Default with { Image = image }),
+            ]),
+            writeOptions);
+
+        using var stream = new MemoryStream(docx, writable: false);
+        Assert.True(app.LoadDocument(stream, "portrait.docx"));
+
+        BRenderList frame = app.RenderFrame();
+        var descriptor = BSurfaceDescriptor.Default(new BSize(400, 400));
+        using BBitmap page = renderer.RenderToImage(frame, descriptor, BFrameContext.Default);
+
+        BRenderCommand.DrawImage drawn = Assert.Single(
+            frame.Commands.OfType<BRenderCommand.DrawImage>());
+
+        // The picture's own corner is the page's white, and its middle is not.
+        var corner = new BPoint(drawn.Destination.Left + 1, drawn.Destination.Top + 1);
+        var middle = new BPoint(
+            drawn.Destination.Left + (drawn.Destination.Width / 2),
+            drawn.Destination.Top + (drawn.Destination.Height / 2));
+
+        BColor cornerPixel = page.GetPixel((int)corner.X, (int)corner.Y);
+        BColor middlePixel = page.GetPixel((int)middle.X, (int)middle.Y);
+
+        Assert.True(
+            cornerPixel.R > 0xE0 && cornerPixel.G > 0xE0 && cornerPixel.B > 0xE0,
+            $"the picture's corner drew as {cornerPixel.R:X2}{cornerPixel.G:X2}{cornerPixel.B:X2}, not the page behind it");
+        Assert.True(
+            middlePixel.B > middlePixel.R,
+            $"the picture's middle drew as {middlePixel.R:X2}{middlePixel.G:X2}{middlePixel.B:X2}, not the picture");
+    }
 }
