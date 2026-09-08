@@ -550,6 +550,10 @@ internal sealed class WriterApp : IDisposable
         insertCode.Children.Add(new UiMenuItem("code-tab", "Tab") { CommandName = "formatcodes.insert.tab" });
         insertCode.Children.Add(new UiMenuItem("code-line-break", "Soft line break") { CommandName = "formatcodes.insert.line-break" });
         insertCode.Children.Add(new UiMenuItem("code-paragraph-break", "Paragraph break") { CommandName = "formatcodes.insert.paragraph-break" });
+        // Last of the three breaks, and the largest. The pane has always drawn
+        // [Page Break] and offered to delete one; this is where a document gets
+        // to state one in the first place.
+        insertCode.Children.Add(new UiMenuItem("code-page-break", "Page break") { CommandName = "formatcodes.insert.page-break" });
         format.Children.Add(insertCode);
         format.Children.Add(new UiMenuItem("remove-code", "Remove selected code")
         {
@@ -720,6 +724,7 @@ internal sealed class WriterApp : IDisposable
         dispatcher.Add(new StandardCommand("formatcodes.insert.tab", () => RunFormatCodePalette(FormatCodePaletteEntry.Tab)));
         dispatcher.Add(new StandardCommand("formatcodes.insert.line-break", () => RunFormatCodePalette(FormatCodePaletteEntry.LineBreak)));
         dispatcher.Add(new StandardCommand("formatcodes.insert.paragraph-break", () => RunFormatCodePalette(FormatCodePaletteEntry.ParagraphBreak)));
+        dispatcher.Add(new StandardCommand("formatcodes.insert.page-break", () => RunFormatCodePalette(FormatCodePaletteEntry.PageBreakBefore)));
         dispatcher.Add(new StandardCommand("formatcodes.remove-code", RemoveCurrentFormatCode));
     }
 
