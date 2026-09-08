@@ -6,6 +6,10 @@
       "roots": [
         "src/Broiler.Writer.Windows/Broiler.Writer.Windows.csproj"
       ],
+      "additionalProjects": [
+        "Broiler.Input/src/Broiler.Input.Mouse.Windows/Broiler.Input.Mouse.Windows.csproj",
+        "Broiler.Input/src/Broiler.Input.Windows/Broiler.Input.Windows.csproj"
+      ],
       "forbiddenProjectPatterns": [
         "(?i)(^|[./])[^/]*Linux[^/]*\\.csproj$",
         "(?i)(^|[./])[^/]*WebAssembly[^/]*\\.csproj$",

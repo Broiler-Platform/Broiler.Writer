@@ -310,7 +310,29 @@ $utf8WithoutBom = [Text.UTF8Encoding]::new($false)
 
 foreach ($definition in $manifest.solutions) {
     $solutionPath = Join-Path $repositoryRoot $definition.path
-    $projects = Get-ProjectClosure -Roots @($definition.roots)
+
+    # Projects a solution should build even though no root reaches them. A head
+    # references the platform assemblies it actually uses, so a platform project
+    # nothing here consumes yet - a driver a later head will pick up, say - is
+    # outside every closure and never gets compiled by this repository's CI.
+    # Naming it here builds it, with its own dependencies, and leaves it grouped
+    # as a dependency rather than promoted to an entry point.
+    #
+    # This exists because the alternative was tried: the two Windows input
+    # projects were added straight to the generated .slnx, which the next
+    # generator run reverts - the same reason the deploy flags above live in the
+    # manifest.
+    $additional = @(
+        $definition.additionalProjects |
+            Where-Object { -not [string]::IsNullOrWhiteSpace([string] $_) }
+    )
+    foreach ($extra in $additional) {
+        if (-not (Test-Path -LiteralPath (Join-Path $repositoryRoot $extra) -PathType Leaf)) {
+            throw "$($definition.path) declares an additional project that does not exist: '$extra'."
+        }
+    }
+
+    $projects = Get-ProjectClosure -Roots (@($definition.roots) + $additional)
 
     if ($definition.path -notlike '*.Tests.slnx' -and
         $definition.path -ne 'Broiler.Benchmarks.slnx') {
