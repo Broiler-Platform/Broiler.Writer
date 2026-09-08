@@ -536,6 +536,7 @@ internal sealed class BrowserWriterDemo : IDisposable
         insertCode.Children.Add(new UiMenuItem("code-tab", "Tab") { CommandName = "formatcodes.insert.tab" });
         insertCode.Children.Add(new UiMenuItem("code-line-break", "Soft line break") { CommandName = "formatcodes.insert.line-break" });
         insertCode.Children.Add(new UiMenuItem("code-paragraph-break", "Paragraph break") { CommandName = "formatcodes.insert.paragraph-break" });
+        insertCode.Children.Add(new UiMenuItem("code-page-break", "Page break") { CommandName = "formatcodes.insert.page-break" });
         format.Children.Add(insertCode);
         format.Children.Add(new UiMenuItem("remove-code", "Remove selected code")
         {
@@ -693,6 +694,7 @@ internal sealed class BrowserWriterDemo : IDisposable
         dispatcher.Add(new StandardCommand("formatcodes.insert.tab", () => RunFormatCodePalette(FormatCodePaletteEntry.Tab)));
         dispatcher.Add(new StandardCommand("formatcodes.insert.line-break", () => RunFormatCodePalette(FormatCodePaletteEntry.LineBreak)));
         dispatcher.Add(new StandardCommand("formatcodes.insert.paragraph-break", () => RunFormatCodePalette(FormatCodePaletteEntry.ParagraphBreak)));
+        dispatcher.Add(new StandardCommand("formatcodes.insert.page-break", () => RunFormatCodePalette(FormatCodePaletteEntry.PageBreakBefore)));
         dispatcher.Add(new StandardCommand("formatcodes.remove-code", RemoveCurrentFormatCode));
     }
 
