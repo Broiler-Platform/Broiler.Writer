@@ -11,18 +11,6 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\Broiler.Documents\src\Broiler.Documents\Broiler.Documents.csproj" />
-    <ProjectReference Include="..\..\Broiler.Documents\src\Broiler.Documents.Docx\Broiler.Documents.Docx.csproj" />
-    <ProjectReference Include="..\..\Broiler.Documents\src\Broiler.Documents.Html\Broiler.Documents.Html.csproj" />
-    <ProjectReference Include="..\..\Broiler.Documents\src\Broiler.Documents.Markdown\Broiler.Documents.Markdown.csproj" />
-    <ProjectReference Include="..\..\Broiler.Documents\src\Broiler.Documents.Model\Broiler.Documents.Model.csproj" />
-    <ProjectReference Include="..\..\Broiler.Documents\src\Broiler.Documents.Odt\Broiler.Documents.Odt.csproj" />
-    <ProjectReference Include="..\..\Broiler.Documents\src\Broiler.Documents.Rtf\Broiler.Documents.Rtf.csproj" />
-    <ProjectReference Include="..\..\Broiler.Graphics\src\Broiler.Graphics\Broiler.Graphics.csproj" />
-    <ProjectReference Include="..\..\Broiler.Input\src\Broiler.Input\Broiler.Input.csproj" />
-    <ProjectReference Include="..\..\Broiler.Input\src\Broiler.Input.Keyboard\Broiler.Input.Keyboard.csproj" />
-    <ProjectReference Include="..\..\Broiler.Input\src\Broiler.Input.Mouse\Broiler.Input.Mouse.csproj" />
-    <ProjectReference Include="..\..\Broiler.Input\src\Broiler.Input.Text\Broiler.Input.Text.csproj" />
     <ProjectReference Include="..\..\Broiler.UI\src\Implementations\Standard\Commands\Broiler.UI.Button.Standard\Broiler.UI.Button.Standard.csproj" />
     <ProjectReference Include="..\..\Broiler.UI\src\Abstractions\ValueAndSelection\Broiler.UI.ComboBox\Broiler.UI.ComboBox.csproj" />
     <ProjectReference Include="..\..\Broiler.UI\src\Implementations\Standard\ValueAndSelection\Broiler.UI.ComboBox.Standard\Broiler.UI.ComboBox.Standard.csproj" />
