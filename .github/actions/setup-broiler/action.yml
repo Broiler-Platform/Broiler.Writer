@@ -1,44 +1,25 @@
 name: Set up Broiler.Writer
 description: >-
-  Installs the .NET SDK for a Broiler.Writer build. Run this after
-  actions/checkout with `submodules: true` — a local action cannot perform the
-  checkout itself, because its own files have to be in the workspace first.
+  Installs the .NET SDK and configures NuGet authentication for the
+  Broiler-Platform GitHub Packages feed.
 
 inputs:
   dotnet-version:
     description: .NET SDK version to install.
     required: false
     default: '10.0.x'
+  token:
+    description: GitHub token or PAT to authenticate against the GitHub Packages feed.
+    required: false
+    default: ${{ github.token }}
 
 runs:
   using: composite
   steps:
-    # There used to be an "Initialise nested submodules" step here, and its absence is
-    # worth explaining because it was load-bearing for a long time.
-    #
-    # `submodules: true` on the checkout fetches the six top-level components only. Each
-    # component repository also carries nested checkouts of its own dependencies, so that it
-    # still builds standalone, and its projects used to reference those nested copies by
-    # literal relative path. Composing the components here therefore meant initialising the
-    # nested checkouts too — and compiling several components more than once.
-    #
-    # That is no longer how the components reference each other. Broiler.UI,
-    # Broiler.Documents and Broiler.Graphics now reach their dependencies through
-    # $(BroilerDocumentsRoot), $(BroilerGraphicsRoot), $(BroilerInputRoot) and
-    # $(BroilerDomRoot), which Directory.Build.props points at this repository's own
-    # top-level checkouts. Measured, not assumed: every ProjectReference resolution in all
-    # five solutions lands on a top-level path, and a fresh clone whose nested checkout
-    # directories are completely empty verifies all five solutions, builds all five with
-    # zero errors and zero warnings, and passes the test suite.
-    #
-    # If a future submodule bump reintroduces a literal relative path, the symptom is
-    # indirect: a ProjectReference to a missing project is only a restore *warning*, and the
-    # build then fails later on missing types. The fix is to initialise that specific nested
-    # checkout here — named, not `--recursive`, because the Graphics <-> Media reference is
-    # mutual and a recursive init descends further than anything here builds against — and
-    # to check whether the folding table in scripts/update-solutions.ps1 has started
-    # mattering again.
     - name: Set up .NET
       uses: actions/setup-dotnet@v6
       with:
         dotnet-version: ${{ inputs.dotnet-version }}
+        source-url: https://nuget.pkg.github.com/Broiler-Platform/index.json
+      env:
+        NUGET_AUTH_TOKEN: ${{ inputs.token }}
