@@ -3,6 +3,9 @@ using System.Runtime.InteropServices;
 using System.Runtime.Versioning;
 using Broiler.Documents.Pdf;
 using Broiler.Documents.Pdf.Images;
+using Broiler.Graphics.Imaging;
+using Broiler.Media;
+using Broiler.Media.Image.Managed;
 
 namespace Broiler.Writer;
 
@@ -18,8 +21,8 @@ internal static class Program
         // Composition root: without a codec catalog the renderer cannot decode
         // the images a document embeds, and the editor would draw every picture
         // as an empty outline.
-        Broiler.Graphics.BImageCodecs.Use(
-            new Broiler.Media.MediaCodecCatalog(Broiler.Media.Image.Managed.ManagedImageCodecs.CreateCodecs()));
+        BImageCodecs.Use(
+            new MediaCodecCatalog(ManagedImageCodecs.CreateCodecs()));
 
         try
         {

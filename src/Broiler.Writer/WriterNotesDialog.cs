@@ -4,6 +4,8 @@ using System.Globalization;
 using System.Text;
 using Broiler.Documents;
 using Broiler.Graphics;
+using Broiler.Graphics.Geometry;
+using Broiler.Graphics.Text;
 using Broiler.UI;
 using Broiler.UI.Button.Standard;
 using Broiler.UI.Dialog.Standard;

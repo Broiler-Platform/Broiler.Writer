@@ -32,6 +32,11 @@ using Broiler.UI.Toolbar.Standard;
 using Broiler.UI.Tooltip.Standard;
 using Broiler.UI.Window.Standard;
 using Broiler.Writer.FormatCodes;
+using Broiler.Graphics.RenderList;
+using Broiler.Graphics.Geometry;
+using Broiler.Graphics.Color;
+using Broiler.Graphics.Text;
+using Broiler.Graphics.Imaging;
 
 namespace Broiler.Writer;
 

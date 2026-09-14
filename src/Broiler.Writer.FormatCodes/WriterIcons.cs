@@ -1,5 +1,11 @@
 using System;
 using Broiler.Graphics;
+using Broiler.Graphics.Color;
+using Broiler.Graphics.Geometry;
+using Broiler.Graphics.Imaging;
+using Broiler.Graphics.Rendering;
+using Broiler.Graphics.RenderList;
+using Broiler.Graphics.Text;
 
 namespace Broiler.Writer.FormatCodes;
 

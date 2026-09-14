@@ -3,6 +3,10 @@ using System.Collections.Generic;
 using System.Runtime.InteropServices;
 using System.Runtime.Versioning;
 using Broiler.Graphics;
+using Broiler.Graphics.Geometry;
+using Broiler.Graphics.Rendering;
+using Broiler.Graphics.RenderList;
+using Broiler.Graphics.Windowing;
 using Broiler.UI;
 
 namespace Broiler.Writer;

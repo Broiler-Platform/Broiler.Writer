@@ -1,4 +1,5 @@
 using Broiler.Graphics;
+using Broiler.Graphics.Color;
 
 namespace Broiler.Writer;
 

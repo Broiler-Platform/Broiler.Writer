@@ -2,6 +2,7 @@ using System;
 using System.Buffers.Binary;
 using System.IO;
 using Broiler.Graphics;
+using Broiler.Graphics.Geometry;
 
 namespace Broiler.Writer;
 

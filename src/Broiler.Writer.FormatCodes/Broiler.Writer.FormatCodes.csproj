@@ -12,8 +12,28 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\Broiler.UI\src\Abstractions\Text\Broiler.UI.FormatCodeView\Broiler.UI.FormatCodeView.csproj" />
-    <ProjectReference Include="..\..\Broiler.UI\src\Abstractions\Text\Broiler.UI.RichEdit\Broiler.UI.RichEdit.csproj" />
+    <PackageReference Include="Broiler.Documents.Docx" Version="0.1.0-preview.4" />
+    <PackageReference Include="Broiler.Documents.FormatCodes" Version="0.1.0-preview.4" />
+    <PackageReference Include="Broiler.Documents.Html" Version="0.1.0-preview.4" />
+    <PackageReference Include="Broiler.Documents.Markdown" Version="0.1.0-preview.4" />
+    <PackageReference Include="Broiler.Documents.Odt" Version="0.1.0-preview.4" />
+    <PackageReference Include="Broiler.Documents.Rtf" Version="0.1.0-preview.4" />
+    <PackageReference Include="Broiler.Graphics" Version="0.1.0-preview.3" />
+    <PackageReference Include="Broiler.UI.Button.Standard" Version="0.1.0-preview.3" />
+    <PackageReference Include="Broiler.UI.ComboBox.Standard" Version="0.1.0-preview.3" />
+    <PackageReference Include="Broiler.UI.Dialog.Standard" Version="0.1.0-preview.3" />
+    <PackageReference Include="Broiler.UI.FileDialog.Standard" Version="0.1.0-preview.3" />
+    <PackageReference Include="Broiler.UI.FontDialog.Standard" Version="0.1.0-preview.3" />
+    <PackageReference Include="Broiler.UI.FormatCodeView" Version="0.1.0-preview.3" />
+    <PackageReference Include="Broiler.UI.FormatCodeView.Standard" Version="0.1.0-preview.3" />
+    <PackageReference Include="Broiler.UI.Label.Standard" Version="0.1.0-preview.3" />
+    <PackageReference Include="Broiler.UI.Menu.Standard" Version="0.1.0-preview.3" />
+    <PackageReference Include="Broiler.UI.RichEdit" Version="0.1.0-preview.3" />
+    <PackageReference Include="Broiler.UI.RichEdit.Standard" Version="0.1.0-preview.3" />
+    <PackageReference Include="Broiler.UI.Splitter.Standard" Version="0.1.0-preview.3" />
+    <PackageReference Include="Broiler.UI.Toolbar.Standard" Version="0.1.0-preview.3" />
+    <PackageReference Include="Broiler.UI.Tooltip.Standard" Version="0.1.0-preview.3" />
+    <PackageReference Include="Broiler.UI.Window.Standard" Version="0.1.0-preview.3" />
   </ItemGroup>
 
 </Project>
