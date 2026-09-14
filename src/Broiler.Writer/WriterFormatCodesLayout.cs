@@ -1,6 +1,6 @@
 using System;
 
-namespace Broiler.Writer.FormatCodes;
+namespace Broiler.Writer;
 
 /// <summary>Shared desktop/browser layout policy for the editor and Formatting Codes pane.</summary>
 public static class WriterFormatCodesLayout

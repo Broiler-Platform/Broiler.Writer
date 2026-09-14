@@ -7,7 +7,7 @@ using Broiler.Graphics.Rendering;
 using Broiler.Graphics.RenderList;
 using Broiler.Graphics.Text;
 
-namespace Broiler.Writer.FormatCodes;
+namespace Broiler.Writer;
 
 /// <summary>
 /// The Writer's toolbar icons, drawn as geometry rather than loaded as pictures.
@@ -18,9 +18,7 @@ namespace Broiler.Writer.FormatCodes;
 /// control has already worked out for its state, and costs nothing to ship. At twenty icons the
 /// drawing cost is not worth a thought.
 ///
-/// It lives in this assembly because it is the only project below the application that both the
-/// desktop Writer and the browser Writer already reference, and those two carry hand-maintained
-/// copies of the whole shell. Anything put in either one of them would have to be written twice.
+/// It lives in Core so the desktop and browser shells share the same icon geometry.
 ///
 /// Everything is authored on a <see cref="DesignExtent"/>-unit square and scaled into whatever box
 /// the control gives it, so the same source draws a 16 DIP bar icon and a 20 DIP one on a compact

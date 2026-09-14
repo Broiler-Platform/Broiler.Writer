@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using Broiler.Input.Keyboard;
 
-namespace Broiler.Writer.FormatCodes;
+namespace Broiler.Writer;
 
 /// <summary>What a zoom gesture asked for.</summary>
 public enum WriterZoomStep

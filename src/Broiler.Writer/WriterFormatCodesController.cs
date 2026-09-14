@@ -6,8 +6,9 @@ using Broiler.Documents.Model;
 using Broiler.UI;
 using Broiler.UI.FormatCodeView;
 using Broiler.UI.RichEdit;
+using Broiler.Writer.FormatCodes;
 
-namespace Broiler.Writer.FormatCodes;
+namespace Broiler.Writer;
 
 /// <summary>
 /// Keeps a Writer RichEdit and its Formatting Codes view synchronized. Structured

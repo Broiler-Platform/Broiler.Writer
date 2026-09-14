@@ -1,5 +1,11 @@
 <Project>
 
+  <!-- Components can import these props in an in-tree build; retain their own versions. -->
+  <PropertyGroup Condition="$(MSBuildProjectName.StartsWith('Broiler.Writer'))">
+    <BroilerWriterVersion Condition="'$(BroilerWriterVersion)' == ''">0.1.0-preview.1</BroilerWriterVersion>
+    <Version>$(BroilerWriterVersion)</Version>
+  </PropertyGroup>
+
   <!-- Broiler.UI vendors its own Broiler.Documents so it can build alone.
        This repo has one too, and building both puts two assemblies named
        Broiler.Documents.Model in the output - whichever wins, the other half

@@ -1,6 +1,6 @@
 using Broiler.Input.Keyboard;
 
-namespace Broiler.Writer.FormatCodes;
+namespace Broiler.Writer;
 
 /// <summary>Shared keyboard policy for desktop and browser Formatting Codes hosts.</summary>
 public static class WriterFormatCodesShortcut

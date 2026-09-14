@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using Broiler.Graphics;
-using Broiler.Writer.FormatCodes;
 using Xunit;
 
 namespace Broiler.Writer.FormatCodes.Tests;

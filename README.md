@@ -6,8 +6,8 @@
 Broiler.Writer is the word processor of the [Broiler](https://github.com/Broiler-Platform/Broiler)
 managed-code application stack for .NET. It holds the four platform heads — Windows, Linux,
 Android and WebAssembly — the shared `Broiler.Writer.Core` application they have in common,
-and `Broiler.Writer.FormatCodes`, the reveal-codes layer that keeps a structured view of the
-document in sync with the editing surface.
+and `Broiler.Writer.FormatCodes`, the UI-independent projection scheduler. Core owns the
+reveal-codes controller that keeps the structured view in sync with the editing surface.
 
 Everything below the application — document codecs, DOM, graphics, media, input and the UI
 toolkit — lives in its own repository and is consumed here as a submodule.
@@ -83,7 +83,17 @@ holds.
 
 ## Dialogs
 
-Open, Save As, Insert Picture and Font are **real top-level OS windows** on the Windows head:
+Help → About Broiler Writer opens Broiler.UI's `StandardAboutDialog`, showing Writer's
+assembly informational version and a snapshot of the loaded Broiler component versions.
+`Directory.Build.props` supplies the application version (including its preview label);
+Android's display version uses the same value. The About dialog omits commit-hash build metadata.
+Override Writer's version with `-p:BroilerWriterVersion=0.2.0-preview.1`; this keeps source
+dependencies on their own versions, whereas the global `-p:Version` also overrides dependencies.
+
+`Broiler.Writer.Core` composes the About dialog and references the Broiler.UI About dialog
+packages alongside the other shared UI controls.
+
+Open, Save As, Insert Picture, Font and About are **real top-level OS windows** on the Windows head:
 each can be moved onto another monitor, is ordered by the window manager, and carries the one
 title bar Broiler.UI draws for it rather than a second native caption. Broiler.UI calls this
 breaking out (its ADR 0025 and 0026) and makes it the default for every owned window and
@@ -246,8 +256,8 @@ There is no `Directory.Build.targets`. Broiler.Browser uses one solely to rewrit
 
 | Path | Contents |
 |---|---|
-| `src/Broiler.Writer` | Shared application (`Broiler.Writer.Core`) — window, menu, toolbar, RichEdit surface, palette, format registry |
-| `src/Broiler.Writer.FormatCodes` | Reveal-codes synchronization, structured editing, and the host policy the heads share — Formatting Codes shortcuts and the zoom ladder |
+| `src/Broiler.Writer` | Shared application (`Broiler.Writer.Core`) — window, dialogs, menu, toolbar, icons, RichEdit surface, palette, format registry, reveal-codes controller, pane layout, shortcuts and zoom |
+| `src/Broiler.Writer.FormatCodes` | UI-independent Formatting Codes projection scheduler; depends only on `Broiler.Documents.FormatCodes` |
 | `src/Broiler.Writer.FormatCodes.Tests` | xUnit suite — format codes, document load, image render, PDF policy, zoom, desktop host smoke |
 | `src/Broiler.Writer.Windows` | Windows head — `WinExe`, Direct2D, Win32 clipboard, and the break-out host that gives each dialog its own OS window |
 | `src/Broiler.Writer.Linux` | Linux head — X11 clipboard and input coordination |

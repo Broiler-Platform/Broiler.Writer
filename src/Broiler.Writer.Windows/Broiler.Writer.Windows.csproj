@@ -10,7 +10,6 @@
     <AssemblyName>Broiler.Writer.Windows</AssemblyName>
     <IsPackable>false</IsPackable>
     <EnableWindowsTargeting>true</EnableWindowsTargeting>
-	  <AssemblyVersion>1.0.0.1</AssemblyVersion>
   </PropertyGroup>
 
   <PropertyGroup>

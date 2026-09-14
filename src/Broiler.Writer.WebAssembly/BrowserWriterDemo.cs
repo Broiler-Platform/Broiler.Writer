@@ -38,7 +38,6 @@ using Broiler.UI.Toolbar;
 using Broiler.UI.Toolbar.Standard;
 using Broiler.UI.Tooltip.Standard;
 using Broiler.UI.Window.Standard;
-using Broiler.Writer.FormatCodes;
 
 namespace Broiler.Writer.WebAssembly;
 
@@ -1132,9 +1131,8 @@ internal sealed class BrowserWriterDemo : IDisposable
 
     private void ShowAbout()
     {
-        _lastAction = "Broiler Writer in the browser: Broiler.UI window, menu, StandardRichEdit, and the Broiler.Documents codecs.";
         _session.SetFocus(_editor);
-        RefreshUi();
+        WriterAbout.Show(_rootWindow, _host.ViewportSize, typeof(BrowserWriterDemo).Assembly);
     }
 
     // ---- Input plumbing ---------------------------------------------------------------------

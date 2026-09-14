@@ -31,7 +31,6 @@ using Broiler.UI.Toolbar;
 using Broiler.UI.Toolbar.Standard;
 using Broiler.UI.Tooltip.Standard;
 using Broiler.UI.Window.Standard;
-using Broiler.Writer.FormatCodes;
 using Broiler.Graphics.RenderList;
 using Broiler.Graphics.Geometry;
 using Broiler.Graphics.Color;
@@ -1321,9 +1320,8 @@ internal sealed class WriterApp : IDisposable
 
     private void ShowAbout()
     {
-        _lastAction = "Broiler Writer preview: Broiler.UI window, menu, and StandardRichEdit";
         _session.SetFocus(_editor);
-        RefreshUi();
+        WriterAbout.Show(_rootWindow, _host.ViewportSize, typeof(WriterApp).Assembly);
     }
 
     private void SeedDocument()

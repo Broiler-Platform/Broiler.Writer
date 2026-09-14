@@ -1,10 +1,9 @@
-﻿using Broiler.Graphics;
+using Broiler.Graphics;
 using Broiler.Input;
 using Broiler.Input.Keyboard;
 using Broiler.Input.Mouse;
 using Broiler.UI;
 using Broiler.UI.Menu;
-using Broiler.Writer.FormatCodes;
 
 namespace Broiler.Writer.FormatCodes.Tests;
 

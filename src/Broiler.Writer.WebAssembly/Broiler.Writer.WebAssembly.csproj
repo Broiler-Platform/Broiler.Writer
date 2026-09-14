@@ -16,7 +16,6 @@
          a hosted publish through Broiler.Office.Server (BOSS), where the pubxml profile does not
          apply. Full AOT still layers on top with -p:RunAOTCompilation=true. -->
     <PublishTrimmed>true</PublishTrimmed>
-	  <AssemblyVersion>1.0.0.1</AssemblyVersion>
   </PropertyGroup>
 
   <ItemGroup>
@@ -61,7 +60,7 @@
     <ProjectReference Include="..\..\Broiler.UI\src\Implementations\Standard\Text\Broiler.UI.RichEdit.Standard\Broiler.UI.RichEdit.Standard.csproj" />
     <ProjectReference Include="..\..\Broiler.UI\src\Implementations\Standard\Text\Broiler.UI.FormatCodeView.Standard\Broiler.UI.FormatCodeView.Standard.csproj" />
     <ProjectReference Include="..\..\Broiler.UI\src\Implementations\Standard\Layout\Broiler.UI.Splitter.Standard\Broiler.UI.Splitter.Standard.csproj" />
-    <ProjectReference Include="..\Broiler.Writer.FormatCodes\Broiler.Writer.FormatCodes.csproj" />
+    <ProjectReference Include="..\Broiler.Writer\Broiler.Writer.Core.csproj" />
   </ItemGroup>
 
   <ItemGroup>
