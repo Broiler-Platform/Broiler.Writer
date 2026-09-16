@@ -6,9 +6,11 @@
       "roots": [
         "src/Broiler.Writer.Windows/Broiler.Writer.Windows.csproj"
       ],
-      "additionalProjects": [
-        "Broiler.Input/src/Broiler.Input.Mouse.Windows/Broiler.Input.Mouse.Windows.csproj",
-        "Broiler.Input/src/Broiler.Input.Windows/Broiler.Input.Windows.csproj"
+      "_additionalProjects": [
+        "Broiler.Input's Windows satellites used to be listed here so they would",
+        "build alongside a head that only loads them at runtime. They arrive as",
+        "packages now, so there is no project to add and the generator refuses a",
+        "path that does not exist."
       ],
       "forbiddenProjectPatterns": [
         "(?i)(^|[./])[^/]*Linux[^/]*\\.csproj$",

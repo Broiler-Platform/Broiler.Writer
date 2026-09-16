@@ -21,18 +21,33 @@
     <Compile Include="..\Broiler.App\LinuxX11Clipboard.cs" Link="LinuxX11Clipboard.cs" />
   </ItemGroup>
 
+  <!--
+    The three Broiler.Input satellites below do not restore yet: they are
+    published only up to 0.1.0-preview.2, which depends on Broiler.Input
+    0.1.0-preview.2, from before that component split its flat namespace. Pinning
+    those older versions would not help - NuGet unifies Broiler.Input onto the
+    preview.4 the UI packages resolve, and the types they were compiled against
+    are not there. So the pins name what this head needs and fail loudly with
+    NU1102 until Broiler.Input publishes it, rather than failing obscurely with
+    missing types. Everything else here resolves today, Broiler.Graphics.Linux
+    and .Linux.OpenGL included.
+  -->
+  <ItemGroup>
+    <PackageReference Include="Broiler.Documents.Pdf" Version="0.1.0-preview.4" />
+    <PackageReference Include="Broiler.Documents.Pdf.Images" Version="0.1.0-preview.4" />
+    <PackageReference Include="Broiler.Graphics" Version="0.1.0-preview.4" />
+    <PackageReference Include="Broiler.Graphics.Linux" Version="0.1.0-preview.4" />
+    <PackageReference Include="Broiler.Graphics.Linux.OpenGL" Version="0.1.0-preview.4" />
+    <PackageReference Include="Broiler.Input.Keyboard.Linux" Version="0.1.0-preview.4" />
+    <PackageReference Include="Broiler.Input.Linux" Version="0.1.0-preview.4" />
+    <PackageReference Include="Broiler.Input.Mouse.Linux" Version="0.1.0-preview.4" />
+    <PackageReference Include="Broiler.Media.Image.Managed" Version="0.1.0-preview.11" />
+  </ItemGroup>
+
   <ItemGroup>
     <ProjectReference Include="..\Broiler.Writer\Broiler.Writer.Core.csproj" />
     <!-- The PDF codec is referenced by the heads that register it, never by the
          shared Writer core: a head must not acquire it transitively (PDF roadmap §10.1). -->
-    <ProjectReference Include="..\..\Broiler.Documents\src\Broiler.Documents.Pdf\Broiler.Documents.Pdf.csproj" />
-    <ProjectReference Include="..\..\Broiler.Documents\src\Broiler.Documents.Pdf.Images\Broiler.Documents.Pdf.Images.csproj" />
-    <ProjectReference Include="..\..\Broiler.Media\src\Broiler.Media.Image.Managed\Broiler.Media.Image.Managed.csproj" />
-    <ProjectReference Include="..\..\Broiler.Graphics\src\Broiler.Graphics.Linux\Broiler.Graphics.Linux.csproj" />
-    <ProjectReference Include="..\..\Broiler.Graphics\src\Broiler.Graphics.Linux.OpenGL\Broiler.Graphics.Linux.OpenGL.csproj" />
-    <ProjectReference Include="..\..\Broiler.Input\src\Broiler.Input.Keyboard.Linux\Broiler.Input.Keyboard.Linux.csproj" />
-    <ProjectReference Include="..\..\Broiler.Input\src\Broiler.Input.Linux\Broiler.Input.Linux.csproj" />
-    <ProjectReference Include="..\..\Broiler.Input\src\Broiler.Input.Mouse.Linux\Broiler.Input.Mouse.Linux.csproj" />
   </ItemGroup>
 
 </Project>

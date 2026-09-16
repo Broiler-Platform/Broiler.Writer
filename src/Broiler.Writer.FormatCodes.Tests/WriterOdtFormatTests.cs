@@ -2,6 +2,7 @@ using Broiler.Documents;
 using Broiler.Documents.Model;
 using Broiler.Documents.Odt;
 using Broiler.Graphics;
+using Broiler.Graphics.Geometry;
 using Broiler.UI.FileDialog;
 
 namespace Broiler.Writer.FormatCodes.Tests;

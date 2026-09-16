@@ -38,20 +38,29 @@ jobs:
             os: windows-latest
             solution: Broiler.Windows.Writer.slnx
             test: false
-          # NOTE: The Linux head and test suite are disabled until their project
-          # files and source code are migrated from submodules to NuGet packages.
+          # NOTE: The Linux head is disabled on a dependency, not on work left in
+          # this repository. Its project file and sources are migrated; what is
+          # missing is upstream. Broiler.Input.Keyboard.Linux, Broiler.Input.Linux
+          # and Broiler.Input.Mouse.Linux are published only up to 0.1.0-preview.2,
+          # which depends on Broiler.Input 0.1.0-preview.2 - from before that
+          # component split its flat namespace. NuGet unifies it onto the
+          # 0.1.0-preview.4 the UI packages resolve, where the types those
+          # satellites compiled against are gone, so the older pins cannot work
+          # either. Broiler.Graphics.Linux and .Linux.OpenGL are already published
+          # at preview.4 and resolve; only the three Input satellites do not.
+          # Re-enable once Broiler.Input publishes them at preview.4.
           # - name: Linux head
           #   os: ubuntu-latest
           #   solution: Broiler.Linux.Writer.slnx
           #   test: false
-          # - name: Tests (Linux)
-          #   os: ubuntu-latest
-          #   solution: Broiler.Writer.Tests.slnx
-          #   test: true
-          # - name: Tests (Windows)
-          #   os: windows-latest
-          #   solution: Broiler.Writer.Tests.slnx
-          #   test: true
+          - name: Tests (Linux)
+            os: ubuntu-latest
+            solution: Broiler.Writer.Tests.slnx
+            test: true
+          - name: Tests (Windows)
+            os: windows-latest
+            solution: Broiler.Writer.Tests.slnx
+            test: true
 
     steps:
       - name: Check out

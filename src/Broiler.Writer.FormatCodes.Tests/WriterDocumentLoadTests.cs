@@ -3,6 +3,7 @@ using System.Text;
 using Broiler.Documents;
 using Broiler.Documents.Model;
 using Broiler.Graphics;
+using Broiler.Graphics.Geometry;
 
 namespace Broiler.Writer.FormatCodes.Tests;
 
