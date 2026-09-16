@@ -3,6 +3,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Broiler.Documents.Pdf;
 using Broiler.Documents.Pdf.Images;
+using Broiler.Documents.Pdf.Fonts;
 
 namespace Broiler.Writer;
 
@@ -87,9 +88,9 @@ internal static class Program
                 WriterFormatCapabilities.Open));
 
     /// <summary>
-    /// The PDF service graph this head composes: the JPEG decoder, and a URI
-    /// policy that admits the schemes a document's links are ordinarily written
-    /// in.
+    /// The PDF service graph this head composes: the JPEG decoder, the sfnt
+    /// font-program reader, and a URI policy that admits the schemes a
+    /// document's links are ordinarily written in.
     /// </summary>
     /// <remarks>
     /// <para>
@@ -112,6 +113,25 @@ internal static class Program
     /// Referencing <c>Broiler.Documents.Pdf.Images</c> links those adapters even
     /// so. Linking is not composing, and the composition test asserts the
     /// difference.
+    /// </para>
+    /// <para>
+    /// <strong>Why the font-program reader is composed.</strong> A PDF says what
+    /// its glyphs spell in one of two ways: a <c>ToUnicode</c> map, or not at
+    /// all. A subsetted symbolic font without one extracts as nothing - not as
+    /// wrong text, as no text - and the program the document already embeds
+    /// carries the answer in its own character map. IP-012 approved reading one
+    /// for exactly that, and only that: no outlines, no metrics, no shaping, and
+    /// no embedding, which this release does not do at all.
+    /// </para>
+    /// <para>
+    /// It stays a satellite package and an explicit opt-in because a font parser
+    /// is one of the two largest attack surfaces a PDF reader has, so a host that
+    /// composes none links none. <c>GraphicsFontProgramReader</c> goes to
+    /// <c>BFontProgramInspector</c> rather than the renderer's parser for the
+    /// same reason the JPEG decoder is a separate decision: the inspector refuses
+    /// a malformed program where the renderer's parser repairs it into plausible
+    /// output, and on this side of the boundary the program arrived inside
+    /// somebody else's document (PDF roadmap &#167;6.5).
     /// </para>
     /// <para>
     /// <strong>Why http and mailto are admitted.</strong> The policy's own
@@ -139,6 +159,7 @@ internal static class Program
     private static PdfCodecServices CreatePdfServices() =>
         PdfCodecServices.Base
             .WithStreamFilters(new JpegStreamFilter())
-            .WithUriPolicy(new PdfUriPolicy(allowHttp: true, allowMailto: true));
+            .WithUriPolicy(new PdfUriPolicy(allowHttp: true, allowMailto: true))
+            .WithFontProgramReader(new GraphicsFontProgramReader());
 
 }

@@ -9,6 +9,7 @@ using System.Globalization;
 using Broiler.Media.Image.Managed;
 using Broiler.Media.Image;
 using Broiler.Documents.Pdf.Images;
+using Broiler.Documents.Pdf.Fonts;
 using Broiler.Documents.Pdf.Filters;
 
 namespace Broiler.Writer.FormatCodes.Tests;
@@ -205,7 +206,8 @@ public sealed class WriterPdfFormatTests
     private static PdfCodecServices DesktopPdfServices() =>
         PdfCodecServices.Base
             .WithStreamFilters(new JpegStreamFilter())
-            .WithUriPolicy(new PdfUriPolicy(allowHttp: true, allowMailto: true));
+            .WithUriPolicy(new PdfUriPolicy(allowHttp: true, allowMailto: true))
+            .WithFontProgramReader(new GraphicsFontProgramReader());
 
     private static WriterDocumentFormats DesktopFormats() =>
         WriterDocumentFormats.CreateDefault().With(
@@ -262,6 +264,18 @@ public sealed class WriterPdfFormatTests
         Assert.False(PdfUriPolicy.Default.IsAdmitted("http://example.org/docs"));
         Assert.False(PdfUriPolicy.Default.IsAdmitted("mailto:someone@example.org"));
         Assert.True(PdfUriPolicy.Default.IsAdmitted("https://example.org/docs"));
+    }
+
+    [Fact(Timeout = 600000)]
+    public void The_Desktop_Composition_Inspects_Embedded_Font_Programs()
+    {
+        // The codec discovers nothing: a reader is present only because a head
+        // put one there. Base composes none, and that difference is the whole
+        // point of the satellite package.
+        Assert.NotNull(DesktopPdfServices().FontProgramReader);
+        Assert.IsType<GraphicsFontProgramReader>(DesktopPdfServices().FontProgramReader);
+
+        Assert.Null(PdfCodecServices.Base.FontProgramReader);
     }
 
     [Fact(Timeout = 600000)]
