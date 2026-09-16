@@ -33,9 +33,9 @@
     and .Linux.OpenGL included.
   -->
   <ItemGroup>
-    <PackageReference Include="Broiler.Documents.Pdf" Version="0.1.0-preview.12" />
-    <PackageReference Include="Broiler.Documents.Pdf.Images" Version="0.1.0-preview.12" />
-    <PackageReference Include="Broiler.Documents.Pdf.Fonts" Version="0.1.0-preview.12" />
+    <PackageReference Include="Broiler.Documents.Pdf" Version="0.1.0-preview.13" />
+    <PackageReference Include="Broiler.Documents.Pdf.Images" Version="0.1.0-preview.13" />
+    <PackageReference Include="Broiler.Documents.Pdf.Fonts" Version="0.1.0-preview.13" />
     <PackageReference Include="Broiler.Graphics" Version="0.1.0-preview.4" />
     <PackageReference Include="Broiler.Graphics.Linux" Version="0.1.0-preview.4" />
     <PackageReference Include="Broiler.Graphics.Linux.OpenGL" Version="0.1.0-preview.4" />
