@@ -23,11 +23,11 @@
 
   <ItemGroup>
     <PackageReference Include="Broiler.Graphics" Version="0.1.0-preview.4" />
-    <PackageReference Include="Broiler.Documents.Docx" Version="0.1.0-preview.7" />
-    <PackageReference Include="Broiler.Documents.Html" Version="0.1.0-preview.7" />
-    <PackageReference Include="Broiler.Documents.Markdown" Version="0.1.0-preview.7" />
-    <PackageReference Include="Broiler.Documents.Odt" Version="0.1.0-preview.7" />
-    <PackageReference Include="Broiler.Documents.Rtf" Version="0.1.0-preview.7" />
+    <PackageReference Include="Broiler.Documents.Docx" Version="0.1.0-preview.8" />
+    <PackageReference Include="Broiler.Documents.Html" Version="0.1.0-preview.8" />
+    <PackageReference Include="Broiler.Documents.Markdown" Version="0.1.0-preview.8" />
+    <PackageReference Include="Broiler.Documents.Odt" Version="0.1.0-preview.8" />
+    <PackageReference Include="Broiler.Documents.Rtf" Version="0.1.0-preview.8" />
     <PackageReference Include="Broiler.UI.AboutDialog" Version="0.1.0-preview.4" />
     <PackageReference Include="Broiler.UI.AboutDialog.Standard" Version="0.1.0-preview.4" />
     <PackageReference Include="Broiler.UI.Button.Standard" Version="0.1.0-preview.4" />
