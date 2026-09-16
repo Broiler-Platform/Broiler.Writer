@@ -87,8 +87,9 @@ internal static class Program
                 WriterFormatCapabilities.Open));
 
     /// <summary>
-    /// The PDF service graph this head composes: the JPEG decoder, and nothing
-    /// else.
+    /// The PDF service graph this head composes: the JPEG decoder, and a URI
+    /// policy that admits the schemes a document's links are ordinarily written
+    /// in.
     /// </summary>
     /// <remarks>
     /// <para>
@@ -112,8 +113,32 @@ internal static class Program
     /// so. Linking is not composing, and the composition test asserts the
     /// difference.
     /// </para>
+    /// <para>
+    /// <strong>Why http and mailto are admitted.</strong> The policy's own
+    /// default is absolute <c>https</c> alone, which is the right default for a
+    /// library that cannot know what its caller will do with a link: a target a
+    /// reader admits is one a writer may later be asked to emit. A Writer opening
+    /// a document a person chose to open is the narrower case the default is
+    /// strict for. A <c>mailto:</c> in a letterhead and an <c>http://</c> on a
+    /// document older than the web's move to TLS are ordinary content, and
+    /// refusing them turned real links into plain text with a line in a dialog as
+    /// the only trace.
+    /// </para>
+    /// <para>
+    /// This widens the scheme list and nothing else. Everything the policy
+    /// refuses on other grounds stays refused - <c>javascript:</c>,
+    /// <c>file:</c>, <c>data:</c>, local and UNC paths, protocol-handler and
+    /// unknown schemes, values that are not absolute URIs, targets carrying user
+    /// information or no host, and anything past the length cap - and validation
+    /// still performs no I/O of any kind, so opening a document never contacts a
+    /// link (ADR 0009). The deliberate half of the trade is that a plain
+    /// <c>http</c> target now becomes an active link in the opened document
+    /// rather than inert text.
+    /// </para>
     /// </remarks>
     private static PdfCodecServices CreatePdfServices() =>
-        PdfCodecServices.Base.WithStreamFilters(new JpegStreamFilter());
+        PdfCodecServices.Base
+            .WithStreamFilters(new JpegStreamFilter())
+            .WithUriPolicy(new PdfUriPolicy(allowHttp: true, allowMailto: true));
 
 }

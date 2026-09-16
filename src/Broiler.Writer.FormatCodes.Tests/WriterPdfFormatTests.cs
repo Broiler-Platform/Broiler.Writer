@@ -203,7 +203,9 @@ public sealed class WriterPdfFormatTests
     /// honest.
     /// </remarks>
     private static PdfCodecServices DesktopPdfServices() =>
-        PdfCodecServices.Base.WithStreamFilters(new JpegStreamFilter());
+        PdfCodecServices.Base
+            .WithStreamFilters(new JpegStreamFilter())
+            .WithUriPolicy(new PdfUriPolicy(allowHttp: true, allowMailto: true));
 
     private static WriterDocumentFormats DesktopFormats() =>
         WriterDocumentFormats.CreateDefault().With(
@@ -233,6 +235,33 @@ public sealed class WriterPdfFormatTests
         // Linking the assembly is not composing its filters, and the decision
         // stays each head's: a build that composes nothing still decodes nothing.
         Assert.False(PdfCodecServices.Base.SupportsFilter(PdfFilterNames.Dct));
+    }
+
+    [Fact(Timeout = 600000)]
+    public void The_Desktop_Composition_Admits_Http_And_Mailto_Links()
+    {
+        PdfUriPolicy policy = DesktopPdfServices().UriPolicy;
+
+        Assert.True(policy.IsAdmitted("https://example.org/docs"));
+        Assert.True(policy.IsAdmitted("http://example.org/docs"));
+        Assert.True(policy.IsAdmitted("mailto:someone@example.org"));
+
+        // Widened by scheme, not loosened. What the policy refuses on other
+        // grounds is refused whatever this head composes, and a head that could
+        // admit javascript: by opting into two schemes would be a different
+        // decision than the one taken here.
+        Assert.False(policy.IsAdmitted("javascript:alert(1)"));
+        Assert.False(policy.IsAdmitted("file:///etc/passwd"));
+        Assert.False(policy.IsAdmitted("data:text/html,<b>x</b>"));
+        Assert.False(policy.IsAdmitted("\\\\server\\share\\doc.pdf"));
+        Assert.False(policy.IsAdmitted("#chapter-two"));
+        Assert.False(policy.IsAdmitted("https://user:secret@example.org/"));
+
+        // And the library's own default is untouched: this is one head's
+        // decision, not a change to what every caller of the codec gets.
+        Assert.False(PdfUriPolicy.Default.IsAdmitted("http://example.org/docs"));
+        Assert.False(PdfUriPolicy.Default.IsAdmitted("mailto:someone@example.org"));
+        Assert.True(PdfUriPolicy.Default.IsAdmitted("https://example.org/docs"));
     }
 
     [Fact(Timeout = 600000)]
