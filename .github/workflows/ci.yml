@@ -38,20 +38,18 @@ jobs:
             os: windows-latest
             solution: Broiler.Windows.Writer.slnx
             test: false
-          # NOTE: The Linux head and test suite are disabled until their project
-          # files and source code are migrated from submodules to NuGet packages.
-          # - name: Linux head
-          #   os: ubuntu-latest
-          #   solution: Broiler.Linux.Writer.slnx
-          #   test: false
-          # - name: Tests (Linux)
-          #   os: ubuntu-latest
-          #   solution: Broiler.Writer.Tests.slnx
-          #   test: true
-          # - name: Tests (Windows)
-          #   os: windows-latest
-          #   solution: Broiler.Writer.Tests.slnx
-          #   test: true
+          - name: Linux head
+            os: ubuntu-latest
+            solution: Broiler.Linux.Writer.slnx
+            test: false
+          - name: Tests (Linux)
+            os: ubuntu-latest
+            solution: Broiler.Writer.Tests.slnx
+            test: true
+          - name: Tests (Windows)
+            os: windows-latest
+            solution: Broiler.Writer.Tests.slnx
+            test: true
 
     steps:
       - name: Check out

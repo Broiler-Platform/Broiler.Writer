@@ -2,6 +2,8 @@ using System.Collections.Generic;
 using System.Linq;
 using Broiler.Documents.Model;
 using Broiler.Graphics;
+using Broiler.Graphics.Geometry;
+using Broiler.Graphics.RenderList;
 using Broiler.UI;
 using Broiler.UI.Menu;
 using Xunit;

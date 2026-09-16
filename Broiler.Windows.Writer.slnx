@@ -1,5 +1,14 @@
 <Solution>
-  <Project Path="src/Broiler.Writer.FormatCodes/Broiler.Writer.FormatCodes.csproj" />
-  <Project Path="src/Broiler.Writer.Windows/Broiler.Writer.Windows.csproj" />
-  <Project Path="src/Broiler.Writer/Broiler.Writer.Core.csproj" />
+  <!-- Generated from eng/solutions.json by scripts/update-solutions.ps1. -->
+  <Configurations>
+    <BuildType Name="Debug" />
+    <BuildType Name="Release" />
+  </Configurations>
+  <Folder Name="/Entry points/">
+    <Project Path="src/Broiler.Writer.Windows/Broiler.Writer.Windows.csproj" />
+  </Folder>
+  <Folder Name="/Dependencies/src/">
+    <Project Path="src/Broiler.Writer.FormatCodes/Broiler.Writer.FormatCodes.csproj" />
+    <Project Path="src/Broiler.Writer/Broiler.Writer.Core.csproj" />
+  </Folder>
 </Solution>

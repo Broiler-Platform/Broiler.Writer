@@ -22,17 +22,21 @@
   </ItemGroup>
 
   <ItemGroup>
+    <PackageReference Include="Broiler.Documents.Pdf" Version="0.1.0-preview.4" />
+    <PackageReference Include="Broiler.Documents.Pdf.Images" Version="0.1.0-preview.4" />
+    <PackageReference Include="Broiler.Graphics" Version="0.1.0-preview.4" />
+    <PackageReference Include="Broiler.Graphics.Linux" Version="0.1.0-preview.4" />
+    <PackageReference Include="Broiler.Graphics.Linux.OpenGL" Version="0.1.0-preview.4" />
+    <PackageReference Include="Broiler.Input.Keyboard.Linux" Version="0.1.0-preview.4" />
+    <PackageReference Include="Broiler.Input.Linux" Version="0.1.0-preview.4" />
+    <PackageReference Include="Broiler.Input.Mouse.Linux" Version="0.1.0-preview.4" />
+    <PackageReference Include="Broiler.Media.Image.Managed" Version="0.1.0-preview.11" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\Broiler.Writer\Broiler.Writer.Core.csproj" />
     <!-- The PDF codec is referenced by the heads that register it, never by the
          shared Writer core: a head must not acquire it transitively (PDF roadmap §10.1). -->
-    <ProjectReference Include="..\..\Broiler.Documents\src\Broiler.Documents.Pdf\Broiler.Documents.Pdf.csproj" />
-    <ProjectReference Include="..\..\Broiler.Documents\src\Broiler.Documents.Pdf.Images\Broiler.Documents.Pdf.Images.csproj" />
-    <ProjectReference Include="..\..\Broiler.Media\src\Broiler.Media.Image.Managed\Broiler.Media.Image.Managed.csproj" />
-    <ProjectReference Include="..\..\Broiler.Graphics\src\Broiler.Graphics.Linux\Broiler.Graphics.Linux.csproj" />
-    <ProjectReference Include="..\..\Broiler.Graphics\src\Broiler.Graphics.Linux.OpenGL\Broiler.Graphics.Linux.OpenGL.csproj" />
-    <ProjectReference Include="..\..\Broiler.Input\src\Broiler.Input.Keyboard.Linux\Broiler.Input.Keyboard.Linux.csproj" />
-    <ProjectReference Include="..\..\Broiler.Input\src\Broiler.Input.Linux\Broiler.Input.Linux.csproj" />
-    <ProjectReference Include="..\..\Broiler.Input\src\Broiler.Input.Mouse.Linux\Broiler.Input.Mouse.Linux.csproj" />
   </ItemGroup>
 
 </Project>

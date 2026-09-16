@@ -15,15 +15,25 @@
     <PackageReference Include="xunit.runner.visualstudio" Version="2.5.3" />
   </ItemGroup>
 
+  <!--
+    Components arrive as packages, exactly as they do for the heads. These were
+    ProjectReferences into submodule working copies until the move to NuGet
+    removed the submodules; a ProjectReference to a path that no longer exists is
+    only MSB9008, a warning, so the build carried on and reported the resulting
+    absence as thirty-odd CS0234 and CS0246 in the test sources instead.
+  -->
+  <ItemGroup>
+    <!-- Referenced so the tests can compose PDF the way the desktop heads do, and
+         assert that the shared default format set still does not carry it. -->
+    <PackageReference Include="Broiler.Documents.Pdf" Version="0.1.0-preview.4" />
+    <PackageReference Include="Broiler.Documents.Pdf.Images" Version="0.1.0-preview.4" />
+    <PackageReference Include="Broiler.UI.RichEdit.Standard" Version="0.1.0-preview.4" />
+    <PackageReference Include="Broiler.Media.Image.Managed" Version="0.1.0-preview.11" />
+  </ItemGroup>
+
   <ItemGroup>
     <ProjectReference Include="..\Broiler.Writer.FormatCodes\Broiler.Writer.FormatCodes.csproj" />
     <ProjectReference Include="..\Broiler.Writer\Broiler.Writer.Core.csproj" />
-    <!-- Referenced so the tests can compose PDF the way the desktop heads do, and
-         assert that the shared default format set still does not carry it. -->
-    <ProjectReference Include="..\..\Broiler.Documents\src\Broiler.Documents.Pdf\Broiler.Documents.Pdf.csproj" />
-    <ProjectReference Include="..\..\Broiler.Documents\src\Broiler.Documents.Pdf.Images\Broiler.Documents.Pdf.Images.csproj" />
-    <ProjectReference Include="..\..\Broiler.UI\src\Implementations\Standard\Text\Broiler.UI.RichEdit.Standard\Broiler.UI.RichEdit.Standard.csproj" />
-    <ProjectReference Include="..\..\Broiler.Media\src\Broiler.Media.Image.Managed\Broiler.Media.Image.Managed.csproj" />
   </ItemGroup>
 
   <ItemGroup>

@@ -14,14 +14,14 @@ internal static class Program
         // Composition root: without a codec catalog the renderer cannot decode
         // the images a document embeds, and the editor would draw every picture
         // as an empty outline.
-        Broiler.Graphics.BImageCodecs.Use(
+        Broiler.Graphics.Imaging.BImageCodecs.Use(
             new Broiler.Media.MediaCodecCatalog(Broiler.Media.Image.Managed.ManagedImageCodecs.CreateCodecs()));
 
         // And without a font resolver the software rasterizer draws every family in the one face it
         // discovered, so the font dialog would offer a list it could not honour. The Windows head
         // needs no equivalent: Direct2D lays every run out through DirectWrite, which resolves
         // families itself.
-        Broiler.Graphics.BSystemFonts.InstallFontFileResolver();
+        Broiler.Graphics.Text.BSystemFonts.InstallFontFileResolver();
 
         LinuxWriterOptions options = LinuxWriterOptions.Parse(args);
         if (options.ShowHelp)
