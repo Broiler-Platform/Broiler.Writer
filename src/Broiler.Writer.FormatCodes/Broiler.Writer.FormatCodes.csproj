@@ -12,7 +12,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Broiler.Documents.FormatCodes" Version="0.1.0-preview.12" />
+    <PackageReference Include="Broiler.Documents.FormatCodes" Version="0.1.0-preview.13" />
   </ItemGroup>
 
 </Project>
