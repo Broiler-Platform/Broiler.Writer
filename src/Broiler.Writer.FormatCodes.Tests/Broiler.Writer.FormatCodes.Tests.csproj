@@ -27,6 +27,7 @@
          assert that the shared default format set still does not carry it. -->
     <PackageReference Include="Broiler.Documents.Pdf" Version="0.1.0-preview.5" />
     <PackageReference Include="Broiler.Documents.Pdf.Images" Version="0.1.0-preview.5" />
+    <PackageReference Include="Broiler.Documents.Pdf.Fonts" Version="0.1.0-preview.5" />
     <PackageReference Include="Broiler.UI.RichEdit.Standard" Version="0.1.0-preview.4" />
     <PackageReference Include="Broiler.Media.Image.Managed" Version="0.1.0-preview.11" />
   </ItemGroup>
