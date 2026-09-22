@@ -2,13 +2,15 @@ name: Publish
 
 # Dispatch-only. Every run builds the Windows and Linux Writer with NativeAOT, stamps both
 # with the next preview version, and attaches each platform's single executable to the run
-# as its own zip artifact:
+# as its own zip artifact, then drafts a GitHub pre-release carrying both:
 #
 #   broiler-writer-win-x64-<version>.zip    Broiler.Writer.Windows.exe
 #   broiler-writer-linux-x64-<version>.zip  Broiler.Writer.Linux
 #
 # NativeAOT is what makes the executable the whole application: self-contained, trimmed,
-# no .NET runtime to install, nothing beside it. Nothing is pushed to a feed.
+# no .NET runtime to install, nothing beside it. Nothing is pushed to a feed. The draft
+# release (eng/release-draft.sh) zips each executable as Broiler.Writer-<version>-<rid>.zip
+# and stays private until someone publishes it.
 #
 # nuget-source picks the feed the Broiler.* dependencies are restored from. NuGet.config
 # resolves everything from nuget.org; broiler-github maps Broiler.* to the Broiler-Platform
@@ -160,8 +162,8 @@ jobs:
           path: ${{ env.OUT }}/${{ matrix.executable }}
           if-no-files-found: error
 
-  tag:
-    name: Tag ${{ needs.version.outputs.tag }}
+  release:
+    name: Tag and draft release ${{ needs.version.outputs.tag }}
     needs: [version, build]
     runs-on: ubuntu-latest
     permissions:
@@ -174,11 +176,25 @@ jobs:
       - name: Check out
         uses: actions/checkout@v7
 
-      # Only after both platforms built: a failed run leaves its number free.
+      # Only after both platforms built: a failed run leaves its number free. The tag is
+      # pushed here rather than left to the release, because a draft release does not
+      # create its tag until it is published - and the next run counts tags.
       - name: Tag the commit
         run: |
           git tag "$TAG" "$GITHUB_SHA"
           git push origin "refs/tags/$TAG"
+
+      - name: Download the executables
+        uses: actions/download-artifact@v8
+        with:
+          pattern: broiler-writer-*
+          path: artifacts
+
+      # A draft pre-release: nothing is public until someone reviews and publishes it.
+      - name: Draft the release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: bash eng/release-draft.sh "$VERSION" artifacts
 
       - name: Summary
         run: |
@@ -187,6 +203,7 @@ jobs:
             echo
             echo "Dependencies restored from \`${{ inputs.nuget-source }}\`; commit tagged \`$TAG\`."
             echo
-            echo "- \`broiler-writer-win-x64-$VERSION\`: \`Broiler.Writer.Windows.exe\`"
-            echo "- \`broiler-writer-linux-x64-$VERSION\`: \`Broiler.Writer.Linux\` (run \`chmod +x\` after unzipping)"
+            echo "A draft pre-release **Broiler Writer $VERSION** was created with"
+            echo "\`Broiler.Writer-$VERSION-win-x64.zip\` and \`Broiler.Writer-$VERSION-linux-x64.zip\`."
+            echo "Review it under Releases and publish it there."
           } >> "$GITHUB_STEP_SUMMARY"
