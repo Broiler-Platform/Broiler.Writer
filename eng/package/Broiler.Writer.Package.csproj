@@ -1,0 +1,69 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Wraps one platform's published Broiler.Writer into a NuGet package for the Publish
+    workflow. It compiles nothing of its own: the workflow runs `dotnet publish` on a head
+    first, then packs that output here with
+
+      dotnet pack eng/package/Broiler.Writer.Package.csproj
+        -p:BroilerPackageRid=<rid> -p:BroilerPackageInput=<publish folder>
+        -p:BroilerWriterVersion=<version>
+
+    The package id is Broiler.Writer.<rid> and the payload lands under tools/<rid>/, so the
+    three platforms are three independently versioned-in-lockstep packages rather than one
+    package carrying every binary.
+
+    The project name starts with Broiler.Writer, so Directory.Build.props gives it the same
+    Version as the heads; eng/resolve-preview-version.mjs reads BroilerWriterVersion from here
+    as the configured floor.
+
+    NuGet archives do not keep Unix file modes: the Linux binary needs `chmod +x` after it is
+    extracted.
+  -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <IsPackable>true</IsPackable>
+    <IncludeBuildOutput>false</IncludeBuildOutput>
+    <SuppressDependenciesWhenPacking>true</SuppressDependenciesWhenPacking>
+    <EnableDefaultItems>false</EnableDefaultItems>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+    <!-- NU5128: no lib/ref folder matches the declared framework - intended, this carries
+         applications, not a library. -->
+    <NoWarn>$(NoWarn);NU5128</NoWarn>
+
+    <PackageId>Broiler.Writer.$(BroilerPackageRid)</PackageId>
+    <Title>Broiler Writer ($(BroilerPackageRid))</Title>
+    <Description>Broiler Writer, the Broiler word processor, for $(BroilerPackageRid). Native build: the application is under tools/$(BroilerPackageRid)/ and needs no .NET runtime.</Description>
+    <Authors>Broiler contributors</Authors>
+    <Company>Broiler</Company>
+    <Product>Broiler Writer</Product>
+    <Copyright>Copyright (c) Broiler contributors</Copyright>
+    <PackageLicenseExpression>Apache-2.0</PackageLicenseExpression>
+    <PackageProjectUrl>https://github.com/Broiler-Platform/Broiler.Writer</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/Broiler-Platform/Broiler.Writer</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <PackageTags>broiler;writer;word-processor;nativeaot;$(BroilerPackageRid)</PackageTags>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <None Include="../../README.md" Pack="true" PackagePath="/" />
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(BroilerPackageInput)' != ''">
+    <!-- Symbols and XML docs are dead weight next to a native binary; the Linux publish
+         also leaves a detached .dbg the size of the executable. -->
+    <None Include="$(BroilerPackageInput)/**"
+          Exclude="$(BroilerPackageInput)/**/*.pdb;$(BroilerPackageInput)/**/*.xml;$(BroilerPackageInput)/**/*.dbg"
+          Pack="true"
+          PackagePath="tools/$(BroilerPackageRid)/%(RecursiveDir)" />
+  </ItemGroup>
+
+  <Target Name="BroilerRequirePackageInput" BeforeTargets="GenerateNuspec">
+    <Error Condition="'$(BroilerPackageRid)' == '' Or '$(BroilerPackageInput)' == ''"
+           Text="Pass -p:BroilerPackageRid and -p:BroilerPackageInput: this project only packs a head that was already published." />
+    <Error Condition="!Exists('$(BroilerPackageInput)')"
+           Text="BroilerPackageInput '$(BroilerPackageInput)' does not exist." />
+  </Target>
+
+</Project>

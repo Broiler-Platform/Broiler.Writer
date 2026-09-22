@@ -5,6 +5,10 @@ using Android.OS;
 using Android.Views;
 using Android.Views.InputMethods;
 using Broiler.Graphics;
+using Broiler.Graphics.Color;
+using Broiler.Graphics.Geometry;
+using Broiler.Graphics.RenderList;
+using Broiler.Graphics.Rendering;
 using Broiler.Input.Text.Android;
 using Broiler.UI;
 

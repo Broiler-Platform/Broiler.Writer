@@ -1,0 +1,267 @@
+name: Publish
+
+# Dispatch-only. Every run builds all three platforms with NativeAOT, stamps them with the
+# next free preview version, packs each into its own NuGet package and pushes the three
+# packages to the chosen feed:
+#
+#   Broiler.Writer.win-x64        tools/win-x64/Broiler.Writer.Windows.exe
+#   Broiler.Writer.linux-x64      tools/linux-x64/Broiler.Writer.Linux
+#   Broiler.Writer.android-arm64  tools/android-arm64/org.broiler.writer-Signed.apk
+#
+# The version is the configured BroilerWriterVersion (Directory.Build.props) raised past
+# every preview already on either feed, so preview numbers never name two builds. See
+# eng/resolve-preview-version.mjs.
+#
+# The APK is signed with the .NET Android debug key: no signing material is configured
+# here. It sideloads for testing but is not store-ready; the signed store package still
+# comes from the monorepo's "Prepare Broiler Preview Package" workflow.
+on:
+  workflow_dispatch:
+    inputs:
+      nuget-source:
+        description: NuGet feed to publish to
+        type: choice
+        options: [broiler-github, nuget.org]
+        default: broiler-github
+      version-suffix:
+        description: >-
+          Optional preview.N override (unused, and at least the next preview). Empty picks
+          the next preview automatically.
+        type: string
+        default: ''
+      dry-run:
+        description: Build and attach the packages to the run without pushing them
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+  packages: read
+
+concurrency:
+  group: publish
+  cancel-in-progress: false
+
+env:
+  DOTNET_NOLOGO: 'true'
+  DOTNET_SKIP_FIRST_TIME_EXPERIENCE: 'true'
+
+jobs:
+  version:
+    name: Resolve preview version
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      version-code: ${{ steps.version.outputs.version-code }}
+    env:
+      TARGET: ${{ inputs.nuget-source }}
+      DRY_RUN: ${{ inputs.dry-run }}
+    steps:
+      - name: Check out
+        uses: actions/checkout@v7
+
+      - name: Set up
+        uses: ./.github/actions/setup-broiler
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+
+      # Fail before an hour of native builds rather than after them.
+      - name: Require a NuGet.org API key
+        if: env.TARGET == 'nuget.org' && env.DRY_RUN != 'true'
+        env:
+          NUGET_API_KEY: ${{ secrets.NUGET_TOKEN }}
+        run: |
+          if [ -z "$NUGET_API_KEY" ]; then
+            echo "::error::Publishing to nuget.org needs the NUGET_TOKEN repository secret."
+            exit 1
+          fi
+
+      - name: Test the version resolver
+        run: node --test eng/resolve-preview-version.test.mjs
+
+      - name: Resolve version
+        id: version
+        env:
+          VERSION_SUFFIX: ${{ inputs.version-suffix }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: node eng/resolve-preview-version.mjs
+
+  build:
+    name: ${{ matrix.rid }} (NativeAOT)
+    needs: version
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
+
+    defaults:
+      run:
+        shell: bash
+
+    strategy:
+      fail-fast: true
+      matrix:
+        include:
+          # The pinned configurations are the ones FolderProfile.pubxml names and they
+          # carry the runtime identifier NativeAOT needs.
+          - os: windows-latest
+            rid: win-x64
+            project: src/Broiler.Writer.Windows/Broiler.Writer.Windows.csproj
+            configuration: Release-Windows
+          # NativeAOT cannot cross-compile, so the Linux binary links on Linux.
+          - os: ubuntu-latest
+            rid: linux-x64
+            project: src/Broiler.Writer.Linux/Broiler.Writer.Linux.csproj
+            configuration: Release-Linux
+          # Plain Release: the head only honours BroilerAndroidAbis and
+          # AndroidPackageFormat under that exact name. See the Android step below.
+          - os: ubuntu-latest
+            rid: android-arm64
+            project: src/Broiler.Writer.Android/Broiler.Writer.Android.csproj
+            configuration: Release
+
+    env:
+      VERSION: ${{ needs.version.outputs.version }}
+      VERSION_CODE: ${{ needs.version.outputs.version-code }}
+
+    steps:
+      - name: Check out
+        uses: actions/checkout@v7
+
+      - name: Set up
+        uses: ./.github/actions/setup-broiler
+
+      # ILCompiler shells out to a platform linker. windows-latest carries the MSVC C++
+      # tools; on Linux the toolchain is clang plus zlib headers. Android links with the
+      # NDK the ubuntu image already ships.
+      - name: Install the NativeAOT prerequisites
+        if: matrix.rid == 'linux-x64'
+        run: sudo apt-get update && sudo apt-get install -y clang zlib1g-dev
+
+      - name: Install the Android workload
+        if: matrix.rid == 'android-arm64'
+        run: dotnet workload install android
+
+      # PublishAot implies self-contained and trimmed: one native binary, no .NET runtime
+      # to install. BroilerWriterVersion flows into Version, so the About dialog and the
+      # file version match the package.
+      - name: Publish (desktop)
+        if: matrix.rid != 'android-arm64'
+        run: |
+          dotnet publish '${{ matrix.project }}' \
+            -c '${{ matrix.configuration }}' \
+            -p:PublishAot=true \
+            -p:BroilerWriterVersion="$VERSION" \
+            -o "./artifacts/publish/${{ matrix.rid }}"
+          mkdir -p "./artifacts/stage/${{ matrix.rid }}"
+          cp -R "./artifacts/publish/${{ matrix.rid }}/." "./artifacts/stage/${{ matrix.rid }}/"
+
+      # NativeAOT on Android is flagged experimental by the SDK (XA1040); the head is
+      # nevertheless trim- and AOT-clean. PublishTrimmed is forced on because native
+      # compilation implies trimming and the head defaults it off for its Mono build.
+      #
+      # AndroidPackageFormat=apk gives a single sideloadable file instead of the store
+      # bundle. The ABI goes through BroilerAndroidAbis rather than RuntimeIdentifiers,
+      # which as a global property would reach every net10.0 library and fail NETSDK1047.
+      # ApplicationVersion is Android's versionCode and must only ever increase; the
+      # preview number does.
+      - name: Publish (Android)
+        if: matrix.rid == 'android-arm64'
+        run: |
+          dotnet publish '${{ matrix.project }}' \
+            -c '${{ matrix.configuration }}' \
+            -p:PublishAot=true \
+            -p:PublishTrimmed=true \
+            -p:AndroidNdkDirectory="$ANDROID_NDK_LATEST_HOME" \
+            -p:AndroidPackageFormat=apk \
+            -p:BroilerAndroidAbis=android-arm64 \
+            -p:BroilerWriterVersion="$VERSION" \
+            -p:ApplicationVersion="$VERSION_CODE" \
+            -o "./artifacts/publish/${{ matrix.rid }}"
+          mkdir -p "./artifacts/stage/${{ matrix.rid }}"
+          cp ./artifacts/publish/${{ matrix.rid }}/*-Signed.apk "./artifacts/stage/${{ matrix.rid }}/"
+
+      - name: Pack
+        run: |
+          dotnet pack eng/package/Broiler.Writer.Package.csproj \
+            -c Release \
+            -p:BroilerPackageRid='${{ matrix.rid }}' \
+            -p:BroilerPackageInput="$GITHUB_WORKSPACE/artifacts/stage/${{ matrix.rid }}" \
+            -p:BroilerWriterVersion="$VERSION" \
+            -o ./artifacts/nupkg
+
+      - name: Upload
+        uses: actions/upload-artifact@v7
+        with:
+          name: nuget-${{ matrix.rid }}
+          path: artifacts/nupkg/*.nupkg
+          if-no-files-found: error
+
+  publish:
+    name: Publish to ${{ inputs.nuget-source }}
+    needs: [version, build]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    env:
+      TARGET: ${{ inputs.nuget-source }}
+      DRY_RUN: ${{ inputs.dry-run }}
+      VERSION: ${{ needs.version.outputs.version }}
+
+    steps:
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Download packages
+        uses: actions/download-artifact@v8
+        with:
+          pattern: nuget-*
+          merge-multiple: true
+          path: artifacts
+
+      - name: Check the package set
+        run: |
+          count=$(ls artifacts/*."$VERSION".nupkg | wc -l)
+          if [ "$count" -ne 3 ]; then
+            echo "::error::Expected 3 packages at $VERSION, found $count."
+            ls -1 artifacts
+            exit 1
+          fi
+
+      - name: Push to GitHub Packages
+        if: env.TARGET == 'broiler-github' && env.DRY_RUN != 'true'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: >
+          dotnet nuget push 'artifacts/*.nupkg'
+          --source "https://nuget.pkg.github.com/${{ github.repository_owner }}/index.json"
+          --api-key "$GITHUB_TOKEN" --skip-duplicate
+
+      - name: Push to NuGet.org
+        if: env.TARGET == 'nuget.org' && env.DRY_RUN != 'true'
+        env:
+          NUGET_API_KEY: ${{ secrets.NUGET_TOKEN }}
+        run: >
+          dotnet nuget push 'artifacts/*.nupkg'
+          --source https://api.nuget.org/v3/index.json
+          --api-key "$NUGET_API_KEY" --skip-duplicate
+
+      - name: Summary
+        run: |
+          {
+            echo "### Broiler.Writer $VERSION"
+            echo
+            if [ "$DRY_RUN" = "true" ]; then
+              echo 'Dry run: the packages are attached to this run; nothing was pushed.'
+            else
+              echo "Published to $TARGET."
+            fi
+            echo
+            echo '```'
+            ls -1 artifacts
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"

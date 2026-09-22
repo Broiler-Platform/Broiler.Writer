@@ -56,13 +56,13 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\Broiler.Graphics\src\Broiler.Graphics\Broiler.Graphics.csproj" />
-    <ProjectReference Include="..\..\Broiler.Input\src\Broiler.Input.Android\Broiler.Input.Android.csproj" />
-    <ProjectReference Include="..\..\Broiler.Input\src\Broiler.Input.Keyboard.Android\Broiler.Input.Keyboard.Android.csproj" />
-    <ProjectReference Include="..\..\Broiler.Input\src\Broiler.Input.Pen.Android\Broiler.Input.Pen.Android.csproj" />
-    <ProjectReference Include="..\..\Broiler.Input\src\Broiler.Input.Text.Android\Broiler.Input.Text.Android.csproj" />
-    <ProjectReference Include="..\..\Broiler.Input\src\Broiler.Input.Touch.Android\Broiler.Input.Touch.Android.csproj" />
-    <ProjectReference Include="..\..\Broiler.UI\src\Foundation\Broiler.UI\Broiler.UI.csproj" />
+    <PackageReference Include="Broiler.Graphics" Version="0.1.0-preview.5" />
+    <PackageReference Include="Broiler.Input.Android" Version="0.1.0-preview.5" />
+    <PackageReference Include="Broiler.Input.Keyboard.Android" Version="0.1.0-preview.5" />
+    <PackageReference Include="Broiler.Input.Pen.Android" Version="0.1.0-preview.5" />
+    <PackageReference Include="Broiler.Input.Text.Android" Version="0.1.0-preview.5" />
+    <PackageReference Include="Broiler.Input.Touch.Android" Version="0.1.0-preview.5" />
+    <PackageReference Include="Broiler.UI" Version="0.1.0-preview.6" />
   </ItemGroup>
 
 </Project>

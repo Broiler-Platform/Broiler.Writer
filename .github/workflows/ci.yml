@@ -38,21 +38,10 @@ jobs:
             os: windows-latest
             solution: Broiler.Windows.Writer.slnx
             test: false
-          # NOTE: The Linux head is disabled on a dependency, not on work left in
-          # this repository. Its project file and sources are migrated; what is
-          # missing is upstream. Broiler.Input.Keyboard.Linux, Broiler.Input.Linux
-          # and Broiler.Input.Mouse.Linux are published only up to 0.1.0-preview.2,
-          # which depends on Broiler.Input 0.1.0-preview.2 - from before that
-          # component split its flat namespace. NuGet unifies it onto the
-          # 0.1.0-preview.4 the UI packages resolve, where the types those
-          # satellites compiled against are gone, so the older pins cannot work
-          # either. Broiler.Graphics.Linux and .Linux.OpenGL are already published
-          # at preview.4 and resolve; only the three Input satellites do not.
-          # Re-enable once Broiler.Input publishes them at preview.4.
-          # - name: Linux head
-          #   os: ubuntu-latest
-          #   solution: Broiler.Linux.Writer.slnx
-          #   test: false
+          - name: Linux head
+            os: ubuntu-latest
+            solution: Broiler.Linux.Writer.slnx
+            test: false
           - name: Tests (Linux)
             os: ubuntu-latest
             solution: Broiler.Writer.Tests.slnx
@@ -76,26 +65,25 @@ jobs:
         if: matrix.test
         run: dotnet test ${{ matrix.solution }} -c Release --no-build
 
-  # Disabled until Android head is migrated from submodules to NuGet packages:
-  # android:
-  #   name: Android head
-  #   runs-on: ubuntu-latest
-  #   timeout-minutes: 60
-  #
-  #   steps:
-  #     - name: Check out
-  #       uses: actions/checkout@v7
-  #
-  #     - name: Set up
-  #       uses: ./.github/actions/setup-broiler
-  #
-  #     # net10.0-android needs the workload for the Mono runtime packs; without it
-  #     # the restore fails outright rather than degrading.
-  #     - name: Install the Android workload
-  #       run: dotnet workload install android
-  #
-  #     - name: Build
-  #       run: dotnet build Broiler.Android.Writer.slnx -c Release
+  android:
+    name: Android head
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    steps:
+      - name: Check out
+        uses: actions/checkout@v7
+
+      - name: Set up
+        uses: ./.github/actions/setup-broiler
+
+      # net10.0-android needs the workload for the Mono runtime packs; without it
+      # the restore fails outright rather than degrading.
+      - name: Install the Android workload
+        run: dotnet workload install android
+
+      - name: Build
+        run: dotnet build Broiler.Android.Writer.slnx -c Release
 
   # Disabled until WebAssembly head is migrated from submodules to NuGet packages:
   # webassembly:
@@ -124,7 +112,7 @@ jobs:
   # project-level builds — a solution-level build with an undeclared configuration
   # fails MSB4126 — so they are exercised here rather than in `build`.
   #
-  # This job publishes with NativeAOT because that is what release.yml ships. AOT
+  # This job publishes with NativeAOT because that is what publish.yml ships. AOT
   # is the one build mode that fails on reflection the rest of the build accepts,
   # so leaving it to release time would mean discovering a regression only when
   # cutting a release. It costs this job a few minutes; that is the trade.
@@ -145,10 +133,10 @@ jobs:
             rid: win-x64
             project: src/Broiler.Writer.Windows/Broiler.Writer.Windows.csproj
             configuration: Release-Windows
-          # - os: ubuntu-latest
-          #   rid: linux-x64
-          #   project: src/Broiler.Writer.Linux/Broiler.Writer.Linux.csproj
-          #   configuration: Release-Linux
+          - os: ubuntu-latest
+            rid: linux-x64
+            project: src/Broiler.Writer.Linux/Broiler.Writer.Linux.csproj
+            configuration: Release-Linux
 
     steps:
       - name: Check out
