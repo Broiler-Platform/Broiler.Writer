@@ -203,7 +203,11 @@ projects by changing the reference graph, then regenerate.
 [`publish.yml`](.github/workflows/publish.yml) is dispatch-only and builds the Windows and
 Linux Writer with NativeAOT. Each platform comes out as one zip artifact on the run holding a
 single executable, which is the whole application: no .NET runtime to install and nothing
-beside it. Nothing is pushed to a feed.
+beside it. Nothing is pushed to a feed. Each run also drafts a GitHub pre-release,
+*Broiler Writer <version>*, with both executables zipped as
+`Broiler.Writer-<version>-<rid>.zip`. It stays a draft until someone publishes it under
+Releases; [`eng/release-draft.sh`](eng/release-draft.sh) builds it and can be run by hand
+from a run's artifacts.
 
 | Artifact | Contents |
 | --- | --- |
