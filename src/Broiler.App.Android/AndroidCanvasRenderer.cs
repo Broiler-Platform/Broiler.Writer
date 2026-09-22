@@ -3,6 +3,13 @@ using System.Collections.Generic;
 using Android.Graphics;
 using Android.Views;
 using Broiler.Graphics;
+using Broiler.Graphics.Color;
+using Broiler.Graphics.Geometry;
+using Broiler.Graphics.Imaging;
+using Broiler.Graphics.RenderList;
+using Broiler.Graphics.Rendering;
+using Broiler.Graphics.Resources;
+using Broiler.Graphics.Text;
 
 namespace Broiler.App.Android;
 
