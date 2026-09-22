@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { chooseVersion, packageIds, readVersions } from './resolve-preview-version.mjs';
+import { chooseVersion, versionsFromTags } from './resolve-preview-version.mjs';
 
 test('first publish uses the configured preview; later publishes increment numerically', () => {
   assert.equal(chooseVersion('0.1.0-preview.1', []), '0.1.0-preview.1');
@@ -24,49 +24,8 @@ test('only unused previews on the configured release line are accepted', () => {
   assert.throws(() => chooseVersion('0.1.0', published));
 });
 
-function fakeFeed(responses) {
-  return async (url, options) => {
-    assert.ok(options.signal);
-    if (url === 'https://feed/index.json') return Response.json({
-      resources: [{ '@type': 'PackageBaseAddress/3.0.0', '@id': 'https://feed/flat/' }],
-    });
-    assert.ok(Object.hasOwn(responses, url), `Unexpected request ${url}`);
-    const response = responses[url];
-    return typeof response === 'number' ? new Response(null, { status: response }) : Response.json(response);
-  };
-}
-
-test('all packages contribute, including a partially published newer preview', async () => {
-  const versions = await readVersions('https://feed/index.json', ['Core', 'Provider', 'New'], {}, fakeFeed({
-    'https://feed/flat/core/index.json': { versions: ['0.1.0-preview.1'] },
-    'https://feed/flat/provider/index.json': { versions: ['0.1.0-preview.1', '0.1.0-preview.2'] },
-    'https://feed/flat/new/index.json': 404,
-  }));
-  assert.equal(chooseVersion('0.1.0-preview.1', versions), '0.1.0-preview.3');
-});
-
-test('versions from both feeds are cumulative', () => {
-  const github = ['0.1.0-preview.1', '0.1.0-preview.2', '0.1.0-preview.3'];
-  const nuget = ['0.1.0-preview.1', '0.1.0-preview.2'];
-  assert.equal(chooseVersion('0.1.0-preview.1', [...nuget, ...github]), '0.1.0-preview.4');
-  assert.equal(chooseVersion('0.1.0-preview.1', [...github, ...nuget]), '0.1.0-preview.4');
-  assert.throws(() => chooseVersion('0.1.0-preview.1', [...nuget, ...github], { suffix: 'preview.3' }));
-});
-
-test('feed failures and malformed responses stop publication', async () => {
-  for (const response of [401, 403, 429, 500, {}, { versions: [2] }]) {
-    await assert.rejects(readVersions('https://feed/index.json', ['Core'], {}, fakeFeed({
-      'https://feed/flat/core/index.json': response,
-    })));
-  }
-  await assert.rejects(readVersions('https://feed/index.json', ['Core'], {}, async () => {
-    throw new Error('Network unavailable');
-  }));
-  await assert.rejects(readVersions('https://feed/index.json', ['Core'], {}, async () => Response.json({})));
-});
-
-test('one package per published platform', () => {
-  assert.deepEqual(packageIds, [
-    'Broiler.Writer.win-x64', 'Broiler.Writer.linux-x64', 'Broiler.Writer.android-arm64',
-  ]);
+test('only writer-v tags count as earlier versions', () => {
+  const tags = ['writer-v0.1.0-preview.4', 'v0.1.0-preview.9', 'plate-v0.1.0-preview.7', ' writer-v0.1.0-preview.5\n'];
+  assert.deepEqual(versionsFromTags(tags), ['0.1.0-preview.4', '0.1.0-preview.5']);
+  assert.equal(chooseVersion('0.1.0-preview.1', versionsFromTags(tags)), '0.1.0-preview.6');
 });

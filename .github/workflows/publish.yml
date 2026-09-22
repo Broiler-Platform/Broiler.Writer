@@ -1,16 +1,20 @@
 name: Publish
 
 # Dispatch-only. Every run builds all three platforms with NativeAOT, stamps them with the
-# next free preview version, packs each into its own NuGet package and pushes the three
-# packages to the chosen feed:
+# next preview version and packs each into its own NuGet package, attached to the run as
+# an artifact. Nothing is pushed to a feed.
 #
 #   Broiler.Writer.win-x64        tools/win-x64/Broiler.Writer.Windows.exe
 #   Broiler.Writer.linux-x64      tools/linux-x64/Broiler.Writer.Linux
 #   Broiler.Writer.android-arm64  tools/android-arm64/org.broiler.writer-Signed.apk
 #
-# The version is the configured BroilerWriterVersion (Directory.Build.props) raised past
-# every preview already on either feed, so preview numbers never name two builds. See
-# eng/resolve-preview-version.mjs.
+# nuget-source picks the feed the Broiler.* dependencies are restored from. NuGet.config
+# resolves everything from nuget.org; broiler-github maps Broiler.* to the Broiler-Platform
+# GitHub Packages feed instead, for components published there but not yet to nuget.org.
+#
+# The version is BroilerWriterVersion (Directory.Build.props) raised past every earlier
+# run's writer-v* tag, and a successful run tags its commit, so preview numbers only ever
+# increase and never name two builds. See eng/resolve-preview-version.mjs.
 #
 # The APK is signed with the .NET Android debug key: no signing material is configured
 # here. It sideloads for testing but is not store-ready; the signed store package still
@@ -19,25 +23,22 @@ on:
   workflow_dispatch:
     inputs:
       nuget-source:
-        description: NuGet feed to publish to
+        description: Feed to restore the Broiler.* dependency packages from
         type: choice
-        options: [broiler-github, nuget.org]
-        default: broiler-github
+        options: [nuget.org, broiler-github]
+        default: nuget.org
       version-suffix:
         description: >-
           Optional preview.N override (unused, and at least the next preview). Empty picks
           the next preview automatically.
         type: string
         default: ''
-      dry-run:
-        description: Build and attach the packages to the run without pushing them
-        type: boolean
-        default: true
 
 permissions:
   contents: read
   packages: read
 
+# One run at a time, so two runs cannot pick the same preview number.
 concurrency:
   group: publish
   cancel-in-progress: false
@@ -53,9 +54,7 @@ jobs:
     outputs:
       version: ${{ steps.version.outputs.version }}
       version-code: ${{ steps.version.outputs.version-code }}
-    env:
-      TARGET: ${{ inputs.nuget-source }}
-      DRY_RUN: ${{ inputs.dry-run }}
+      tag: ${{ steps.version.outputs.tag }}
     steps:
       - name: Check out
         uses: actions/checkout@v7
@@ -68,17 +67,6 @@ jobs:
         with:
           node-version: '24'
 
-      # Fail before an hour of native builds rather than after them.
-      - name: Require a NuGet.org API key
-        if: env.TARGET == 'nuget.org' && env.DRY_RUN != 'true'
-        env:
-          NUGET_API_KEY: ${{ secrets.NUGET_TOKEN }}
-        run: |
-          if [ -z "$NUGET_API_KEY" ]; then
-            echo "::error::Publishing to nuget.org needs the NUGET_TOKEN repository secret."
-            exit 1
-          fi
-
       - name: Test the version resolver
         run: node --test eng/resolve-preview-version.test.mjs
 
@@ -86,7 +74,6 @@ jobs:
         id: version
         env:
           VERSION_SUFFIX: ${{ inputs.version-suffix }}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: node eng/resolve-preview-version.mjs
 
   build:
@@ -124,6 +111,9 @@ jobs:
     env:
       VERSION: ${{ needs.version.outputs.version }}
       VERSION_CODE: ${{ needs.version.outputs.version-code }}
+      # Read by NuGet for the github-broiler source in NuGet.config. Unused, and harmless,
+      # when Broiler.* restores from nuget.org.
+      NuGetPackageSourceCredentials_github-broiler: Username=${{ github.actor }};Password=${{ secrets.GITHUB_TOKEN }};ValidAuthenticationTypes=Basic
 
     steps:
       - name: Check out
@@ -131,6 +121,14 @@ jobs:
 
       - name: Set up
         uses: ./.github/actions/setup-broiler
+
+      # NuGet.config declares github-broiler but maps every package to nuget.org. A more
+      # specific Broiler.* pattern wins, so adding one moves exactly the Broiler packages.
+      - name: Restore Broiler.* from ${{ inputs.nuget-source }}
+        if: inputs.nuget-source == 'broiler-github'
+        run: |
+          sed -i '/<\/packageSourceMapping>/i\    <packageSource key="github-broiler"><package pattern="Broiler.*" /></packageSource>' NuGet.config
+          grep -q 'key="github-broiler"><package pattern="Broiler' NuGet.config
 
       # ILCompiler shells out to a platform linker. windows-latest carries the MSVC C++
       # tools; on Linux the toolchain is clang plus zlib headers. Android links with the
@@ -145,7 +143,7 @@ jobs:
 
       # PublishAot implies self-contained and trimmed: one native binary, no .NET runtime
       # to install. BroilerWriterVersion flows into Version, so the About dialog and the
-      # file version match the package.
+      # file version match the package version.
       - name: Publish (desktop)
         if: matrix.rid != 'android-arm64'
         run: |
@@ -194,72 +192,44 @@ jobs:
       - name: Upload
         uses: actions/upload-artifact@v7
         with:
-          name: nuget-${{ matrix.rid }}
+          name: broiler-writer-${{ matrix.rid }}-${{ env.VERSION }}
           path: artifacts/nupkg/*.nupkg
           if-no-files-found: error
 
-  publish:
-    name: Publish to ${{ inputs.nuget-source }}
+  tag:
+    name: Tag ${{ needs.version.outputs.tag }}
     needs: [version, build]
     runs-on: ubuntu-latest
     permissions:
-      contents: read
-      packages: write
+      contents: write
     env:
-      TARGET: ${{ inputs.nuget-source }}
-      DRY_RUN: ${{ inputs.dry-run }}
       VERSION: ${{ needs.version.outputs.version }}
+      TAG: ${{ needs.version.outputs.tag }}
 
     steps:
-      - name: Set up .NET
-        uses: actions/setup-dotnet@v6
-        with:
-          dotnet-version: '10.0.x'
+      - name: Check out
+        uses: actions/checkout@v7
+
+      # Only after all three platforms built: a failed run leaves its number free.
+      - name: Tag the commit
+        run: |
+          git tag "$TAG" "$GITHUB_SHA"
+          git push origin "refs/tags/$TAG"
 
       - name: Download packages
         uses: actions/download-artifact@v8
         with:
-          pattern: nuget-*
+          pattern: broiler-writer-*
           merge-multiple: true
           path: artifacts
-
-      - name: Check the package set
-        run: |
-          count=$(ls artifacts/*."$VERSION".nupkg | wc -l)
-          if [ "$count" -ne 3 ]; then
-            echo "::error::Expected 3 packages at $VERSION, found $count."
-            ls -1 artifacts
-            exit 1
-          fi
-
-      - name: Push to GitHub Packages
-        if: env.TARGET == 'broiler-github' && env.DRY_RUN != 'true'
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: >
-          dotnet nuget push 'artifacts/*.nupkg'
-          --source "https://nuget.pkg.github.com/${{ github.repository_owner }}/index.json"
-          --api-key "$GITHUB_TOKEN" --skip-duplicate
-
-      - name: Push to NuGet.org
-        if: env.TARGET == 'nuget.org' && env.DRY_RUN != 'true'
-        env:
-          NUGET_API_KEY: ${{ secrets.NUGET_TOKEN }}
-        run: >
-          dotnet nuget push 'artifacts/*.nupkg'
-          --source https://api.nuget.org/v3/index.json
-          --api-key "$NUGET_API_KEY" --skip-duplicate
 
       - name: Summary
         run: |
           {
             echo "### Broiler.Writer $VERSION"
             echo
-            if [ "$DRY_RUN" = "true" ]; then
-              echo 'Dry run: the packages are attached to this run; nothing was pushed.'
-            else
-              echo "Published to $TARGET."
-            fi
+            echo "Dependencies restored from \`${{ inputs.nuget-source }}\`; commit tagged \`$TAG\`."
+            echo 'The packages are attached to this run as artifacts.'
             echo
             echo '```'
             ls -1 artifacts

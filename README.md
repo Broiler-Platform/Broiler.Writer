@@ -200,8 +200,9 @@ projects by changing the reference graph, then regenerate.
   configurations. They are project-level builds by necessity: the solutions declare only
   `Debug` and `Release`, so a solution-level build with either fails `MSB4126`.
 
-[`publish.yml`](.github/workflows/publish.yml) is dispatch-only and publishes the Writer as
-three NuGet packages, one per platform, every one built with NativeAOT:
+[`publish.yml`](.github/workflows/publish.yml) is dispatch-only and builds the Writer as
+three NuGet packages, one per platform, every one built with NativeAOT. They are attached to
+the run as artifacts; nothing is pushed to a feed.
 
 | Package | Payload |
 | --- | --- |
@@ -209,14 +210,17 @@ three NuGet packages, one per platform, every one built with NativeAOT:
 | `Broiler.Writer.linux-x64` | `tools/linux-x64/Broiler.Writer.Linux` (`chmod +x` after extracting — NuGet drops file modes) |
 | `Broiler.Writer.android-arm64` | `tools/android-arm64/org.broiler.writer-Signed.apk`, **debug-signed** |
 
-Its inputs are `nuget-source` (`broiler-github`, the default, or `nuget.org`, which needs the
-`NUGET_TOKEN` repository secret), an optional `version-suffix` such as `preview.7`, and
-`dry-run`, on by default, which builds and attaches the packages to the run without pushing.
+Its inputs are `nuget-source`, the feed the `Broiler.*` dependencies are restored from, and
+an optional `version-suffix` such as `preview.7`. With `nuget.org`, the default, the build
+restores exactly as `NuGet.config` says. With `broiler-github`, `Broiler.*` comes from the
+Broiler-Platform GitHub Packages feed instead, for components published there but not yet to
+nuget.org. Everything else still comes from nuget.org.
 
-Each run takes the next free preview version: `BroilerWriterVersion` in
-`Directory.Build.props` is the floor, raised past every preview already on *either* feed, so
-a preview number never names two builds. The version is stamped into the binaries too, and
-its preview number becomes the APK's `versionCode`. The logic is
+Each run takes the next preview version: `BroilerWriterVersion` in `Directory.Build.props` is
+the floor, raised past every earlier run's `writer-v*` tag. A run tags its commit only after
+all three platforms built, so preview numbers only ever increase and a failed run leaves its
+number free. The version is stamped into the binaries too, and its preview number becomes the
+APK's `versionCode`. The logic is
 [`eng/resolve-preview-version.mjs`](eng/resolve-preview-version.mjs), with tests beside it;
 the packaging project is [`eng/package`](eng/package/Broiler.Writer.Package.csproj).
 

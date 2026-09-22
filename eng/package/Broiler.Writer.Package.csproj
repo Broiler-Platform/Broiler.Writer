@@ -50,7 +50,17 @@
     <None Include="../../README.md" Pack="true" PackagePath="/" />
   </ItemGroup>
 
-  <ItemGroup Condition="'$(BroilerPackageInput)' != ''">
+  <!-- An empty BroilerPackageInput would turn the globs below into /** - MSBuild rejects that
+       (MSB5029) at evaluation, before any condition is looked at, which breaks even a plain
+       property query such as eng/resolve-preview-version.mjs makes. A folder that never
+       exists keeps the globs harmless; the target below still refuses to pack without input. -->
+  <PropertyGroup>
+    <BroilerPackageInputGiven>true</BroilerPackageInputGiven>
+    <BroilerPackageInputGiven Condition="'$(BroilerPackageInput)' == ''">false</BroilerPackageInputGiven>
+    <BroilerPackageInput Condition="'$(BroilerPackageInput)' == ''">$(MSBuildProjectDirectory)/no-input</BroilerPackageInput>
+  </PropertyGroup>
+
+  <ItemGroup>
     <!-- Symbols and XML docs are dead weight next to a native binary; the Linux publish
          also leaves a detached .dbg the size of the executable. -->
     <None Include="$(BroilerPackageInput)/**"
@@ -60,7 +70,7 @@
   </ItemGroup>
 
   <Target Name="BroilerRequirePackageInput" BeforeTargets="GenerateNuspec">
-    <Error Condition="'$(BroilerPackageRid)' == '' Or '$(BroilerPackageInput)' == ''"
+    <Error Condition="'$(BroilerPackageRid)' == '' Or '$(BroilerPackageInputGiven)' != 'true'"
            Text="Pass -p:BroilerPackageRid and -p:BroilerPackageInput: this project only packs a head that was already published." />
     <Error Condition="!Exists('$(BroilerPackageInput)')"
            Text="BroilerPackageInput '$(BroilerPackageInput)' does not exist." />
