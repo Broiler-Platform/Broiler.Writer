@@ -1,6 +1,7 @@
 using System.Runtime.CompilerServices;
 using Broiler.Documents;
 using Broiler.Documents.Model;
+using Broiler.Documents.Resources;
 using Broiler.Graphics;
 using Broiler.Graphics.Color;
 using Broiler.Graphics.Geometry;

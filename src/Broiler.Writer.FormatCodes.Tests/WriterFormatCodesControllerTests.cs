@@ -52,7 +52,7 @@ public sealed class WriterFormatCodesControllerTests
         editor.SetPlainText("hello");
         var view = new TestFormatCodeView();
         using var controller = CreateController(editor, view);
-        var range = new RichTextRange(editor.Document.Start, editor.Document.End);
+        var range = new RichTextRange(RichTextDocument.Start, editor.Document.End);
 
         Assert.False(controller.ExecuteIntent(new ApplyFormatCodeInlineIntent(
             range, InlineStyleDelta.WithLink("javascript:alert(1)"))));
@@ -68,7 +68,7 @@ public sealed class WriterFormatCodesControllerTests
     {
         var editor = new StandardRichEdit();
         editor.SetPlainText("hello");
-        editor.Selection = new RichTextRange(editor.Document.Start, editor.Document.End);
+        editor.Selection = new RichTextRange(RichTextDocument.Start, editor.Document.End);
         var view = new TestFormatCodeView();
         using var controller = CreateController(editor, view);
 
@@ -154,7 +154,7 @@ public sealed class WriterFormatCodesControllerTests
         editor.ExecuteCommand(RichEditCommand.Bold);
         Assert.Single(controller.Projection!.PendingTokens);
 
-        editor.Selection = RichTextRange.Caret(editor.Document.Start);
+        editor.Selection = RichTextRange.Caret(RichTextDocument.Start);
 
         Assert.Empty(controller.Projection!.PendingTokens);
     }
@@ -167,7 +167,7 @@ public sealed class WriterFormatCodesControllerTests
         var view = new TestFormatCodeView();
         using var controller = CreateController(editor, view);
 
-        RichTextPosition start = editor.Document.Start;
+        RichTextPosition start = RichTextDocument.Start;
         RichTextPosition end = editor.Document.End;
         editor.Selection = new RichTextRange(end, start);
 
@@ -210,7 +210,7 @@ public sealed class WriterFormatCodesControllerTests
         view.Activate(2);
 
         Assert.Same(view, session.FocusedElement);
-        Assert.Equal(editor.Document.Start, editor.Selection.Focus);
+        Assert.Equal(RichTextDocument.Start, editor.Selection.Focus);
         Assert.NotNull(editor.SecondarySelection);
     }
 
@@ -306,7 +306,7 @@ public sealed class WriterFormatCodesControllerTests
 
     private static RichTextPosition MoveRight(RichTextDocument document, int count)
     {
-        RichTextPosition position = document.Start;
+        RichTextPosition position = RichTextDocument.Start;
         for (int i = 0; i < count; i++)
             position = document.PositionRightOf(position);
         return position;
