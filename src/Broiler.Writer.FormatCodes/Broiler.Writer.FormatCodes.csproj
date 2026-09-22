@@ -13,6 +13,12 @@
 
   <ItemGroup>
     <PackageReference Include="Broiler.Documents.FormatCodes" Version="0.1.0-preview.16" />
+    <!-- Not used directly. Broiler.Graphics 0.1.0-preview.5 (reached through Documents)
+         declares Broiler.Media.Image >= preview.11, which was never published, so NuGet
+         substitutes preview.13 with NU1603 - an error here under TreatWarningsAsErrors.
+         Naming the version that exists overrides the stale lower bound. Drop this once a
+         Broiler.Graphics release depends on a published Broiler.Media.Image. -->
+    <PackageReference Include="Broiler.Media.Image" Version="0.1.0-preview.13" />
   </ItemGroup>
 
 </Project>
