@@ -200,15 +200,18 @@ projects by changing the reference graph, then regenerate.
   configurations. They are project-level builds by necessity: the solutions declare only
   `Debug` and `Release`, so a solution-level build with either fails `MSB4126`.
 
-[`publish.yml`](.github/workflows/publish.yml) is dispatch-only and builds the Writer as
-three NuGet packages, one per platform, every one built with NativeAOT. They are attached to
-the run as artifacts; nothing is pushed to a feed.
+[`publish.yml`](.github/workflows/publish.yml) is dispatch-only and builds the Windows and
+Linux Writer with NativeAOT. Each platform comes out as one zip artifact on the run holding a
+single executable, which is the whole application: no .NET runtime to install and nothing
+beside it. Nothing is pushed to a feed.
 
-| Package | Payload |
+| Artifact | Contents |
 | --- | --- |
-| `Broiler.Writer.win-x64` | `tools/win-x64/Broiler.Writer.Windows.exe` |
-| `Broiler.Writer.linux-x64` | `tools/linux-x64/Broiler.Writer.Linux` (`chmod +x` after extracting — NuGet drops file modes) |
-| `Broiler.Writer.android-arm64` | `tools/android-arm64/org.broiler.writer-Signed.apk`, **debug-signed** |
+| `broiler-writer-win-x64-<version>` | `Broiler.Writer.Windows.exe` |
+| `broiler-writer-linux-x64-<version>` | `Broiler.Writer.Linux` (`chmod +x` after unzipping; artifact zips drop file modes) |
+
+The run fails if a publish ever emits anything beside the executable other than symbols or
+XML docs, because an artifact without that file would be broken.
 
 Its inputs are `nuget-source`, the feed the `Broiler.*` dependencies are restored from, and
 an optional `version-suffix` such as `preview.7`. With `nuget.org`, the default, the build
@@ -218,22 +221,18 @@ nuget.org. Everything else still comes from nuget.org.
 
 Each run takes the next preview version: `BroilerWriterVersion` in `Directory.Build.props` is
 the floor, raised past every earlier run's `writer-v*` tag. A run tags its commit only after
-all three platforms built, so preview numbers only ever increase and a failed run leaves its
-number free. The version is stamped into the binaries too, and its preview number becomes the
-APK's `versionCode`. The logic is
-[`eng/resolve-preview-version.mjs`](eng/resolve-preview-version.mjs), with tests beside it;
-the packaging project is [`eng/package`](eng/package/Broiler.Writer.Package.csproj).
+both platforms built, so preview numbers only ever increase and a failed run leaves its
+number free. The version is stamped into the executables too. The logic is
+[`eng/resolve-preview-version.mjs`](eng/resolve-preview-version.mjs), with tests beside it.
 
-Nothing here signs for distribution: store-ready signed packages come from the monorepo's
+Android is not published here. Signed, store-ready preview packages come from the monorepo's
 *Prepare Broiler Preview Package* workflow, which owns the signing material.
 
 ## NativeAOT
 
 The two desktop heads publish with NativeAOT, so the `win-x64` and `linux-x64` artifacts are
 **a single self-contained native binary that runs with no .NET runtime installed** — 9.2 MB
-for the Windows head, against a 162-file framework-dependent drop. The Android head publishes
-with NativeAOT as well, although the .NET Android SDK still flags that runtime as
-experimental (`XA1040`).
+for the Windows head, against a 162-file framework-dependent drop.
 
 This works because nothing in the Writer's closure needs the reflection AOT cannot see
 through. In particular the Direct2D backend dispatches COM through manual vtable offsets
@@ -246,14 +245,11 @@ Keep it that way: reflection, `Activator.CreateInstance`, and reflection-based s
 in a head or in `Broiler.Writer.Core` will break the AOT publish while leaving an ordinary
 build green. CI publishes both desktop heads with AOT for exactly that reason.
 
-**Android** publishes with NativeAOT only in `publish.yml`. The Android SDK raises
-`XA1040` — the NativeAOT runtime on Android is still experimental — and the head keeps
-`PublishTrimmed=false` for its ordinary Mono build, so the workflow forces
-`PublishTrimmed=true` (native compilation implies trimming) and links with the NDK the
-`ubuntu-latest` image ships. The ILCompiler pass reports zero `IL2xxx`/`IL3xxx` warnings for
-this head too. **WebAssembly** is excluded: NativeAOT emits a native binary for a desktop OS
-and does not apply; the wasm analogue is mono's own `-p:RunAOTCompilation=true`, a separate
-feature that is not enabled.
+The other two heads are not published with NativeAOT. **Android** — the Android SDK raises
+`XA1040` (the NativeAOT runtime on Android is still experimental), and the head keeps
+`PublishTrimmed=false` for its Mono build. **WebAssembly** — NativeAOT emits a native binary
+for a desktop OS and does not apply; the wasm analogue is mono's own
+`-p:RunAOTCompilation=true`, a separate feature that is not enabled.
 
 The nested-submodule set the Writer needs is defined once, in
 [`.github/actions/setup-broiler`](.github/actions/setup-broiler/action.yml).
