@@ -1,11 +1,18 @@
 name: Publish
 
-# Dispatch-only. Every run builds the Windows and Linux Writer with NativeAOT, stamps both
-# with the next preview version, and attaches each platform's single executable to the run
-# as its own zip artifact, then drafts a GitHub pre-release carrying both:
+# Dispatch-only. Every run builds the Windows and Linux Writer with NativeAOT and the
+# Android Writer as a release-signed app bundle and APK, stamps all of them with the next
+# preview version, attaches them to the run as artifacts, then drafts a GitHub pre-release
+# carrying them:
 #
 #   broiler-writer-win-x64-<version>.zip    Broiler.Writer.Windows.exe
 #   broiler-writer-linux-x64-<version>.zip  Broiler.Writer.Linux
+#   broiler-writer-android-<version>.zip    Broiler.Writer-<version>.aab (arm64 + x86_64)
+#                                           Broiler.Writer-<version>-arm64.apk
+#
+# The Android packages are signed with the release key held in the ANDROID_KEYSTORE_BASE64,
+# ANDROID_KEYSTORE_PASSWORD, ANDROID_KEY_ALIAS and ANDROID_KEY_PASSWORD repository secrets
+# (the monorepo's, under the same names) by eng/sign-android-packages.ps1.
 #
 # NativeAOT is what makes the executable the whole application: self-contained, trimmed,
 # no .NET runtime to install, nothing beside it. Nothing is pushed to a feed. The draft
@@ -53,6 +60,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       version: ${{ steps.version.outputs.version }}
+      version-code: ${{ steps.version.outputs.version-code }}
       tag: ${{ steps.version.outputs.tag }}
     steps:
       - name: Check out
@@ -162,9 +170,166 @@ jobs:
           path: ${{ env.OUT }}/${{ matrix.executable }}
           if-no-files-found: error
 
+  android:
+    name: android (signed .aab + arm64 .apk)
+    needs: version
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    outputs:
+      # The signing certificate's fingerprint, for the release notes. A certificate is public
+      # by construction - it is what a download is checked against, not key material.
+      signing-certificate-sha256: ${{ steps.sign.outputs.certificate-sha256 }}
+
+    defaults:
+      run:
+        shell: pwsh
+
+    env:
+      VERSION: ${{ needs.version.outputs.version }}
+      VERSION_CODE: ${{ needs.version.outputs.version-code }}
+      PROJECT: src/Broiler.Writer.Android/Broiler.Writer.Android.csproj
+      # The compile API and the build-tools track the android workload's Microsoft.Android.Sdk
+      # major, as in the monorepo's preview package workflow.
+      ANDROID_API_LEVEL: '36'
+      ANDROID_BUILD_TOOLS: 36.0.0
+      NuGetPackageSourceCredentials_github-broiler: Username=${{ github.actor }};Password=${{ secrets.GITHUB_TOKEN }};ValidAuthenticationTypes=Basic
+
+    steps:
+      - name: Check out
+        uses: actions/checkout@v7
+
+      - name: Set up
+        uses: ./.github/actions/setup-broiler
+
+      - name: Set up the JDK the signing tools run on
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      # The release key lives in four repository secrets, the same ones the monorepo's
+      # "Prepare Broiler Preview Package" workflow uses. Checked before the build, so a
+      # missing or wrong secret fails in seconds rather than after it.
+      - name: Check the Android signing secrets
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: ./eng/sign-android-packages.ps1 -ValidateOnly | Out-Null
+
+      - name: Restore Broiler.* from ${{ inputs.nuget-source }}
+        if: inputs.nuget-source == 'broiler-github'
+        shell: bash
+        run: |
+          sed -i '/<\/packageSourceMapping>/i\    <packageSource key="github-broiler"><package pattern="Broiler.*" /></packageSource>' NuGet.config
+          grep -q 'key="github-broiler"><package pattern="Broiler' NuGet.config
+
+      - name: Install the Android workload
+        run: |
+          dotnet workload install android
+          if ($LASTEXITCODE -ne 0) { throw "dotnet workload install android exited with code $LASTEXITCODE." }
+
+      # The runner ships an Android SDK, but not necessarily the API level the head compiles
+      # against: install what is missing rather than a second SDK beside it.
+      - name: Provision the Android SDK
+        run: |
+          $sdkRoot = if ($env:ANDROID_HOME) { $env:ANDROID_HOME } else { $env:ANDROID_SDK_ROOT }
+          if (-not $sdkRoot) { throw 'Neither ANDROID_HOME nor ANDROID_SDK_ROOT is set; this runner has no Android SDK.' }
+          $platformJar = Join-Path $sdkRoot "platforms/android-$env:ANDROID_API_LEVEL/android.jar"
+          $buildTools = Join-Path $sdkRoot "build-tools/$env:ANDROID_BUILD_TOOLS"
+          if (-not (Test-Path $platformJar) -or -not (Test-Path $buildTools)) {
+            $sdkManager = Join-Path $sdkRoot 'cmdline-tools/latest/bin/sdkmanager'
+            if (-not (Test-Path $sdkManager)) { throw "The Android SDK at $sdkRoot lacks API $env:ANDROID_API_LEVEL and has no sdkmanager." }
+            ("y`n" * 50) | & $sdkManager --sdk_root="$sdkRoot" --licenses | Out-Null
+            & $sdkManager --sdk_root="$sdkRoot" "platforms;android-$env:ANDROID_API_LEVEL" "build-tools;$env:ANDROID_BUILD_TOOLS"
+          }
+          if (-not (Test-Path $platformJar)) { throw "android.jar is missing after provisioning: $platformJar" }
+          "ANDROID_HOME=$sdkRoot" >> $env:GITHUB_ENV
+          "ANDROID_SDK_ROOT=$sdkRoot" >> $env:GITHUB_ENV
+
+      # Mono, not NativeAOT: the Android SDK still flags NativeAOT as experimental (XA1040).
+      # Plain Release is the configuration the head switches to an app bundle under; the APK
+      # overrides the format and narrows to arm64, the one ABI a phone needs. The ABI goes
+      # through BroilerAndroidAbis, not RuntimeIdentifiers, which as a global property would
+      # reach every net10.0 library and fail NETSDK1047. ApplicationVersion is the versionCode.
+      - name: Publish the app bundle and the arm64 APK
+        run: |
+          $common = @('-c', 'Release', "-p:BroilerWriterVersion=$env:VERSION", "-p:ApplicationVersion=$env:VERSION_CODE")
+          dotnet publish $env:PROJECT @common -o artifacts/android/aab
+          if ($LASTEXITCODE -ne 0) { throw 'Publishing the app bundle failed.' }
+          dotnet publish $env:PROJECT @common -p:AndroidPackageFormat=apk -p:BroilerAndroidAbis=android-arm64 -o artifacts/android/apk
+          if ($LASTEXITCODE -ne 0) { throw 'Publishing the APK failed.' }
+
+      # Each publish leaves the unsigned org.broiler.writer.<ext> beside a -Signed copy carrying
+      # the workload's debug key. The unsigned one is carried forward and signed with the
+      # release key; checking it here means neither format can ship under the other's name and
+      # a debug-signed package cannot arrive looking release-ready.
+      - name: Collect and verify the packages
+        run: |
+          Add-Type -AssemblyName System.IO.Compression.FileSystem
+          function Get-Entries($Path) {
+            $zip = [System.IO.Compression.ZipFile]::OpenRead((Resolve-Path $Path))
+            try { @($zip.Entries | ForEach-Object FullName) } finally { $zip.Dispose() }
+          }
+          function Get-Abis($Entries) {
+            @($Entries | ForEach-Object { if ($_ -match '^(?:base/)?lib/([^/]+)/.') { $Matches[1] } } | Sort-Object -Unique)
+          }
+          function Assert-Unsigned($Path, $Entries) {
+            $signature = @($Entries | Where-Object { $_ -match '^META-INF/.+\.(RSA|DSA|EC|SF)$' })
+            if ($signature) { throw "$Path is already signed; the debug-signed package was picked up." }
+          }
+
+          $out = 'artifacts/android/signed'
+          New-Item -ItemType Directory -Force -Path $out | Out-Null
+          $bundle = 'artifacts/android/aab/org.broiler.writer.aab'
+          $apk = 'artifacts/android/apk/org.broiler.writer.apk'
+          foreach ($p in $bundle, $apk) {
+            if (-not (Test-Path $p)) { throw "Expected $p; the publish produced: $(Get-ChildItem (Split-Path $p) -Name)" }
+          }
+
+          $entries = Get-Entries $bundle
+          if ($entries -notcontains 'BundleConfig.pb') { throw "$bundle is not an app bundle: BundleConfig.pb is missing." }
+          Assert-Unsigned $bundle $entries
+          Write-Host "==> ${bundle}: app bundle, ABIs $((Get-Abis $entries) -join ', ')"
+
+          $entries = Get-Entries $apk
+          if ($entries -notcontains 'AndroidManifest.xml' -or $entries -contains 'BundleConfig.pb') { throw "$apk is not an APK." }
+          $abis = @(Get-Abis $entries)
+          if ($abis.Count -ne 1 -or $abis[0] -ne 'arm64-v8a') { throw "$apk should carry arm64-v8a only; found: $($abis -join ', ')" }
+          Assert-Unsigned $apk $entries
+          Write-Host "==> ${apk}: apk, arm64-v8a"
+
+          Copy-Item $bundle "$out/Broiler.Writer-$env:VERSION.aab"
+          Copy-Item $apk "$out/Broiler.Writer-$env:VERSION-arm64.apk"
+
+      # The .aab is signed with jarsigner, the .apk zipaligned and signed with apksigner; the
+      # script verifies both against the release certificate and returns its fingerprint.
+      - name: Sign the packages
+        id: sign
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          $out = 'artifacts/android/signed'
+          $fingerprint = ./eng/sign-android-packages.ps1 `
+            -BundlePath "$out/Broiler.Writer-$env:VERSION.aab" `
+            -ApkPath "$out/Broiler.Writer-$env:VERSION-arm64.apk"
+          if ([string]::IsNullOrWhiteSpace($fingerprint)) { throw 'The signing script returned no certificate fingerprint.' }
+          "certificate-sha256=$fingerprint" >> $env:GITHUB_OUTPUT
+
+      - name: Upload
+        uses: actions/upload-artifact@v7
+        with:
+          name: broiler-writer-android-${{ env.VERSION }}
+          path: artifacts/android/signed/*
+          if-no-files-found: error
+
   release:
     name: Tag and draft release ${{ needs.version.outputs.tag }}
-    needs: [version, build]
+    needs: [version, build, android]
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -194,6 +359,7 @@ jobs:
       - name: Draft the release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ANDROID_SIGNING_CERT_SHA256: ${{ needs.android.outputs.signing-certificate-sha256 }}
         run: bash eng/release-draft.sh "$VERSION" artifacts
 
       - name: Summary

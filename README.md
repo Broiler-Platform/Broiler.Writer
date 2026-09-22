@@ -201,18 +201,23 @@ projects by changing the reference graph, then regenerate.
   `Debug` and `Release`, so a solution-level build with either fails `MSB4126`.
 
 [`publish.yml`](.github/workflows/publish.yml) is dispatch-only and builds the Windows and
-Linux Writer with NativeAOT. Each platform comes out as one zip artifact on the run holding a
-single executable, which is the whole application: no .NET runtime to install and nothing
-beside it. Nothing is pushed to a feed. Each run also drafts a GitHub pre-release,
-*Broiler Writer <version>*, with both executables zipped as
-`Broiler.Writer-<version>-<rid>.zip`. It stays a draft until someone publishes it under
-Releases; [`eng/release-draft.sh`](eng/release-draft.sh) builds it and can be run by hand
-from a run's artifacts.
+Linux Writer with NativeAOT, and the Android Writer as a signed app bundle and APK. Each
+desktop platform comes out as one zip artifact on the run holding a single executable, which
+is the whole application: no .NET runtime to install and nothing beside it. Nothing is pushed
+to a feed. Each run also drafts a GitHub pre-release, *Broiler Writer <version>*, with both
+executables zipped as `Broiler.Writer-<version>-<rid>.zip` and the Android packages attached.
+It stays a draft until someone publishes it under Releases;
+[`eng/release-draft.sh`](eng/release-draft.sh) builds it and can be run by hand from a run's
+artifacts.
 
 | Artifact | Contents |
 | --- | --- |
 | `broiler-writer-win-x64-<version>` | `Broiler.Writer.Windows.exe` |
 | `broiler-writer-linux-x64-<version>` | `Broiler.Writer.Linux` (`chmod +x` after unzipping; artifact zips drop file modes) |
+| `broiler-writer-android-<version>` | `Broiler.Writer-<version>.aab` (arm64 + x86_64) and `Broiler.Writer-<version>-arm64.apk`, both release-signed |
+
+The draft release carries the same `.aab` and `.apk` as assets, and the Linux executable in
+its release zip keeps its executable bit.
 
 The run fails if a publish ever emits anything beside the executable other than symbols or
 XML docs, because an artifact without that file would be broken.
@@ -225,12 +230,19 @@ nuget.org. Everything else still comes from nuget.org.
 
 Each run takes the next preview version: `BroilerWriterVersion` in `Directory.Build.props` is
 the floor, raised past every earlier run's `writer-v*` tag. A run tags its commit only after
-both platforms built, so preview numbers only ever increase and a failed run leaves its
-number free. The version is stamped into the executables too. The logic is
+every platform built, so preview numbers only ever increase and a failed run leaves its
+number free. The version is stamped into every build, and its preview number becomes the
+Android `versionCode`, so each release installs over the one before it. The logic is
 [`eng/resolve-preview-version.mjs`](eng/resolve-preview-version.mjs), with tests beside it.
 
-Android is not published here. Signed, store-ready preview packages come from the monorepo's
-*Prepare Broiler Preview Package* workflow, which owns the signing material.
+Android builds on Mono, not NativeAOT, and is signed with the Broiler release key by
+[`eng/sign-android-packages.ps1`](eng/sign-android-packages.ps1), copied unchanged from the
+monorepo: `jarsigner` for the bundle, `zipalign` and `apksigner` for the APK, each verified
+against the release certificate, whose SHA-256 fingerprint the release notes quote. The key
+comes from four repository secrets — `ANDROID_KEYSTORE_BASE64`, `ANDROID_KEYSTORE_PASSWORD`,
+`ANDROID_KEY_ALIAS`, `ANDROID_KEY_PASSWORD` — the same ones the monorepo's *Prepare Broiler
+Preview Package* workflow uses. A run checks them before it builds anything and stops with a
+message naming what is missing.
 
 ## NativeAOT
 
