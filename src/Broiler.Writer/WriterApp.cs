@@ -36,6 +36,7 @@ using Broiler.Graphics.Geometry;
 using Broiler.Graphics.Color;
 using Broiler.Graphics.Text;
 using Broiler.Graphics.Imaging;
+using Broiler.Documents.Resources;
 
 namespace Broiler.Writer;
 
@@ -430,7 +431,7 @@ internal sealed class WriterApp : IDisposable
             ReplaceDocument(() =>
             {
                 _editor.Document = selection.Result.Document;
-                _editor.Selection = RichTextRange.Caret(_editor.Document.Start);
+                _editor.Selection = RichTextRange.Caret(RichTextDocument.Start);
             });
             _session.SetFocus(_editor);
             RefreshUi();
@@ -1113,7 +1114,7 @@ internal sealed class WriterApp : IDisposable
             ReplaceDocument(() =>
             {
                 _editor.Document = selection.Result.Document;
-                _editor.Selection = RichTextRange.Caret(_editor.Document.Start);
+                _editor.Selection = RichTextRange.Caret(RichTextDocument.Start);
             });
             _session.SetFocus(_editor);
         }
@@ -1331,7 +1332,7 @@ internal sealed class WriterApp : IDisposable
             "This preview is a Broiler.UI window with a Broiler-rendered menu and StandardRichEdit document surface.\n" +
             "Use the Edit and Format menus, or keyboard shortcuts such as Ctrl+B, Ctrl+I, Ctrl+U, Ctrl+Z, and Ctrl+Y. The editor is drawn through Broiler.Graphics rather than a native RICHEDIT control."));
 
-        RichTextPosition start = _editor.Document.Start;
+        RichTextPosition start = RichTextDocument.Start;
         RichTextPosition end = _editor.Document.ParagraphEnd(start);
         _editor.Selection = new RichTextRange(start, end);
         _editor.ExecuteCommand(RichEditCommand.Bold);

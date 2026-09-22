@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
@@ -12,7 +12,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Broiler.Documents.FormatCodes" Version="0.1.0-preview.13" />
+    <PackageReference Include="Broiler.Documents.FormatCodes" Version="0.1.0-preview.16" />
   </ItemGroup>
 
 </Project>

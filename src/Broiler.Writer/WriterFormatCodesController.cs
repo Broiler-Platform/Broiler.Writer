@@ -333,7 +333,7 @@ public sealed class WriterFormatCodesController : IDisposable
                 PublishProjection(
                     generation,
                     document,
-                    _projector.Project(document, options, cancellation.Token));
+                    FormatCodeProjector.Project(document, options, cancellation.Token));
             }
             catch (OperationCanceledException)
             {
@@ -360,7 +360,7 @@ public sealed class WriterFormatCodesController : IDisposable
         try
         {
             FormatCodeProjection result = await _scheduler.Schedule(
-                () => _projector.Project(document, options, cancellationToken),
+                () => FormatCodeProjector.Project(document, options, cancellationToken),
                 cancellationToken).ConfigureAwait(false);
             _dispatcher.Post(() => PublishProjection(generation, document, result));
         }
