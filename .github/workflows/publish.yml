@@ -1,12 +1,14 @@
 name: Publish
 
-# Dispatch-only. Every run builds all three platforms with NativeAOT, stamps them with the
-# next preview version and packs each into its own NuGet package, attached to the run as
-# an artifact. Nothing is pushed to a feed.
+# Dispatch-only. Every run builds the Windows and Linux Writer with NativeAOT, stamps both
+# with the next preview version, and attaches each platform's single executable to the run
+# as its own zip artifact:
 #
-#   Broiler.Writer.win-x64        tools/win-x64/Broiler.Writer.Windows.exe
-#   Broiler.Writer.linux-x64      tools/linux-x64/Broiler.Writer.Linux
-#   Broiler.Writer.android-arm64  tools/android-arm64/org.broiler.writer-Signed.apk
+#   broiler-writer-win-x64-<version>.zip    Broiler.Writer.Windows.exe
+#   broiler-writer-linux-x64-<version>.zip  Broiler.Writer.Linux
+#
+# NativeAOT is what makes the executable the whole application: self-contained, trimmed,
+# no .NET runtime to install, nothing beside it. Nothing is pushed to a feed.
 #
 # nuget-source picks the feed the Broiler.* dependencies are restored from. NuGet.config
 # resolves everything from nuget.org; broiler-github maps Broiler.* to the Broiler-Platform
@@ -15,10 +17,6 @@ name: Publish
 # The version is BroilerWriterVersion (Directory.Build.props) raised past every earlier
 # run's writer-v* tag, and a successful run tags its commit, so preview numbers only ever
 # increase and never name two builds. See eng/resolve-preview-version.mjs.
-#
-# The APK is signed with the .NET Android debug key: no signing material is configured
-# here. It sideloads for testing but is not store-ready; the signed store package still
-# comes from the monorepo's "Prepare Broiler Preview Package" workflow.
 on:
   workflow_dispatch:
     inputs:
@@ -53,7 +51,6 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       version: ${{ steps.version.outputs.version }}
-      version-code: ${{ steps.version.outputs.version-code }}
       tag: ${{ steps.version.outputs.tag }}
     steps:
       - name: Check out
@@ -96,21 +93,17 @@ jobs:
             rid: win-x64
             project: src/Broiler.Writer.Windows/Broiler.Writer.Windows.csproj
             configuration: Release-Windows
+            executable: Broiler.Writer.Windows.exe
           # NativeAOT cannot cross-compile, so the Linux binary links on Linux.
           - os: ubuntu-latest
             rid: linux-x64
             project: src/Broiler.Writer.Linux/Broiler.Writer.Linux.csproj
             configuration: Release-Linux
-          # Plain Release: the head only honours BroilerAndroidAbis and
-          # AndroidPackageFormat under that exact name. See the Android step below.
-          - os: ubuntu-latest
-            rid: android-arm64
-            project: src/Broiler.Writer.Android/Broiler.Writer.Android.csproj
-            configuration: Release
+            executable: Broiler.Writer.Linux
 
     env:
       VERSION: ${{ needs.version.outputs.version }}
-      VERSION_CODE: ${{ needs.version.outputs.version-code }}
+      OUT: artifacts/publish/${{ matrix.rid }}
       # Read by NuGet for the github-broiler source in NuGet.config. Unused, and harmless,
       # when Broiler.* restores from nuget.org.
       NuGetPackageSourceCredentials_github-broiler: Username=${{ github.actor }};Password=${{ secrets.GITHUB_TOKEN }};ValidAuthenticationTypes=Basic
@@ -131,69 +124,40 @@ jobs:
           grep -q 'key="github-broiler"><package pattern="Broiler' NuGet.config
 
       # ILCompiler shells out to a platform linker. windows-latest carries the MSVC C++
-      # tools; on Linux the toolchain is clang plus zlib headers. Android links with the
-      # NDK the ubuntu image already ships.
+      # tools; on Linux the toolchain is clang plus zlib headers.
       - name: Install the NativeAOT prerequisites
-        if: matrix.rid == 'linux-x64'
+        if: runner.os == 'Linux'
         run: sudo apt-get update && sudo apt-get install -y clang zlib1g-dev
-
-      - name: Install the Android workload
-        if: matrix.rid == 'android-arm64'
-        run: dotnet workload install android
 
       # PublishAot implies self-contained and trimmed: one native binary, no .NET runtime
       # to install. BroilerWriterVersion flows into Version, so the About dialog and the
-      # file version match the package version.
-      - name: Publish (desktop)
-        if: matrix.rid != 'android-arm64'
+      # file version match the artifact.
+      - name: Publish
         run: |
           dotnet publish '${{ matrix.project }}' \
             -c '${{ matrix.configuration }}' \
             -p:PublishAot=true \
             -p:BroilerWriterVersion="$VERSION" \
-            -o "./artifacts/publish/${{ matrix.rid }}"
-          mkdir -p "./artifacts/stage/${{ matrix.rid }}"
-          cp -R "./artifacts/publish/${{ matrix.rid }}/." "./artifacts/stage/${{ matrix.rid }}/"
+            -o "$OUT"
 
-      # NativeAOT on Android is flagged experimental by the SDK (XA1040); the head is
-      # nevertheless trim- and AOT-clean. PublishTrimmed is forced on because native
-      # compilation implies trimming and the head defaults it off for its Mono build.
-      #
-      # AndroidPackageFormat=apk gives a single sideloadable file instead of the store
-      # bundle. The ABI goes through BroilerAndroidAbis rather than RuntimeIdentifiers,
-      # which as a global property would reach every net10.0 library and fail NETSDK1047.
-      # ApplicationVersion is Android's versionCode and must only ever increase; the
-      # preview number does.
-      - name: Publish (Android)
-        if: matrix.rid == 'android-arm64'
+      # The artifact is the executable alone. Symbols (.pdb, and Linux's detached .dbg) and
+      # XML docs are dead weight next to it; anything else would be a file the application
+      # needs, so shipping without it would be broken - fail rather than drop it.
+      - name: Check that the executable is the whole application
         run: |
-          dotnet publish '${{ matrix.project }}' \
-            -c '${{ matrix.configuration }}' \
-            -p:PublishAot=true \
-            -p:PublishTrimmed=true \
-            -p:AndroidNdkDirectory="$ANDROID_NDK_LATEST_HOME" \
-            -p:AndroidPackageFormat=apk \
-            -p:BroilerAndroidAbis=android-arm64 \
-            -p:BroilerWriterVersion="$VERSION" \
-            -p:ApplicationVersion="$VERSION_CODE" \
-            -o "./artifacts/publish/${{ matrix.rid }}"
-          mkdir -p "./artifacts/stage/${{ matrix.rid }}"
-          cp ./artifacts/publish/${{ matrix.rid }}/*-Signed.apk "./artifacts/stage/${{ matrix.rid }}/"
-
-      - name: Pack
-        run: |
-          dotnet pack eng/package/Broiler.Writer.Package.csproj \
-            -c Release \
-            -p:BroilerPackageRid='${{ matrix.rid }}' \
-            -p:BroilerPackageInput="$GITHUB_WORKSPACE/artifacts/stage/${{ matrix.rid }}" \
-            -p:BroilerWriterVersion="$VERSION" \
-            -o ./artifacts/nupkg
+          others=$(find "$OUT" -type f ! -name '${{ matrix.executable }}' \
+            ! -name '*.pdb' ! -name '*.dbg' ! -name '*.xml')
+          if [ ! -f "$OUT/${{ matrix.executable }}" ] || [ -n "$others" ]; then
+            echo "::error::Expected only ${{ matrix.executable }} in the publish output."
+            find "$OUT" -type f
+            exit 1
+          fi
 
       - name: Upload
         uses: actions/upload-artifact@v7
         with:
           name: broiler-writer-${{ matrix.rid }}-${{ env.VERSION }}
-          path: artifacts/nupkg/*.nupkg
+          path: ${{ env.OUT }}/${{ matrix.executable }}
           if-no-files-found: error
 
   tag:
@@ -210,18 +174,11 @@ jobs:
       - name: Check out
         uses: actions/checkout@v7
 
-      # Only after all three platforms built: a failed run leaves its number free.
+      # Only after both platforms built: a failed run leaves its number free.
       - name: Tag the commit
         run: |
           git tag "$TAG" "$GITHUB_SHA"
           git push origin "refs/tags/$TAG"
-
-      - name: Download packages
-        uses: actions/download-artifact@v8
-        with:
-          pattern: broiler-writer-*
-          merge-multiple: true
-          path: artifacts
 
       - name: Summary
         run: |
@@ -229,9 +186,7 @@ jobs:
             echo "### Broiler.Writer $VERSION"
             echo
             echo "Dependencies restored from \`${{ inputs.nuget-source }}\`; commit tagged \`$TAG\`."
-            echo 'The packages are attached to this run as artifacts.'
             echo
-            echo '```'
-            ls -1 artifacts
-            echo '```'
+            echo "- \`broiler-writer-win-x64-$VERSION\`: \`Broiler.Writer.Windows.exe\`"
+            echo "- \`broiler-writer-linux-x64-$VERSION\`: \`Broiler.Writer.Linux\` (run \`chmod +x\` after unzipping)"
           } >> "$GITHUB_STEP_SUMMARY"

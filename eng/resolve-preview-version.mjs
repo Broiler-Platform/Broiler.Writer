@@ -52,7 +52,7 @@ function git(...args) {
 
 function readConfiguredVersion() {
   const output = execFileSync('dotnet', [
-    'msbuild', 'eng/package/Broiler.Writer.Package.csproj', '-nologo',
+    'msbuild', 'src/Broiler.Writer/Broiler.Writer.Core.csproj', '-nologo',
     '-getProperty:BroilerWriterVersion',
   ], { cwd: root, encoding: 'utf8' });
   return output.trim();
@@ -69,13 +69,9 @@ function main() {
   const version = chooseVersion(configured, versionsFromTags(tags), {
     suffix: process.env.VERSION_SUFFIX || '',
   });
-  // Android's versionCode must be a positive integer that only ever increases; the
-  // preview number is exactly that.
-  const versionCode = parsePreview(version).number.toString();
-  console.log(`Version: ${version} (versionCode ${versionCode}, ${tags.length} earlier tags)`);
+  console.log(`Version: ${version} (${tags.length} earlier tags)`);
   if (process.env.GITHUB_OUTPUT) {
-    appendFileSync(process.env.GITHUB_OUTPUT,
-      `version=${version}\nversion-code=${versionCode}\ntag=${tagPrefix}${version}\n`);
+    appendFileSync(process.env.GITHUB_OUTPUT, `version=${version}\ntag=${tagPrefix}${version}\n`);
   }
 }
 
