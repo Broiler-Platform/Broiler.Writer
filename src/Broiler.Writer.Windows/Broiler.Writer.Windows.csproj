@@ -27,7 +27,7 @@
     <PackageReference Include="Broiler.Documents.Pdf.Fonts" Version="0.1.0-preview.16" />
     <PackageReference Include="Broiler.Graphics" Version="0.1.0-preview.5" />
     <PackageReference Include="Broiler.Graphics.Windows" Version="0.1.0-preview.5" />
-    <PackageReference Include="Broiler.Media.Image.Managed" Version="0.1.0-preview.13" />
+    <PackageReference Include="Broiler.Media.Image.Managed" Version="0.1.0-preview.14" />
   </ItemGroup>
 
   <ItemGroup>
