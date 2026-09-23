@@ -129,7 +129,6 @@ internal static class LinuxWriterRunner
             }
         }
         while (!closeRequested &&
-               !input.QuitRequested &&
                (x11Window is null || !x11Window.IsCloseRequested) &&
                await timer.WaitForNextTickAsync(cancellationToken).ConfigureAwait(false));
 

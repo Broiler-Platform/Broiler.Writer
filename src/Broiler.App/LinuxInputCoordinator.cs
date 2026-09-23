@@ -62,7 +62,6 @@ internal sealed class LinuxInputCoordinator : IAsyncDisposable
     private int _mouseWheelEvents;
     private string? _keyboardSummary;
     private string? _mouseSummary;
-    private bool _quitRequested;
 
     public LinuxInputCoordinator(bool enabled, Action<string> log, bool externalPointer = false, string applicationName = "Broiler Writer")
     {
@@ -70,15 +69,6 @@ internal sealed class LinuxInputCoordinator : IAsyncDisposable
         _log = log ?? throw new ArgumentNullException(nameof(log));
         _externalPointer = externalPointer;
         _applicationName = string.IsNullOrWhiteSpace(applicationName) ? "application" : applicationName;
-    }
-
-    public bool QuitRequested
-    {
-        get
-        {
-            lock (_gate)
-                return _quitRequested;
-        }
     }
 
     public LinuxWriterInputSnapshot Snapshot
@@ -211,7 +201,7 @@ internal sealed class LinuxInputCoordinator : IAsyncDisposable
         lock (_gate)
             _initialized = true;
 
-        _log("evdev input opened. Events run only while the X11 window is focused; Escape exits " + _applicationName + ".");
+        _log("evdev input opened. Events run only while the X11 window is focused; use File > Exit to close " + _applicationName + ".");
     }
 
     public async ValueTask SetActiveAsync(bool active, CancellationToken cancellationToken = default)
@@ -363,11 +353,6 @@ internal sealed class LinuxInputCoordinator : IAsyncDisposable
             _keyEvents++;
             if (text.Length > 0)
                 _textEvents++;
-            if (normalized.Transition == KeyboardKeyTransition.Down &&
-                normalized.Key.Name.Equals("Escape", StringComparison.Ordinal))
-            {
-                _quitRequested = true;
-            }
         }
     }
 

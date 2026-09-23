@@ -30,6 +30,7 @@ internal sealed class WriterWindow : Direct2DWindow
     // Created in OnCreated: the Win32 clipboard is addressed by window handle,
     // and there is no handle until the window exists.
     private WindowsClipboard? _clipboard;
+    private WriterWindowCloseGuard? _closeGuard;
 
 #pragma warning disable CS0618
     private readonly StandardLegacyGraphicsInputAdapter _legacyInput = new("broiler-writer");
@@ -68,6 +69,7 @@ internal sealed class WriterWindow : Direct2DWindow
 
     protected override void OnCreated()
     {
+        _closeGuard = new WriterWindowCloseGuard(NativeHandle, _app.RequestClose);
         _clipboard = new WindowsClipboard(NativeHandle);
 
         // The app named the document before this window existed, and SetTitle is a no-op until it
@@ -135,6 +137,7 @@ internal sealed class WriterWindow : Direct2DWindow
     {
         if (disposing)
         {
+            _closeGuard?.Dispose();
             // The app first: disposing its session closes any dialog that is still open, which
             // tears down the host window it broke out into. The host then only has to sweep up
             // whatever survived that.

@@ -67,6 +67,9 @@ internal static partial class BrowserInterop
     [JSImport("writer.requestOpenFile", "main.js")]
     internal static partial void RequestOpenFile(string acceptExtensions);
 
+    [JSImport("writer.setHasUnsavedChanges", "main.js")]
+    internal static partial void SetHasUnsavedChanges(bool modified);
+
     /// <summary>
     /// Triggers a browser download of an encoded document (managed → page). The bytes are passed as
     /// base64 to keep the interop signature a simple string.

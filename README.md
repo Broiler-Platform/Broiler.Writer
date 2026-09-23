@@ -83,6 +83,18 @@ holds.
 
 ## Dialogs
 
+New, Open and File → Exit ask what to do with unsaved edits: **Save**, **Discard** or
+**Cancel**. Escape and the prompt's close button cancel the action. Saving continues the
+action only after the write succeeds; cancelling Save As or a platform picker keeps the
+document open. The Windows title-bar close button and Alt+F4 use the same prompt. Android
+Back also requests a guarded close. The browser uses the shared prompt for New/Open and
+the browser's own warning when leaving a modified document.
+
+Broiler.UI's existing modal dialog, buttons and result events supply the prompt; no toolkit
+change is needed. Linux's File → Exit is guarded and Escape dismisses dialogs. Its native
+window-manager close still bypasses confirmation because the current graphics package exposes
+only a latched close flag, without a cancellation/reset API.
+
 Help → About Broiler Writer opens Broiler.UI's `StandardAboutDialog`, showing Writer's
 assembly informational version and a snapshot of the loaded Broiler component versions.
 `Directory.Build.props` supplies the application version (including its preview label);

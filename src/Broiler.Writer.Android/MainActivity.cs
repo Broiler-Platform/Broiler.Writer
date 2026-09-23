@@ -31,6 +31,7 @@ public sealed class MainActivity : Activity
     private WriterApp? _app;
     private global::Android.Net.Uri? _currentDocumentUri;
     private string _pendingSaveName = "Untitled.rtf";
+    private Action<bool>? _saveCompleted;
 
     protected override void OnCreate(Bundle? savedInstanceState)
     {
@@ -103,11 +104,17 @@ public sealed class MainActivity : Activity
         return base.DispatchKeyEvent(e);
     }
 
+    public override void OnBackPressed() => _app?.RequestClose();
+
     protected override void OnActivityResult(int requestCode, Result resultCode, Intent? data)
     {
         base.OnActivityResult(requestCode, resultCode, data);
         if (resultCode != Result.Ok || data?.Data is not global::Android.Net.Uri uri || _app is null)
+        {
+            if (requestCode == CreateDocumentRequest)
+                CompleteSave(false);
             return;
+        }
 
         TakePersistablePermission(data, uri);
         if (requestCode == OpenDocumentRequest)
@@ -118,7 +125,6 @@ public sealed class MainActivity : Activity
         }
         else if (requestCode == CreateDocumentRequest)
         {
-            _currentDocumentUri = uri;
             SaveToUri(uri, ResolveDisplayName(uri));
         }
 
@@ -143,8 +149,9 @@ public sealed class MainActivity : Activity
         StartActivityForResult(intent, OpenDocumentRequest);
     }
 
-    private void RequestSaveDocument(string suggestedName, bool saveAs)
+    private void RequestSaveDocument(string suggestedName, bool saveAs, Action<bool> completed)
     {
+        _saveCompleted = completed;
         _pendingSaveName = EnsureSupportedExtension(suggestedName);
         if (!saveAs && _currentDocumentUri is not null)
         {
@@ -162,10 +169,33 @@ public sealed class MainActivity : Activity
 
     private void SaveToUri(global::Android.Net.Uri uri, string displayName)
     {
-        using Stream? output = ContentResolver?.OpenOutputStream(uri, "wt");
-        if (output is not null)
-            _app?.WriteDocument(output, EnsureSupportedExtension(displayName));
+        bool saved = false;
+        try
+        {
+            using (Stream? output = ContentResolver?.OpenOutputStream(uri, "wt"))
+            {
+                if (output is null)
+                    _app?.ReportSaveFailure("Could not open the document for writing.");
+                saved = output is not null && _app?.WriteDocument(output, EnsureSupportedExtension(displayName)) == true;
+            }
+            if (saved)
+                _currentDocumentUri = uri;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or Java.Lang.Exception)
+        {
+            saved = false;
+            _app?.ReportSaveFailure(ex.Message);
+            Toast.MakeText(this, "Save failed: " + ex.Message, ToastLength.Long)?.Show();
+        }
+        CompleteSave(saved);
         _view?.InvalidateFrame();
+    }
+
+    private void CompleteSave(bool saved)
+    {
+        Action<bool>? completed = _saveCompleted;
+        _saveCompleted = null;
+        completed?.Invoke(saved);
     }
 
     private void SaveRecovery()

@@ -51,6 +51,7 @@ namespace Broiler.Writer.WebAssembly;
 /// </summary>
 internal sealed class BrowserWriterDemo : IDisposable
 {
+    private WriterDocumentChanges? _documentChanges;
     private static readonly InputDeviceId PointerDevice = InputDeviceId.FromOpaqueValue("browser-primary-pointer");
     private static readonly InputDeviceId KeyboardDevice = InputDeviceId.FromOpaqueValue("browser-keyboard");
     private static readonly InputDeviceId TextDevice = InputDeviceId.FromOpaqueValue("browser-text");
@@ -937,7 +938,20 @@ internal sealed class BrowserWriterDemo : IDisposable
 
     // ---- Document operations (browser-native) -----------------------------------------------
 
-    private void NewDocument()
+    private void ConfirmDocumentChange(Action action)
+    {
+        _documentChanges ??= new WriterDocumentChanges(_rootWindow, () => _host.ViewportSize,
+            () => _isModified, () => _documentName, completed =>
+            {
+                SaveDocument();
+                completed(!_isModified);
+            });
+        _documentChanges.Run(action);
+    }
+
+    private void NewDocument() => ConfirmDocumentChange(NewDocumentCore);
+
+    private void NewDocumentCore()
     {
         _currentDocumentName = "Untitled document";
         _hasSavedName = false;
@@ -948,7 +962,9 @@ internal sealed class BrowserWriterDemo : IDisposable
         RefreshUi();
     }
 
-    private void RequestOpenDocument()
+    private void RequestOpenDocument() => ConfirmDocumentChange(RequestOpenDocumentCore);
+
+    private void RequestOpenDocumentCore()
     {
         BrowserInterop.RequestOpenFile(OpenAcceptExtensions);
         _lastAction = "Open document";
@@ -1385,6 +1401,7 @@ internal sealed class BrowserWriterDemo : IDisposable
 
     private void UpdateWindowTitle()
     {
+        BrowserInterop.SetHasUnsavedChanges(_isModified);
         _rootWindow.Title = WindowTitle;
         BrowserInterop.SetTitle(WindowTitle);
     }

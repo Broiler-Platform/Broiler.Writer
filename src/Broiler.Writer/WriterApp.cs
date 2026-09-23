@@ -45,7 +45,8 @@ internal sealed class WriterApp : IDisposable
     private readonly WriterUiHost _host;
     private readonly Action _requestClose;
     private readonly Action? _requestOpenDocument;
-    private readonly Action<string, bool>? _requestSaveDocument;
+    private readonly Action<string, bool, Action<bool>>? _requestSaveDocument;
+    private readonly WriterDocumentChanges _documentChanges;
     private readonly bool _compactMode;
     private readonly UiSession _session;
     private readonly StandardWindow _rootWindow;
@@ -141,7 +142,7 @@ internal sealed class WriterApp : IDisposable
         WriterUiHost host,
         Action requestClose,
         Action? requestOpenDocument = null,
-        Action<string, bool>? requestSaveDocument = null,
+        Action<string, bool, Action<bool>>? requestSaveDocument = null,
         bool compactMode = false,
         WriterDocumentFormats? documentFormats = null,
         Action<string>? setWindowTitle = null,
@@ -277,6 +278,13 @@ internal sealed class WriterApp : IDisposable
             _editor, _formatCodesView, _session.Dispatcher);
         _session.AddRoot(_rootWindow);
         _session.SetFocus(_editor);
+        _documentChanges = new WriterDocumentChanges(_rootWindow, () => _host.ViewportSize,
+            () => _isModified, () => _documentName, SaveDocument);
+        _rootWindow.Closing += (_, e) =>
+        {
+            e.Cancel = true;
+            RequestClose();
+        };
 
         _editor.SelectionChanged += (_, _) => RefreshUi();
         _editor.DocumentChanged += (_, _) =>
@@ -475,6 +483,14 @@ internal sealed class WriterApp : IDisposable
         }
     }
 
+    /// <summary>Reports a host failure opening or closing a save stream.</summary>
+    public void ReportSaveFailure(string message)
+    {
+        MarkModified();
+        _problem = _lastAction = "Save failed: " + message;
+        RefreshUi();
+    }
+
     public void Dispose()
     {
         _formatCodesController.Dispose();
@@ -488,7 +504,7 @@ internal sealed class WriterApp : IDisposable
         dispatcher.Add(new StandardCommand("file.open", ShowOpenDialog));
         dispatcher.Add(new StandardCommand("file.save", SaveDocument));
         dispatcher.Add(new StandardCommand("file.save-as", ShowSaveDialog));
-        dispatcher.Add(new StandardCommand("file.exit", _requestClose));
+        dispatcher.Add(new StandardCommand("file.exit", RequestClose));
         dispatcher.Add(new StandardCommand("insert.picture", ShowInsertPictureDialog));
         dispatcher.Add(new StandardCommand("view.formatting-codes", ToggleFormattingCodes));
         dispatcher.Add(new StandardCommand("view.zoom.in", () => StepZoom(WriterZoomStep.In)));
@@ -995,7 +1011,11 @@ internal sealed class WriterApp : IDisposable
         RefreshUi();
     }
 
-    private void NewDocument()
+    public void RequestClose() => _documentChanges.Run(_requestClose);
+
+    private void NewDocument() => _documentChanges.Run(NewDocumentCore);
+
+    private void NewDocumentCore()
     {
         _currentDocumentPath = null;
         ReplaceDocument(() => _editor.SetPlainText(string.Empty));
@@ -1005,7 +1025,9 @@ internal sealed class WriterApp : IDisposable
         RefreshUi();
     }
 
-    private void ShowOpenDialog()
+    private void ShowOpenDialog() => _documentChanges.Run(ShowOpenDialogCore);
+
+    private void ShowOpenDialogCore()
     {
         if (_requestOpenDocument is not null)
         {
@@ -1034,30 +1056,34 @@ internal sealed class WriterApp : IDisposable
         RefreshUi();
     }
 
-    private void SaveDocument()
+    private void SaveDocument() => SaveDocument(static _ => { });
+
+    private void SaveDocument(Action<bool> completed)
     {
         if (_requestSaveDocument is not null)
         {
-            _requestSaveDocument(SuggestedDocumentName(), false);
+            _requestSaveDocument(SuggestedDocumentName(), _currentDocumentPath is null, completed);
             return;
         }
 
         if (string.IsNullOrWhiteSpace(_currentDocumentPath))
         {
-            ShowSaveDialog();
+            ShowSaveDialog(completed);
             return;
         }
 
-        SaveDocumentAs(_currentDocumentPath);
+        completed(SaveDocumentAs(_currentDocumentPath));
     }
 
-    private void ShowSaveDialog()
+    private void ShowSaveDialog() => ShowSaveDialog(static _ => { });
+
+    private void ShowSaveDialog(Action<bool> completed)
     {
         if (_requestSaveDocument is not null)
         {
-            _requestSaveDocument(SuggestedDocumentName(), true);
             _lastAction = "Save document as";
             RefreshUi();
+            _requestSaveDocument(SuggestedDocumentName(), true, completed);
             return;
         }
 
@@ -1079,8 +1105,8 @@ internal sealed class WriterApp : IDisposable
             GetFileTypeFilterIndex(_saveDocumentFileFilters, _currentDocumentPath));
         dialog.ResultCompleted += (_, e) =>
         {
-            if (e.Result.Kind == UiDialogResultKind.Accepted && !string.IsNullOrWhiteSpace(e.Result.Value))
-                SaveDocumentAs(e.Result.Value);
+            completed(e.Result.Kind == UiDialogResultKind.Accepted &&
+                !string.IsNullOrWhiteSpace(e.Result.Value) && SaveDocumentAs(e.Result.Value));
         };
 
         dialog.ShowSaveModal(_rootWindow, GetDialogPlacement());
@@ -1126,8 +1152,9 @@ internal sealed class WriterApp : IDisposable
         RefreshUi();
     }
 
-    private void SaveDocumentAs(string path)
+    private bool SaveDocumentAs(string path)
     {
+        bool saved = false;
         try
         {
             string fullPath = ResolveDocumentPath(path);
@@ -1145,6 +1172,7 @@ internal sealed class WriterApp : IDisposable
                 : "Saved " + Path.GetFileName(fullPath) + " with " + result.Diagnostics.Count.ToString(CultureInfo.InvariantCulture) + " note(s)";
             if (result.Diagnostics.Count > 0)
                 _problem = _lastAction;
+            saved = true;
         }
         catch (Exception ex) when (IsFileOperationException(ex))
         {
@@ -1153,6 +1181,7 @@ internal sealed class WriterApp : IDisposable
 
         _session.SetFocus(_editor);
         RefreshUi();
+        return saved;
     }
 
     private void ShowInsertPictureDialog()

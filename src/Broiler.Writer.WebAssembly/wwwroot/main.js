@@ -330,6 +330,10 @@ setModuleImports('main.js', {
         prefersDarkScheme: () => prefersDark(),
         prefersReducedMotion: () => prefersReducedMotion(),
         requestOpenFile: accept => requestOpenFile(accept),
+        setHasUnsavedChanges: modified => {
+            window.removeEventListener('beforeunload', confirmUnsavedChanges);
+            if (modified) window.addEventListener('beforeunload', confirmUnsavedChanges);
+        },
         downloadFile: (fileName, base64Data) => downloadFile(fileName, base64Data),
         promptFileName: defaultName => {
             const chosen = window.prompt('Save document as (extension selects RTF, DOCX, HTML, or MD):', defaultName || 'Untitled.rtf');
@@ -342,6 +346,12 @@ const assemblyExports = await getAssemblyExports('Broiler.Writer.WebAssembly');
 writerExports = assemblyExports.Broiler.Writer.WebAssembly.BrowserWriterExports;
 
 window.addEventListener('pagehide', stop, { once: true });
+
+// Browsers own the navigation/close prompt; custom asynchronous dialogs cannot delay unloading.
+function confirmUnsavedChanges(event) {
+    event.preventDefault();
+    event.returnValue = '';
+}
 
 runMain().catch(error => {
     showError(error instanceof Error ? error.stack ?? error.message : String(error));
