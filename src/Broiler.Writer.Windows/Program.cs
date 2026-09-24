@@ -65,8 +65,8 @@ internal static class Program
 
     /// <summary>
     /// The PDF service graph this head composes: the JPEG decoder, the sfnt
-    /// font-program reader, and a URI policy that admits the schemes a
-    /// document's links are ordinarily written in.
+    /// font-program reader, the ICC colour-profile reader, and a URI policy
+    /// that admits the schemes a document's links are ordinarily written in.
     /// </summary>
     /// <remarks>
     /// <para>
@@ -110,6 +110,18 @@ internal static class Program
     /// somebody else's document (PDF roadmap &#167;6.5).
     /// </para>
     /// <para>
+    /// <strong>Why the ICC profile reader is composed.</strong> A colour-managed
+    /// producer writes its pictures in an <c>ICCBased</c> colour space - a
+    /// scanner's, a camera's, a press profile's - and without a reader such a
+    /// picture is refused by name and missing from the page. IP-024 approved an
+    /// independent implementation of the profile functionality a PDF uses, and
+    /// <c>IccColorProfileReader</c> converts to sRGB, the space the renderer
+    /// draws in. It reads only the profile the document embeds, within the
+    /// codec's profile budget, and it decodes nothing itself: a JPEG in an
+    /// ICC-based space is still decoded by the filter above, and takes its
+    /// colour from the profile once it is.
+    /// </para>
+    /// <para>
     /// <strong>Why http and mailto are admitted.</strong> The policy's own
     /// default is absolute <c>https</c> alone, which is the right default for a
     /// library that cannot know what its caller will do with a link: a target a
@@ -136,7 +148,8 @@ internal static class Program
         PdfCodecServices.Base
             .WithStreamFilters(new JpegStreamFilter())
             .WithUriPolicy(new PdfUriPolicy(allowHttp: true, allowMailto: true))
-            .WithFontProgramReader(new GraphicsFontProgramReader());
+            .WithFontProgramReader(new GraphicsFontProgramReader())
+            .WithColorProfileReader(new IccColorProfileReader());
 
 
     private const uint MbOk = 0x00000000;
