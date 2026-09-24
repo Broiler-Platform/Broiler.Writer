@@ -1,6 +1,7 @@
 using System.Buffers.Binary;
 using System.Text;
 using Broiler.Documents;
+using Broiler.Documents.Docx;
 using Broiler.Documents.Model;
 using Broiler.Documents.Pdf;
 using Broiler.Graphics;
@@ -404,6 +405,84 @@ public sealed class WriterPdfFormatTests
         BColor right = bitmap.GetPixel((int)Math.Round(drawn.Destination.Left + (drawn.Destination.Width * 3 / 4)), middle);
         Assert.InRange(left.R, 178, 198);
         Assert.InRange(right.R, 127, 147);
+    }
+
+    [Fact(Timeout = 600000)]
+    public void A_Picture_From_A_Pdf_Is_Saved_With_The_Document()
+    {
+        // An opened PDF's pictures are decoded samples, and a writer needs bytes.
+        // The save used to report the picture as left out, and the file it wrote
+        // did not have it.
+        using WriterApp app = CreateApp(DesktopFormats());
+        using (var source = new MemoryStream(PdfWithIccPicture(), writable: false))
+            Assert.True(app.LoadDocument(source, "picture.pdf"));
+
+        using var destination = new MemoryStream();
+        Assert.True(app.WriteDocument(destination, "picture.docx"));
+        Assert.Equal("Saved picture.docx", app.LastAction);
+
+        destination.Position = 0;
+        DocumentReadResult saved = new DocxDocumentCodec().Read(destination);
+        InlineImage picture = Assert.Single(ImagesIn(saved.Document));
+        Assert.True(picture.TryGetEncoded(out ReadOnlyMemory<byte> png, out string? contentType));
+        Assert.Equal("image/png", contentType);
+
+        // In the colour the profile gave it: the sRGB values of luminances of a
+        // half and a quarter, where the raw samples would read 128 and 64.
+        using BBitmap bitmap = BBitmap.Decode(png.Span);
+        byte[] rgba = bitmap.ToPixelBuffer().Rgba;
+        Assert.InRange(rgba[0], 187, 189);
+        Assert.InRange(rgba[4], 136, 138);
+    }
+
+    [Fact(Timeout = 600000)]
+    public void Every_Save_Format_Keeps_A_Picture_From_A_Pdf()
+    {
+        // Derived from the set rather than listed, as the save test above is.
+        // The file is what tells a picture written from one left out: HTML and
+        // Markdown note every picture they write as a data URI, so a note on
+        // the save says nothing either way.
+        WriterDocumentFormats formats = DesktopFormats();
+        WriterDocumentFormat[] advertised = [.. formats.Formats.Where(format => format.CanSave)];
+        Assert.Contains(advertised, format => format.DefaultExtension == ".rtf");
+
+        foreach (WriterDocumentFormat format in advertised)
+        {
+            using WriterApp app = CreateApp(formats);
+            using (var source = new MemoryStream(PdfWithIccPicture(), writable: false))
+                Assert.True(app.LoadDocument(source, "picture.pdf"));
+
+            using var destination = new MemoryStream();
+            Assert.True(app.WriteDocument(destination, "picture" + format.DefaultExtension));
+
+            // DOCX and ODT read their pictures back. RTF's reader imports none,
+            // and the HTML and Markdown readers leave a data URI alone, so for
+            // those the file itself is searched for the picture it was given.
+            string text = Encoding.Latin1.GetString(destination.ToArray());
+            destination.Position = 0;
+            bool carried =
+                ImagesIn(format.Codec.Read(destination).Document).Count == 1 ||
+                text.Contains("\\pngblip", StringComparison.Ordinal) ||
+                text.Contains("data:image/png;base64,", StringComparison.Ordinal);
+            Assert.True(carried, format.DefaultExtension + " was saved without the picture.");
+        }
+    }
+
+    [Fact(Timeout = 600000)]
+    public void Saving_Leaves_The_Open_Document_As_It_Was()
+    {
+        // The encoding is made for the file. The editor goes on drawing the
+        // samples it read, and the document it holds is the same one.
+        using WriterApp app = CreateApp(DesktopFormats());
+        using (var source = new MemoryStream(PdfWithIccPicture(), writable: false))
+            Assert.True(app.LoadDocument(source, "picture.pdf"));
+        RichTextDocument before = app.Document;
+
+        using var destination = new MemoryStream();
+        Assert.True(app.WriteDocument(destination, "picture.docx"));
+
+        Assert.Same(before, app.Document);
+        Assert.False(Assert.Single(ImagesIn(app.Document)).TryGetEncoded(out _, out _));
     }
 
     private static List<InlineImage> ImagesIn(RichTextDocument document)

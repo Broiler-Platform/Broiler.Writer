@@ -83,6 +83,11 @@ holds. Both heads compose three of the codec's optional providers: the JPEG deco
 sfnt font-program reader, and the ICC colour-profile reader. Each head's
 `CreatePdfServices` says why.
 
+An opened PDF can be saved in any of the save formats with its pictures. The PDF reader
+hands them over as decoded pixels, but every save format needs an encoded picture, so a
+save encodes each one as PNG first (`WriterPictureEncoding`). PNG is lossless and keeps
+transparency. The document in the editor is not changed.
+
 ## Dialogs
 
 New, Open and File → Exit ask what to do with unsaved edits: **Save**, **Discard** or
