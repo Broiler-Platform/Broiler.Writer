@@ -5,8 +5,11 @@ using Broiler.Documents.Docx;
 using Broiler.Documents.Model;
 using Broiler.Documents.Pdf;
 using Broiler.Graphics;
+using Broiler.Graphics.Color;
 using Broiler.Graphics.Geometry;
 using Broiler.Graphics.Imaging;
+using Broiler.Graphics.Rendering;
+using Broiler.Graphics.RenderList;
 using Broiler.UI.FileDialog;
 using System.Globalization;
 using Broiler.Media.Image.Managed;
@@ -369,6 +372,39 @@ public sealed class WriterPdfFormatTests
         Assert.Contains(
             result.Diagnostics,
             d => d.Message.Contains("ICCBased, whose profile no composed reader converts", StringComparison.Ordinal));
+    }
+
+    [Fact(Timeout = 600000)]
+    public void A_Picture_From_A_Pdf_Is_Drawn_Rather_Than_Outlined()
+    {
+        // An opened PDF's pictures are decoded samples. The editor found no bytes
+        // to hand the renderer and drew each one as an empty outline; the host
+        // now takes the samples as they are.
+        using var renderer = new BImageRenderer();
+        var host = new WriterUiHost(
+            () => new BSize(900, 600),
+            () => 1,
+            () => { },
+            _ => { },
+            getRenderer: () => renderer);
+        using var app = new WriterApp(host, () => { }, documentFormats: DesktopFormats());
+        using (var source = new MemoryStream(PdfWithIccPicture(), writable: false))
+            Assert.True(app.LoadDocument(source, "picture.pdf"));
+
+        BRenderList frame = app.RenderFrame();
+        BRenderCommand.DrawImage drawn = Assert.Single(frame.Commands.OfType<BRenderCommand.DrawImage>());
+        Assert.True(drawn.Image.IsValid);
+        Assert.Equal(100, drawn.Destination.Width, 3);
+        Assert.Equal(50, drawn.Destination.Height, 3);
+
+        // What lands on the page is the picture, in the colour its profile gave
+        // it: 188 on its left half and 137 on its right.
+        using BBitmap bitmap = renderer.RenderToImage(frame, BSurfaceDescriptor.Default(new BSize(900, 600)), BFrameContext.Default);
+        int middle = (int)Math.Round(drawn.Destination.Top + (drawn.Destination.Height / 2));
+        BColor left = bitmap.GetPixel((int)Math.Round(drawn.Destination.Left + (drawn.Destination.Width / 4)), middle);
+        BColor right = bitmap.GetPixel((int)Math.Round(drawn.Destination.Left + (drawn.Destination.Width * 3 / 4)), middle);
+        Assert.InRange(left.R, 178, 198);
+        Assert.InRange(right.R, 127, 147);
     }
 
     [Fact(Timeout = 600000)]

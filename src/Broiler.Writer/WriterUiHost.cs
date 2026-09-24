@@ -1,6 +1,7 @@
 using System;
 using Broiler.Graphics;
 using Broiler.Graphics.Geometry;
+using Broiler.Graphics.Imaging;
 using Broiler.Graphics.Rendering;
 using Broiler.Graphics.RenderList;
 using Broiler.Graphics.Resources;
@@ -115,6 +116,30 @@ internal class WriterUiHost : IUiHost, IUiClipboardHost, IUiTextInputHost, IUiIm
         {
             // A document can carry any bytes at all; a decoder that rejects them
             // must not take down the frame.
+            return BImageHandle.Invalid;
+        }
+    }
+
+    /// <summary>
+    /// Uploads a document image held as decoded samples - every picture an
+    /// opened PDF carries - to the renderer as it is, with nothing to decode.
+    /// Without this, the editor had no bytes to hand over for such a picture
+    /// and drew its outline.
+    /// </summary>
+    public BImageHandle CreateImage(BPixelBuffer pixels)
+    {
+        IBroilerRenderer? renderer = _getRenderer?.Invoke();
+        if (renderer is null)
+            return BImageHandle.Invalid;
+
+        try
+        {
+            return renderer.CreateImage(pixels);
+        }
+        catch (Exception ex) when (ex is not OutOfMemoryException)
+        {
+            // The same rule as for bytes: a backend that refuses a picture must
+            // not take down the frame.
             return BImageHandle.Invalid;
         }
     }

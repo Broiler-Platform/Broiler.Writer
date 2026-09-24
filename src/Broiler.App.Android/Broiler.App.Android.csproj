@@ -62,7 +62,7 @@
     <PackageReference Include="Broiler.Input.Pen.Android" Version="0.1.0-preview.5" />
     <PackageReference Include="Broiler.Input.Text.Android" Version="0.1.0-preview.5" />
     <PackageReference Include="Broiler.Input.Touch.Android" Version="0.1.0-preview.5" />
-    <PackageReference Include="Broiler.UI" Version="0.1.0-preview.7" />
+    <PackageReference Include="Broiler.UI" Version="0.1.0-preview.9" />
   </ItemGroup>
 
 </Project>
