@@ -1,9 +1,11 @@
+using System.Buffers.Binary;
 using System.Text;
 using Broiler.Documents;
 using Broiler.Documents.Model;
 using Broiler.Documents.Pdf;
 using Broiler.Graphics;
 using Broiler.Graphics.Geometry;
+using Broiler.Graphics.Imaging;
 using Broiler.UI.FileDialog;
 using System.Globalization;
 using Broiler.Media.Image.Managed;
@@ -207,7 +209,8 @@ public sealed class WriterPdfFormatTests
         PdfCodecServices.Base
             .WithStreamFilters(new JpegStreamFilter())
             .WithUriPolicy(new PdfUriPolicy(allowHttp: true, allowMailto: true))
-            .WithFontProgramReader(new GraphicsFontProgramReader());
+            .WithFontProgramReader(new GraphicsFontProgramReader())
+            .WithColorProfileReader(new IccColorProfileReader());
 
     private static WriterDocumentFormats DesktopFormats() =>
         WriterDocumentFormats.CreateDefault().With(
@@ -325,6 +328,48 @@ public sealed class WriterPdfFormatTests
         Assert.Contains("32x16 8bpc DeviceRGB DCTDecode", skipped.Message, StringComparison.Ordinal);
     }
 
+    [Fact(Timeout = 600000)]
+    public void The_Desktop_Composition_Converts_Icc_Colour()
+    {
+        // Like the font-program reader, present only because a head put it
+        // there: Base composes none, and without one a colour-managed picture
+        // is refused rather than drawn in values its profile never stated.
+        Assert.IsType<IccColorProfileReader>(DesktopPdfServices().ColorProfileReader);
+
+        Assert.Null(PdfCodecServices.Base.ColorProfileReader);
+    }
+
+    [Fact(Timeout = 600000)]
+    public void A_Picture_In_Icc_Colour_Reaches_The_Document_Converted()
+    {
+        // Gray levels 128 and 64 through a profile whose tone curve is gamma 1
+        // are luminances of a half and a quarter, which sRGB encodes as 188 and
+        // 137. Drawn raw, they would still be 128 and 64.
+        using var stream = new MemoryStream(PdfWithIccPicture(), writable: false);
+        DocumentReadResult result = new PdfDocumentCodec(DesktopPdfServices()).Read(
+            stream,
+            new DocumentReadOptions(resourcePolicy: DocumentResourcePolicy.AllowOwnDocuments));
+
+        InlineImage image = Assert.Single(ImagesIn(result.Document));
+        Assert.True(image.Resource.TryGetPixels(out BPixelBuffer? pixels));
+        Assert.InRange(pixels!.Rgba[0], 187, 189);
+        Assert.InRange(pixels.Rgba[4], 136, 138);
+    }
+
+    [Fact(Timeout = 600000)]
+    public void Without_The_Profile_Reader_The_Same_Picture_Is_Refused_By_Name()
+    {
+        using var stream = new MemoryStream(PdfWithIccPicture(), writable: false);
+        DocumentReadResult result = new PdfDocumentCodec().Read(
+            stream,
+            new DocumentReadOptions(resourcePolicy: DocumentResourcePolicy.AllowOwnDocuments));
+
+        Assert.Empty(ImagesIn(result.Document));
+        Assert.Contains(
+            result.Diagnostics,
+            d => d.Message.Contains("ICCBased, whose profile no composed reader converts", StringComparison.Ordinal));
+    }
+
     private static List<InlineImage> ImagesIn(RichTextDocument document)
     {
         var images = new List<InlineImage>();
@@ -386,6 +431,88 @@ public sealed class WriterPdfFormatTests
                 jpeg),
         };
 
+        return Assemble(objects);
+    }
+
+    /// <summary>
+    /// A one-page PDF drawing a two-pixel gray picture whose colour space is an
+    /// ICC profile, assembled object by object.
+    /// </summary>
+    /// <remarks>
+    /// The profile is built here byte by byte as well, so no profile file - with
+    /// terms of its own - is committed or read.
+    /// </remarks>
+    private static byte[] PdfWithIccPicture()
+    {
+        const string content = "q 100 0 0 50 40 700 cm /Im0 Do Q";
+        byte[] profile = GrayProfile();
+
+        var objects = new List<byte[]>
+        {
+            Latin1("<< /Type /Catalog /Pages 2 0 R >>"),
+            Latin1("<< /Type /Pages /Kids [3 0 R] /Count 1 >>"),
+            Latin1(
+                "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] " +
+                "/Resources << /XObject << /Im0 5 0 R >> >> /Contents 4 0 R >>"),
+            Stream(Latin1("<< /Length " + content.Length.ToString(CultureInfo.InvariantCulture) + " >>"), Latin1(content)),
+            Stream(
+                Latin1("<< /Type /XObject /Subtype /Image /Width 2 /Height 1 /ColorSpace [/ICCBased 6 0 R] /BitsPerComponent 8 /Length 2 >>"),
+                [0x80, 0x40]),
+            Stream(Latin1("<< /N 1 /Length " + profile.Length.ToString(CultureInfo.InvariantCulture) + " >>"), profile),
+        };
+
+        return Assemble(objects);
+    }
+
+    /// <summary>
+    /// A version 4 gray display profile: a D50 white point and a tone curve of
+    /// gamma 1, so a sample's value is its luminance.
+    /// </summary>
+    private static byte[] GrayProfile()
+    {
+        byte[] profile = new byte[190];
+        BinaryPrimitives.WriteUInt32BigEndian(profile, (uint)profile.Length);
+        profile[8] = 4;
+        profile[9] = 0x20;
+        Signature(12, "mntr");
+        Signature(16, "GRAY");
+        Signature(20, "XYZ ");
+        Signature(36, "acsp");
+        Fixed(68, 0.9642);
+        Fixed(72, 1.0);
+        Fixed(76, 0.8249);
+
+        // The tag table: a white point at 156, and the gray tone curve at 176.
+        BinaryPrimitives.WriteUInt32BigEndian(profile.AsSpan(128), 2);
+        Entry(132, "wtpt", 156, 20);
+        Entry(144, "kTRC", 176, 14);
+
+        Signature(156, "XYZ ");
+        Fixed(164, 0.9642);
+        Fixed(168, 1.0);
+        Fixed(172, 0.8249);
+
+        Signature(176, "curv");
+        BinaryPrimitives.WriteUInt32BigEndian(profile.AsSpan(184), 1);
+        BinaryPrimitives.WriteUInt16BigEndian(profile.AsSpan(188), 0x0100);
+        return profile;
+
+        void Signature(int at, string signature) => Encoding.ASCII.GetBytes(signature, profile.AsSpan(at));
+
+        void Fixed(int at, double value) =>
+            BinaryPrimitives.WriteInt32BigEndian(profile.AsSpan(at), (int)Math.Round(value * 65536));
+
+        void Entry(int at, string signature, int offset, int length)
+        {
+            Signature(at, signature);
+            BinaryPrimitives.WriteUInt32BigEndian(profile.AsSpan(at + 4), (uint)offset);
+            BinaryPrimitives.WriteUInt32BigEndian(profile.AsSpan(at + 8), (uint)length);
+        }
+    }
+
+    /// <summary>Numbers the objects from one, and writes them with a cross-reference table.</summary>
+    private static byte[] Assemble(List<byte[]> objects)
+    {
         var file = new List<byte>();
         void Append(string text) => file.AddRange(Latin1(text));
 

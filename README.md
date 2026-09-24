@@ -79,7 +79,9 @@ dotnet test Broiler.Writer.Tests.slnx -c Release
 and saving. PDF is deliberately **not** part of the shared set: the Windows and Linux heads
 register `Broiler.Documents.Pdf` themselves, for **opening only**, so that no head acquires
 the codec transitively. `Broiler.Writer.FormatCodes.Tests` asserts that this separation
-holds.
+holds. Both heads compose three of the codec's optional providers: the JPEG decoder, the
+sfnt font-program reader, and the ICC colour-profile reader. Each head's
+`CreatePdfServices` says why.
 
 ## Dialogs
 
