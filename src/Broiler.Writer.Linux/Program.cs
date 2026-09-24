@@ -85,7 +85,31 @@ internal static class Program
             new WriterDocumentFormat(
                 new Broiler.Documents.Pdf.PdfDocumentCodec(CreatePdfServices()),
                 "PDF",
-                WriterFormatCapabilities.Open));
+                WriterFormatCapabilities.Open)
+            {
+                Passwords = CreatePdfPasswords(),
+            });
+
+    /// <summary>
+    /// How a password reaches the PDF codec: the three refusals a password
+    /// answers, and read options that carry one.
+    /// </summary>
+    /// <remarks>
+    /// A document protected only by its permissions needs none of this - it
+    /// opens with its empty user password. This is for one that needs a
+    /// password to open, or whose permissions withhold copying, which is what
+    /// opening it in the Writer does and what its owner password lifts. The
+    /// options keep the limits and resource policy the Writer reads with and
+    /// add the credentials; the password goes no further than the read.
+    /// </remarks>
+    private static WriterPasswordSupport CreatePdfPasswords() =>
+        new(
+            PdfDiagnosticCodes.EncryptionPasswordRequired,
+            PdfDiagnosticCodes.EncryptionPasswordIncorrect,
+            PdfDiagnosticCodes.EncryptionExtractionNotPermitted,
+            static (options, password) =>
+                new PdfReadOptions(options.Limits, resourcePolicy: options.ResourcePolicy)
+                    .WithCredentials(PdfDecryptionCredentials.FromPassword(password)));
 
     /// <summary>
     /// The PDF service graph this head composes: the JPEG decoder, the sfnt

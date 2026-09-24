@@ -72,6 +72,13 @@ public sealed class WriterDocumentFormat
 
     public WriterFormatCapabilities Capabilities { get; }
 
+    /// <summary>
+    /// How this format's password-protected documents are opened, or null - the
+    /// default - when its codec opens none and a document that needs a password
+    /// is refused like any other read.
+    /// </summary>
+    public WriterPasswordSupport? Passwords { get; init; }
+
     public bool CanOpen => (Capabilities & WriterFormatCapabilities.Open) != 0;
 
     public bool CanSave => (Capabilities & WriterFormatCapabilities.Save) != 0;
