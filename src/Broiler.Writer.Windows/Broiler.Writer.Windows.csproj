@@ -23,9 +23,9 @@
     <Compile Include="..\Broiler.App\WindowsClipboard.cs" Link="WindowsClipboard.cs" />
   </ItemGroup>
   <ItemGroup>
-    <PackageReference Include="Broiler.Documents.Pdf" Version="0.1.0-preview.20" />
-    <PackageReference Include="Broiler.Documents.Pdf.Images" Version="0.1.0-preview.20" />
-    <PackageReference Include="Broiler.Documents.Pdf.Fonts" Version="0.1.0-preview.20" />
+    <PackageReference Include="Broiler.Documents.Pdf" Version="0.1.0-preview.21" />
+    <PackageReference Include="Broiler.Documents.Pdf.Images" Version="0.1.0-preview.21" />
+    <PackageReference Include="Broiler.Documents.Pdf.Fonts" Version="0.1.0-preview.21" />
     <PackageReference Include="Broiler.Graphics" Version="0.1.0-preview.5" />
     <PackageReference Include="Broiler.Graphics.Windows" Version="0.1.0-preview.5" />
     <PackageReference Include="Broiler.Media.Image.Managed" Version="0.1.0-preview.14" />

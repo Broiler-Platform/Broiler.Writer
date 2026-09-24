@@ -104,6 +104,10 @@ public sealed class WriterDocumentFormats
     public DocumentCodecCatalog CreateOpenCatalog() =>
         new(_formats.Where(static format => format.CanOpen).Select(static format => format.Codec));
 
+    /// <summary>The format <paramref name="codec"/> was registered under, or null.</summary>
+    public WriterDocumentFormat? FindFor(DocumentCodec? codec) =>
+        codec is null ? null : _formats.FirstOrDefault(format => ReferenceEquals(format.Codec, codec));
+
     /// <summary>The format that writes <paramref name="extension"/>, or null when none does.</summary>
     public WriterDocumentFormat? FindForSave(string? extension) =>
         _formats.FirstOrDefault(format => format.CanSave && format.MatchesExtension(extension));

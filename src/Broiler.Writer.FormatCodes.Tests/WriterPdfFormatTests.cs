@@ -216,12 +216,28 @@ public sealed class WriterPdfFormatTests
             .WithFontProgramReader(new GraphicsFontProgramReader())
             .WithColorProfileReader(new IccColorProfileReader());
 
-    private static WriterDocumentFormats DesktopFormats() =>
+    internal static WriterDocumentFormats DesktopFormats() =>
         WriterDocumentFormats.CreateDefault().With(
             new WriterDocumentFormat(
                 new PdfDocumentCodec(DesktopPdfServices()),
                 "PDF",
-                WriterFormatCapabilities.Open));
+                WriterFormatCapabilities.Open)
+            {
+                Passwords = DesktopPdfPasswords(),
+            });
+
+    /// <summary>
+    /// How both desktop heads let a password reach the PDF codec - a hand copy,
+    /// for the reason <see cref="DesktopPdfServices"/> is one.
+    /// </summary>
+    internal static WriterPasswordSupport DesktopPdfPasswords() =>
+        new(
+            PdfDiagnosticCodes.EncryptionPasswordRequired,
+            PdfDiagnosticCodes.EncryptionPasswordIncorrect,
+            PdfDiagnosticCodes.EncryptionExtractionNotPermitted,
+            static (options, password) =>
+                new PdfReadOptions(options.Limits, resourcePolicy: options.ResourcePolicy)
+                    .WithCredentials(PdfDecryptionCredentials.FromPassword(password)));
 
 
     [Fact(Timeout = 600000)]
@@ -677,7 +693,7 @@ public sealed class WriterPdfFormatTests
         return buffer.ToArray();
     }
 
-    private static WriterApp CreateApp(WriterDocumentFormats? formats = null)
+    internal static WriterApp CreateApp(WriterDocumentFormats? formats = null)
     {
         var host = new WriterUiHost(
             () => new BSize(1200, 800),

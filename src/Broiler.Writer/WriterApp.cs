@@ -115,6 +115,16 @@ internal sealed class WriterApp : IDisposable
     /// </summary>
     private string? _problem;
     private IReadOnlyList<DocumentDiagnostic> _lastReadDiagnostics = Array.Empty<DocumentDiagnostic>();
+
+    /// <summary>The prompt waiting for a document's password, or null when none is.</summary>
+    private WriterPasswordPrompt? _passwordPrompt;
+
+    // The Writer opens files its user chose, so reading their pictures and
+    // saving them again is what was asked for. The policy is stated here
+    // rather than inherited, and a host with a different relationship to its
+    // input would state a different one.
+    private static readonly DocumentReadOptions OpenReadOptions =
+        new(resourcePolicy: DocumentResourcePolicy.AllowOwnDocuments);
     private string _lastReadFileName = "this document";
 
     private static readonly BSize FileDialogPreferredSize = new(820, 520);
@@ -337,6 +347,9 @@ internal sealed class WriterApp : IDisposable
     /// </summary>
     internal IReadOnlyList<DocumentDiagnostic> LastReadDiagnostics => _lastReadDiagnostics;
 
+    /// <summary>The prompt waiting for a document's password, or null when none is.</summary>
+    internal WriterPasswordPrompt? PasswordPrompt => _passwordPrompt;
+
     /// <summary>The formats this Writer was composed with.</summary>
     internal WriterDocumentFormats DocumentFormats => _documentFormats;
 
@@ -428,26 +441,27 @@ internal sealed class WriterApp : IDisposable
 
         try
         {
+            long start = stream.CanSeek ? stream.Position : 0;
+
             // The input replays the probed prefix ahead of the rest, so a stream
             // the host cannot rewind is still probed and read exactly once.
             using DocumentInput input = DocumentInput.FromStream(stream);
             DocumentCodecSelection selection = ReadDocument(displayName, input);
             if (!MayReplaceDocument(selection.Result))
             {
-                _problem = _lastAction = DescribeRefusedOpen(Path.GetFileName(displayName), selection);
+                // The caller's stream may be gone by the time a password is
+                // typed, so one that can be rewound is copied now and read again
+                // from the copy. One that cannot is refused as it always was.
+                if (PasswordNeed(selection) is { } need && CopyForRetry(stream, start) is { } reopen)
+                    AskForPassword(displayName, selection.Match!, need.Support, need.Reason, reopen, CommitOpened);
+                else
+                    _problem = _lastAction = DescribeRefusedOpen(Path.GetFileName(displayName), selection);
+
                 RefreshUi();
                 return false;
             }
 
-            _currentDocumentPath = displayName;
-            SetDocumentName(Path.GetFileName(displayName), modified: false);
-            _lastAction = DescribeOpen(Path.GetFileName(displayName), selection.Result);
-            ReplaceDocument(() =>
-            {
-                _editor.Document = selection.Result.Document;
-                _editor.Selection = RichTextRange.Caret(RichTextDocument.Start);
-            });
-            _session.SetFocus(_editor);
+            CommitOpened(displayName, selection);
             RefreshUi();
             return true;
         }
@@ -1134,21 +1148,28 @@ internal sealed class WriterApp : IDisposable
             DocumentCodecSelection selection = ReadDocument(fullPath, input);
             if (!MayReplaceDocument(selection.Result))
             {
-                _problem = _lastAction = DescribeRefusedOpen(Path.GetFileName(fullPath), selection);
+                // A document that needs a password is read again from the file
+                // once one is typed; this stream is closed by then.
+                if (PasswordNeed(selection) is { } need)
+                {
+                    AskForPassword(
+                        fullPath,
+                        selection.Match!,
+                        need.Support,
+                        need.Reason,
+                        () => DocumentInput.FromStream(File.OpenRead(fullPath), leaveOpen: false),
+                        CommitOpenedFile);
+                }
+                else
+                {
+                    _problem = _lastAction = DescribeRefusedOpen(Path.GetFileName(fullPath), selection);
+                }
+
                 RefreshUi();
                 return;
             }
 
-            _currentDocumentPath = fullPath;
-            _lastDirectory = Path.GetDirectoryName(fullPath) ?? _lastDirectory;
-            SetDocumentName(Path.GetFileName(fullPath), modified: false);
-            _lastAction = DescribeOpen(Path.GetFileName(fullPath), selection.Result);
-            ReplaceDocument(() =>
-            {
-                _editor.Document = selection.Result.Document;
-                _editor.Selection = RichTextRange.Caret(RichTextDocument.Start);
-            });
-            _session.SetFocus(_editor);
+            CommitOpenedFile(fullPath, selection);
         }
         catch (Exception ex) when (IsFileOperationException(ex))
         {
@@ -1420,6 +1441,15 @@ internal sealed class WriterApp : IDisposable
         return new BRect(x, y, Math.Min(width, Math.Max(320, viewport.Width - 24)), Math.Min(height, Math.Max(220, viewport.Height - 84)));
     }
 
+    private BRect GetPasswordDialogPlacement()
+    {
+        BSize viewport = _host.ViewportSize;
+        BSize preferred = WriterPasswordPrompt.PreferredSize;
+        double x = Math.Max(12, (viewport.Width - preferred.Width) / 2);
+        double y = Math.Max(72, (viewport.Height - preferred.Height) / 2);
+        return new BRect(x, y, Math.Min(preferred.Width, Math.Max(320, viewport.Width - 24)), Math.Min(preferred.Height, Math.Max(180, viewport.Height - 84)));
+    }
+
     private string GetDialogDirectory()
     {
         if (!string.IsNullOrWhiteSpace(_currentDocumentPath))
@@ -1479,17 +1509,20 @@ internal sealed class WriterApp : IDisposable
     /// authoritative catalog path, so the bytes the probe saw are the bytes the
     /// codec reads and a source is never buffered twice to make that true.
     /// </summary>
-    private DocumentCodecSelection ReadDocument(string fullPath, DocumentInput input)
-    {
-        // The Writer opens files its user chose, so reading their pictures and
-        // saving them again is what was asked for. The policy is stated here
-        // rather than inherited, and a host with a different relationship to its
-        // input would state a different one.
-        DocumentCodecSelection selection = _documentCatalog.SelectAndRead(
-            input,
-            new DocumentReadOptions(resourcePolicy: DocumentResourcePolicy.AllowOwnDocuments),
-            new DocumentSourceHints(fileName: fullPath));
+    private DocumentCodecSelection ReadDocument(string fullPath, DocumentInput input) =>
+        Record(fullPath, _documentCatalog.SelectAndRead(input, OpenReadOptions, new DocumentSourceHints(fileName: fullPath)));
 
+    /// <summary>
+    /// Reads <paramref name="input"/> again with the codec that read it first,
+    /// under <paramref name="options"/> - the path a password takes. The catalog
+    /// is not asked again: the codec that asked for the password is the one to
+    /// give it to, and options typed for it would be refused by any other.
+    /// </summary>
+    private DocumentCodecSelection ReadDocument(string fullPath, DocumentInput input, DocumentCodecMatch match, DocumentReadOptions options) =>
+        Record(fullPath, new DocumentCodecSelection(match, match.Codec.Read(new DocumentReadRequest(input, options))));
+
+    private DocumentCodecSelection Record(string fullPath, DocumentCodecSelection selection)
+    {
         // The decisions this read made travel with the document until it is
         // replaced, so a picture that came out of the file can go back into one.
         _resources = DocumentConversionContextBuilder.Continuing(
@@ -1501,6 +1534,128 @@ internal sealed class WriterApp : IDisposable
         LogReadDiagnostics(selection.Codec?.Name ?? "no codec", fullPath, selection.Result);
         return selection;
     }
+
+    /// <summary>Puts a document read from a file in the editor.</summary>
+    private void CommitOpenedFile(string fullPath, DocumentCodecSelection selection)
+    {
+        _lastDirectory = Path.GetDirectoryName(fullPath) ?? _lastDirectory;
+        CommitOpened(fullPath, selection);
+    }
+
+    /// <summary>Puts a document that was read in the editor, under the name it came with.</summary>
+    private void CommitOpened(string documentPath, DocumentCodecSelection selection)
+    {
+        _currentDocumentPath = documentPath;
+        SetDocumentName(Path.GetFileName(documentPath), modified: false);
+        _lastAction = DescribeOpen(Path.GetFileName(documentPath), selection.Result);
+        ReplaceDocument(() =>
+        {
+            _editor.Document = selection.Result.Document;
+            _editor.Selection = RichTextRange.Caret(RichTextDocument.Start);
+        });
+        _session.SetFocus(_editor);
+    }
+
+    /// <summary>
+    /// What the format that refused <paramref name="selection"/> can do with a
+    /// password, and why it refused, when a password would change the answer.
+    /// </summary>
+    private (WriterPasswordSupport Support, WriterPasswordReason Reason)? PasswordNeed(DocumentCodecSelection selection)
+    {
+        if (selection.Match is null || _documentFormats.FindFor(selection.Codec)?.Passwords is not { } support)
+            return null;
+
+        WriterPasswordReason reason = support.ReasonFor(selection.Result);
+        return reason == WriterPasswordReason.None ? null : (support, reason);
+    }
+
+    /// <summary>
+    /// A way to read a caller's stream again after the caller has let it go, or
+    /// null for a stream that cannot be rewound.
+    /// </summary>
+    private static Func<DocumentInput>? CopyForRetry(Stream stream, long start)
+    {
+        if (!stream.CanSeek)
+            return null;
+
+        stream.Position = start;
+        using var copy = new MemoryStream();
+        stream.CopyTo(copy);
+        byte[] bytes = copy.ToArray();
+        return () => DocumentInput.FromBytes(bytes);
+    }
+
+    /// <summary>
+    /// Asks for the password a document needs. The answer is read with the
+    /// codec that asked, a wrong one is asked for again, and cancelling leaves
+    /// the open document as it was.
+    /// </summary>
+    private void AskForPassword(
+        string documentPath,
+        DocumentCodecMatch match,
+        WriterPasswordSupport support,
+        WriterPasswordReason reason,
+        Func<DocumentInput> reopen,
+        Action<string, DocumentCodecSelection> commit)
+    {
+        string fileName = Path.GetFileName(documentPath);
+        var prompt = new WriterPasswordPrompt(
+            fileName,
+            reason,
+            password => ReadWithPassword(documentPath, match, support, password, reopen, commit),
+            () => DeclinePassword(fileName, reason));
+
+        _passwordPrompt = prompt;
+        _lastAction = "Password needed to open " + fileName;
+        prompt.Dialog.ShowModal(_rootWindow, GetPasswordDialogPlacement());
+        prompt.Focus();
+    }
+
+    private void ReadWithPassword(
+        string documentPath,
+        DocumentCodecMatch match,
+        WriterPasswordSupport support,
+        string password,
+        Func<DocumentInput> reopen,
+        Action<string, DocumentCodecSelection> commit)
+    {
+        _passwordPrompt = null;
+        try
+        {
+            DocumentCodecSelection selection;
+            using (DocumentInput input = reopen())
+                selection = ReadDocument(documentPath, input, match, support.WithPassword(OpenReadOptions, password));
+
+            if (MayReplaceDocument(selection.Result))
+                commit(documentPath, selection);
+            else if (support.ReasonFor(selection.Result) is var again && again != WriterPasswordReason.None)
+                AskForPassword(documentPath, match, support, again, reopen, commit);
+            else
+                _problem = _lastAction = DescribeRefusedOpen(Path.GetFileName(documentPath), selection);
+        }
+        catch (Exception ex) when (IsFileOperationException(ex))
+        {
+            _problem = _lastAction = "Open failed: " + ex.Message;
+        }
+
+        RefreshUi();
+    }
+
+    private void DeclinePassword(string fileName, WriterPasswordReason reason)
+    {
+        _passwordPrompt = null;
+        _problem = _lastAction = DescribeDeclinedPassword(fileName, reason);
+        _session.SetFocus(_editor);
+        RefreshUi();
+    }
+
+    /// <summary>The status line after the user cancels a password prompt.</summary>
+    internal static string DescribeDeclinedPassword(string fileName, WriterPasswordReason reason) =>
+        "Did not open " + fileName +
+        (reason == WriterPasswordReason.OwnerRequired
+            ? ": its permissions do not allow its content to be copied without the owner password"
+            : ": it is protected by a password") +
+        ". The open document is unchanged.";
 
     /// <summary>
     /// Whether a read may replace what is in the editor.

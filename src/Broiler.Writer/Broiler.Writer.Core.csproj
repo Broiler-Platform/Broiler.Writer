@@ -23,16 +23,17 @@
 
   <ItemGroup>
     <PackageReference Include="Broiler.Graphics" Version="0.1.0-preview.5" />
-    <PackageReference Include="Broiler.Documents.Docx" Version="0.1.0-preview.19" />
-    <PackageReference Include="Broiler.Documents.Html" Version="0.1.0-preview.19" />
-    <PackageReference Include="Broiler.Documents.Markdown" Version="0.1.0-preview.19" />
-    <PackageReference Include="Broiler.Documents.Odt" Version="0.1.0-preview.19" />
-    <PackageReference Include="Broiler.Documents.Rtf" Version="0.1.0-preview.19" />
+    <PackageReference Include="Broiler.Documents.Docx" Version="0.1.0-preview.21" />
+    <PackageReference Include="Broiler.Documents.Html" Version="0.1.0-preview.21" />
+    <PackageReference Include="Broiler.Documents.Markdown" Version="0.1.0-preview.21" />
+    <PackageReference Include="Broiler.Documents.Odt" Version="0.1.0-preview.21" />
+    <PackageReference Include="Broiler.Documents.Rtf" Version="0.1.0-preview.21" />
     <PackageReference Include="Broiler.UI.AboutDialog" Version="0.1.0-preview.9" />
     <PackageReference Include="Broiler.UI.AboutDialog.Standard" Version="0.1.0-preview.9" />
     <PackageReference Include="Broiler.UI.Button.Standard" Version="0.1.0-preview.9" />
     <PackageReference Include="Broiler.UI.ComboBox.Standard" Version="0.1.0-preview.9" />
     <PackageReference Include="Broiler.UI.Dialog.Standard" Version="0.1.0-preview.9" />
+    <PackageReference Include="Broiler.UI.Edit.Standard" Version="0.1.0-preview.9" />
     <PackageReference Include="Broiler.UI.FileDialog.Standard" Version="0.1.0-preview.9" />
     <PackageReference Include="Broiler.UI.FontDialog.Standard" Version="0.1.0-preview.9" />
     <PackageReference Include="Broiler.UI.FormatCodeView" Version="0.1.0-preview.9" />
