@@ -98,6 +98,12 @@ internal sealed class WriterApp : IDisposable
     /// </summary>
     private DocumentConversionContextBuilder _resources =
         new(DocumentResourcePolicy.AllowOwnDocuments);
+
+    /// <summary>
+    /// PNG encodings of the pictures an opened PDF left as decoded samples, made
+    /// when a save needs them and kept for the next one.
+    /// </summary>
+    private readonly WriterPictureEncoding _pictureEncoding = new();
     private string _lastAction = "Ready";
 
     /// <summary>
@@ -1603,9 +1609,13 @@ internal sealed class WriterApp : IDisposable
                 "Unsupported save format '" + extension + "'. Use " +
                 _documentFormats.DescribeSaveExtensions() + ".");
 
+        // An opened PDF's pictures are decoded samples, and every format needs
+        // encoded bytes: without this they were left out of the saved file.
+        RichTextDocument written = _pictureEncoding.EncodeDecodedPictures(document, _resources, out _);
+
         using var stream = new MemoryStream();
         DocumentWriteResult result = format.Codec.Write(
-            document,
+            written,
             stream,
             new DocumentWriteOptions(resources: _resources.Build()));
         bytes = stream.ToArray();
