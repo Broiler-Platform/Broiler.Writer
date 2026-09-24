@@ -21,7 +21,7 @@ internal sealed class WriterWindow : Direct2DWindow
     /// <summary>How often to look at the clock while a tooltip is waiting. Roughly 30 Hz.</summary>
     private const double TooltipTickMilliseconds = 33;
 
-    /// <summary>The icon is drawn once at this size and let the shell scale it down.</summary>
+    /// <summary>The fallback icon is drawn once at this size and let the shell scale it down.</summary>
     private const int AppIconPixels = 64;
 
     private readonly WriterWindowsUiHost _host;
@@ -31,6 +31,7 @@ internal sealed class WriterWindow : Direct2DWindow
     // and there is no handle until the window exists.
     private WindowsClipboard? _clipboard;
     private WriterWindowCloseGuard? _closeGuard;
+    private WriterWindowIcon? _icon;
 
 #pragma warning disable CS0618
     private readonly StandardLegacyGraphicsInputAdapter _legacyInput = new("broiler-writer");
@@ -76,10 +77,13 @@ internal sealed class WriterWindow : Direct2DWindow
         // does, so the caption is pushed once more now that there is something to push it to.
         SetTitle(_app.WindowTitle);
 
-        // The window carried the runtime's default icon, which says .NET rather than Writer. It is
-        // drawn from the same geometry as the toolbar icons rather than shipped as an .ico: one
-        // description, every size, no binary in the tree.
-        SetIcon(WriterApp.CreateAppIcon(AppIconPixels));
+        // The taskbar, Alt+Tab, the caption and its system menu show the window's icon, not the
+        // executable's, so the Broiler.ico the build embeds has to be handed to the window. The
+        // mark drawn from the toolbar geometry stands in only when there is no such icon to load,
+        // which is when dotnet.exe hosts the Writer instead of its own executable.
+        _icon = WriterWindowIcon.TryAttach(NativeHandle);
+        if (_icon is null)
+            SetIcon(WriterApp.CreateAppIcon(AppIconPixels));
     }
 
     /// <summary>
@@ -138,6 +142,7 @@ internal sealed class WriterWindow : Direct2DWindow
         if (disposing)
         {
             _closeGuard?.Dispose();
+            _icon?.Dispose();
             // The app first: disposing its session closes any dialog that is still open, which
             // tears down the host window it broke out into. The host then only has to sweep up
             // whatever survived that.
