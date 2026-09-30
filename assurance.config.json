@@ -1,0 +1,26 @@
+{
+  "schema": 1,
+  "component": "Broiler.Writer",
+  // Every shipping head plus the two libraries they share. src/Broiler.App has no project of
+  // its own: its three files are compiled into the Windows and Linux heads through literal
+  // <Compile Include> items and are covered through those heads. The WebAssembly head ships
+  // (it is the browser Writer) although its CI job is disabled. The only test project,
+  // src/Broiler.Writer.FormatCodes.Tests, is not listed and so not covered.
+  "projects": [
+    "src/Broiler.App.Android/Broiler.App.Android.csproj",
+    "src/Broiler.Writer/Broiler.Writer.Core.csproj",
+    "src/Broiler.Writer.Android/Broiler.Writer.Android.csproj",
+    "src/Broiler.Writer.FormatCodes/Broiler.Writer.FormatCodes.csproj",
+    "src/Broiler.Writer.Linux/Broiler.Writer.Linux.csproj",
+    "src/Broiler.Writer.WebAssembly/Broiler.Writer.WebAssembly.csproj",
+    "src/Broiler.Writer.Windows/Broiler.Writer.Windows.csproj"
+  ],
+  "exemptionPredicate": "owning-component",
+  "spdx": {
+    "copyright": [ "2026 Broiler Platform contributors" ],
+    "license": "Apache-2.0"
+  },
+  "regenerateCommand": "dotnet run --project Broiler.Code/src/Broiler.Code.Review.Cli -c Release -- assurance generate --root Broiler.Writer",
+  "forbidDirectives": false,
+  "forgeryVocabulary": "narrow"
+}
