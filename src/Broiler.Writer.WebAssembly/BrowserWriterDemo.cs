@@ -38,6 +38,10 @@ using Broiler.UI.Toolbar;
 using Broiler.UI.Toolbar.Standard;
 using Broiler.UI.Tooltip.Standard;
 using Broiler.UI.Window.Standard;
+using Broiler.Graphics.RenderList;
+using Broiler.Graphics.Geometry;
+using Broiler.Graphics.Color;
+using Broiler.Graphics.Text;
 
 namespace Broiler.Writer.WebAssembly;
 
@@ -443,7 +447,7 @@ internal sealed class BrowserWriterDemo : IDisposable
                 ReplaceDocument(() =>
                 {
                     _editor.Document = result.Document;
-                    _editor.Selection = RichTextRange.Caret(_editor.Document.Start);
+                    _editor.Selection = RichTextRange.Caret(RichTextDocument.Start);
                 });
                 _session.SetFocus(_editor);
             }
@@ -1246,7 +1250,7 @@ internal sealed class BrowserWriterDemo : IDisposable
             "This browser build is a Broiler.UI window with a Broiler-rendered menu and StandardRichEdit document surface, presented through the direct-Canvas 2D backend.\n" +
             "Use the Edit and Format menus, or keyboard shortcuts such as Ctrl+B, Ctrl+I, Ctrl+U, Ctrl+Z, and Ctrl+Y. Open and Save round-trip through the Broiler.Documents RTF, DOCX, ODT, HTML, and Markdown codecs."));
 
-        RichTextPosition start = _editor.Document.Start;
+        RichTextPosition start = RichTextDocument.Start;
         RichTextPosition end = _editor.Document.ParagraphEnd(start);
         _editor.Selection = new RichTextRange(start, end);
         _editor.ExecuteCommand(RichEditCommand.Bold);
