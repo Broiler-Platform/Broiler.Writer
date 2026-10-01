@@ -167,7 +167,26 @@ internal sealed class WriterWindow : Direct2DWindow
 
     private void Dispatch(UiInputEvent input) => _app.Dispatch(input);
 
+    protected override void OnNativeWindowMessage(IntPtr hwnd, uint message, IntPtr wParam, IntPtr lParam)
+    {
+        base.OnNativeWindowMessage(hwnd, message, wParam, lParam);
+        if (hwnd == NativeHandle)
+        {
+            WindowsWindowSizing.OnMessage(hwnd, message, lParam, DpiScale);
+            // Transfer Win32 focus from the top-level frame to the render child window
+            // on activation and focus so keystrokes are never dropped.
+            if ((message == 0x0006 && wParam.ToInt64() != 0) || message == 0x0007)
+            {
+                if (RenderNativeHandle != IntPtr.Zero)
+                    _ = SetFocus(RenderNativeHandle);
+            }
+        }
+    }
+
     [DllImport("user32.dll", SetLastError = true)]
     [return: MarshalAs(UnmanagedType.Bool)]
     private static extern bool DestroyWindow(IntPtr hwnd);
+
+    [DllImport("user32.dll", SetLastError = true)]
+    private static extern IntPtr SetFocus(IntPtr hWnd);
 }

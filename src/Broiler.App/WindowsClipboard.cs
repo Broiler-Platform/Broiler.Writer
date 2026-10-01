@@ -6,7 +6,7 @@ using Broiler.UI;
 namespace Broiler.App;
 
 /// <summary>
-/// The Win32 clipboard, shared by the Browser, Writer and Code heads.
+/// The Win32 clipboard, shared by the Browser, Writer, Code, and Mail heads.
 ///
 /// There is deliberately no in-memory fallback. A private string standing in
 /// for the clipboard makes copy and paste appear to work while silently not
@@ -18,14 +18,24 @@ namespace Broiler.App;
 /// The bindings are <c>DllImport</c> rather than <c>LibraryImport</c> on
 /// purpose: this file is compiled into the Browser, Writer and Code heads
 /// alike, and the generated marshalling stubs would require
-/// <c>AllowUnsafeBlocks</c> in every one of them. The two application heads use
+/// <c>AllowUnsafeBlocks</c> in every one of them. The application heads use
 /// <c>DllImport</c> for their own interop for the same reason.
 /// </summary>
 [SupportedOSPlatform("windows5.0")]
-internal sealed class WindowsClipboard(IntPtr ownerWindow) : IUiClipboardHost
+internal sealed class WindowsClipboard : IUiClipboardHost
 {
     private const uint CfUnicodeText = 13;
     private const uint GmemMoveable = 0x0002;
+    private const int MaximumBytes = 1024 * 1024; // 1 MB boundary protection
+
+    private readonly Func<IntPtr> _owner;
+
+    public WindowsClipboard(IntPtr ownerWindow) : this(() => ownerWindow) { }
+
+    public WindowsClipboard(Func<IntPtr> owner)
+    {
+        _owner = owner ?? throw new ArgumentNullException(nameof(owner));
+    }
 
     public bool TryGetText(out string text)
     {
@@ -33,16 +43,15 @@ internal sealed class WindowsClipboard(IntPtr ownerWindow) : IUiClipboardHost
         if (!IsClipboardFormatAvailable(CfUnicodeText))
             return false;
 
-        // The clipboard is a shared, single-owner resource: another process can
-        // hold it, so opening is allowed to fail and the caller is told rather
-        // than being handed something stale.
-        if (!OpenClipboard(ownerWindow))
+        IntPtr ownerHandle = _owner();
+        if (!OpenClipboard(ownerHandle))
             return false;
 
         try
         {
             IntPtr handle = GetClipboardData(CfUnicodeText);
-            if (handle == IntPtr.Zero)
+            nuint size = handle == IntPtr.Zero ? 0 : GlobalSize(handle);
+            if (size < 2 || size > MaximumBytes)
                 return false;
 
             IntPtr pointer = GlobalLock(handle);
@@ -51,7 +60,12 @@ internal sealed class WindowsClipboard(IntPtr ownerWindow) : IUiClipboardHost
 
             try
             {
-                text = Marshal.PtrToStringUni(pointer) ?? string.Empty;
+                string value = Marshal.PtrToStringUni(pointer, (int)size / 2) ?? string.Empty;
+                int end = value.IndexOf('\0');
+                if (end < 0)
+                    return false;
+
+                text = value[..end];
                 return text.Length > 0;
             }
             finally
@@ -68,18 +82,19 @@ internal sealed class WindowsClipboard(IntPtr ownerWindow) : IUiClipboardHost
     public void SetText(string text)
     {
         ArgumentNullException.ThrowIfNull(text);
-        if (!OpenClipboard(ownerWindow))
+        if (text.Length >= MaximumBytes / 2)
+            return;
+
+        IntPtr ownerHandle = _owner();
+        if (!OpenClipboard(ownerHandle))
             return;
 
         try
         {
             EmptyClipboard();
 
-            // The clipboard takes ownership of the moveable block on success,
-            // so it must not be freed here — and must be freed if
-            // SetClipboardData fails, or the process leaks it on every copy.
             int bytes = (text.Length + 1) * sizeof(char);
-            IntPtr block = GlobalAlloc(GmemMoveable, (UIntPtr)bytes);
+            IntPtr block = GlobalAlloc(GmemMoveable, (nuint)bytes);
             if (block == IntPtr.Zero)
                 return;
 
@@ -132,7 +147,7 @@ internal sealed class WindowsClipboard(IntPtr ownerWindow) : IUiClipboardHost
     private static extern IntPtr SetClipboardData(uint format, IntPtr data);
 
     [DllImport("kernel32.dll", SetLastError = true)]
-    private static extern IntPtr GlobalAlloc(uint flags, UIntPtr bytes);
+    private static extern IntPtr GlobalAlloc(uint flags, nuint bytes);
 
     [DllImport("kernel32.dll", SetLastError = true)]
     private static extern IntPtr GlobalFree(IntPtr handle);
@@ -143,4 +158,7 @@ internal sealed class WindowsClipboard(IntPtr ownerWindow) : IUiClipboardHost
     [DllImport("kernel32.dll", SetLastError = true)]
     [return: MarshalAs(UnmanagedType.Bool)]
     private static extern bool GlobalUnlock(IntPtr handle);
+
+    [DllImport("kernel32.dll", SetLastError = true)]
+    private static extern nuint GlobalSize(IntPtr handle);
 }

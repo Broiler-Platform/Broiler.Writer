@@ -8,7 +8,7 @@ using Android.OS;
 using Android.Provider;
 using Android.Views;
 using Android.Widget;
-using Broiler.App.Android;
+using Broiler.Hosting.Android;
 
 namespace Broiler.Writer.Android;
 

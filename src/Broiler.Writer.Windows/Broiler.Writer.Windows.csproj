@@ -18,9 +18,10 @@
     <RuntimeIdentifier Condition="'$(Configuration)' == 'Debug-Windows' Or '$(Configuration)' == 'Release-Windows'">win-x64</RuntimeIdentifier>
   </PropertyGroup>
 
-  <!-- The Win32 clipboard, shared with the other desktop heads. -->
+  <!-- The Win32 clipboard and window sizing, shared with the other desktop heads. -->
   <ItemGroup>
     <Compile Include="..\Broiler.App\WindowsClipboard.cs" Link="WindowsClipboard.cs" />
+    <Compile Include="..\Broiler.App\WindowsWindowSizing.cs" Link="WindowsWindowSizing.cs" />
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="Broiler.Documents.Pdf" Version="0.1.0-preview.21" />
