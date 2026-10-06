@@ -11,6 +11,7 @@
     <IsPackable>false</IsPackable>
     <EnableWindowsTargeting>true</EnableWindowsTargeting>
     <ApplicationIcon>Broiler.ico</ApplicationIcon>
+    <PublishAot>true</PublishAot>
   </PropertyGroup>
 
   <PropertyGroup>
