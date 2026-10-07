@@ -22,30 +22,30 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="Broiler.Graphics" Version="0.1.0-preview.7" />
-    <PackageReference Include="Broiler.Documents.Docx" Version="0.1.0-preview.21" />
-    <PackageReference Include="Broiler.Documents.Html" Version="0.1.0-preview.21" />
-    <PackageReference Include="Broiler.Documents.Markdown" Version="0.1.0-preview.21" />
-    <PackageReference Include="Broiler.Documents.Odt" Version="0.1.0-preview.21" />
-    <PackageReference Include="Broiler.Documents.Rtf" Version="0.1.0-preview.21" />
-    <PackageReference Include="Broiler.UI.AboutDialog" Version="0.1.0-preview.18" />
-    <PackageReference Include="Broiler.UI.AboutDialog.Standard" Version="0.1.0-preview.18" />
-    <PackageReference Include="Broiler.UI.Button.Standard" Version="0.1.0-preview.18" />
-    <PackageReference Include="Broiler.UI.ComboBox.Standard" Version="0.1.0-preview.18" />
-    <PackageReference Include="Broiler.UI.Dialog.Standard" Version="0.1.0-preview.18" />
-    <PackageReference Include="Broiler.UI.Edit.Standard" Version="0.1.0-preview.18" />
-    <PackageReference Include="Broiler.UI.FileDialog.Standard" Version="0.1.0-preview.18" />
-    <PackageReference Include="Broiler.UI.FontDialog.Standard" Version="0.1.0-preview.18" />
-    <PackageReference Include="Broiler.UI.FormatCodeView" Version="0.1.0-preview.18" />
-    <PackageReference Include="Broiler.UI.FormatCodeView.Standard" Version="0.1.0-preview.18" />
-    <PackageReference Include="Broiler.UI.Label.Standard" Version="0.1.0-preview.18" />
-    <PackageReference Include="Broiler.UI.Menu.Standard" Version="0.1.0-preview.18" />
-    <PackageReference Include="Broiler.UI.RichEdit" Version="0.1.0-preview.18" />
-    <PackageReference Include="Broiler.UI.RichEdit.Standard" Version="0.1.0-preview.18" />
-    <PackageReference Include="Broiler.UI.Splitter.Standard" Version="0.1.0-preview.18" />
-    <PackageReference Include="Broiler.UI.Toolbar.Standard" Version="0.1.0-preview.18" />
-    <PackageReference Include="Broiler.UI.Tooltip.Standard" Version="0.1.0-preview.18" />
-    <PackageReference Include="Broiler.UI.Window.Standard" Version="0.1.0-preview.18" />
+    <PackageReference Include="Broiler.Graphics" />
+    <PackageReference Include="Broiler.Documents.Docx" />
+    <PackageReference Include="Broiler.Documents.Html" />
+    <PackageReference Include="Broiler.Documents.Markdown" />
+    <PackageReference Include="Broiler.Documents.Odt" />
+    <PackageReference Include="Broiler.Documents.Rtf" />
+    <PackageReference Include="Broiler.UI.AboutDialog" />
+    <PackageReference Include="Broiler.UI.AboutDialog.Standard" />
+    <PackageReference Include="Broiler.UI.Button.Standard" />
+    <PackageReference Include="Broiler.UI.ComboBox.Standard" />
+    <PackageReference Include="Broiler.UI.Dialog.Standard" />
+    <PackageReference Include="Broiler.UI.Edit.Standard" />
+    <PackageReference Include="Broiler.UI.FileDialog.Standard" />
+    <PackageReference Include="Broiler.UI.FontDialog.Standard" />
+    <PackageReference Include="Broiler.UI.FormatCodeView" />
+    <PackageReference Include="Broiler.UI.FormatCodeView.Standard" />
+    <PackageReference Include="Broiler.UI.Label.Standard" />
+    <PackageReference Include="Broiler.UI.Menu.Standard" />
+    <PackageReference Include="Broiler.UI.RichEdit" />
+    <PackageReference Include="Broiler.UI.RichEdit.Standard" />
+    <PackageReference Include="Broiler.UI.Splitter.Standard" />
+    <PackageReference Include="Broiler.UI.Toolbar.Standard" />
+    <PackageReference Include="Broiler.UI.Tooltip.Standard" />
+    <PackageReference Include="Broiler.UI.Window.Standard" />
   </ItemGroup>
 
 </Project>

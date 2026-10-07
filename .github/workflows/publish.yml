@@ -1,27 +1,33 @@
 name: Publish
 
-# Dispatch-only. Every run builds the Windows and Linux Writer with NativeAOT and the
-# Android Writer as a release-signed app bundle and APK, stamps all of them with the next
+# Dispatch-only. Every run publishes the Windows and Linux Writer in two variants each, and
+# the Android Writer as a release-signed app bundle and APK, stamps all of them with the next
 # preview version, attaches them to the run as artifacts, then drafts a GitHub pre-release
 # carrying them:
 #
-#   broiler-writer-win-x64-<version>.zip    Broiler.Writer.Windows.exe
-#   broiler-writer-linux-x64-<version>.zip  Broiler.Writer.Linux
-#   broiler-writer-android-<version>.zip    Broiler.Writer-<version>.aab (arm64 + x86_64)
-#                                           Broiler.Writer-<version>-arm64.apk
+#   Broiler.Writer-<version>-win-x64-self-contained.zip          Broiler.Writer.Windows.exe
+#   Broiler.Writer-<version>-win-x64-framework-dependent.zip     Broiler.Writer.Windows.exe + its assemblies
+#   Broiler.Writer-<version>-linux-x64-self-contained.zip        Broiler.Writer.Linux
+#   Broiler.Writer-<version>-linux-x64-framework-dependent.zip   Broiler.Writer.Linux + its assemblies
+#   Broiler.Writer-<version>.aab                                 app bundle (arm64 + x86_64)
+#   Broiler.Writer-<version>-arm64.apk                           sideloadable APK
+#
+# The two desktop variants:
+#
+#   self-contained       NativeAOT, which is what makes the executable the whole application:
+#                        self-contained, trimmed, no .NET runtime to install, nothing beside it.
+#   framework-dependent  a plain `dotnet publish --self-contained false`: the executable plus
+#                        the application's own managed assemblies, running on the .NET 10
+#                        runtime installed on the machine.
 #
 # The Android packages are signed with the release key held in the ANDROID_KEYSTORE_BASE64,
 # ANDROID_KEYSTORE_PASSWORD, ANDROID_KEY_ALIAS and ANDROID_KEY_PASSWORD repository secrets
-# (the monorepo's, under the same names) by eng/sign-android-packages.ps1.
+# (the monorepo's, under the same names) by eng/sign-android-packages.ps1. The WebAssembly head
+# is not published.
 #
-# NativeAOT is what makes the executable the whole application: self-contained, trimmed,
-# no .NET runtime to install, nothing beside it. Nothing is pushed to a feed. The draft
-# release (eng/release-draft.sh) zips each executable as Broiler.Writer-<version>-<rid>.zip
-# and stays private until someone publishes it.
-#
-# nuget-source picks the feed the Broiler.* dependencies are restored from. NuGet.config
-# resolves everything from nuget.org; broiler-github maps Broiler.* to the Broiler-Platform
-# GitHub Packages feed instead, for components published there but not yet to nuget.org.
+# Nothing is pushed to a feed, and every dependency restores from nuget.org as NuGet.config
+# says. The draft release (eng/release-draft.sh) zips each desktop artifact and stays private
+# until someone publishes it.
 #
 # The version is BroilerWriterVersion (Directory.Build.props) raised past every earlier
 # run's writer-v* tag, and a successful run tags its commit, so preview numbers only ever
@@ -29,11 +35,6 @@ name: Publish
 on:
   workflow_dispatch:
     inputs:
-      nuget-source:
-        description: Feed to restore the Broiler.* dependency packages from
-        type: choice
-        options: [nuget.org, broiler-github]
-        default: nuget.org
       version-suffix:
         description: >-
           Optional preview.N override (unused, and at least the next preview). Empty picks
@@ -43,7 +44,6 @@ on:
 
 permissions:
   contents: read
-  packages: read
 
 # One run at a time, so two runs cannot pick the same preview number.
 concurrency:
@@ -84,7 +84,7 @@ jobs:
         run: node eng/resolve-preview-version.mjs
 
   build:
-    name: ${{ matrix.rid }} (NativeAOT)
+    name: ${{ matrix.rid }} (${{ matrix.variant }})
     needs: version
     runs-on: ${{ matrix.os }}
     timeout-minutes: 60
@@ -96,27 +96,28 @@ jobs:
     strategy:
       fail-fast: true
       matrix:
+        # The pinned configurations are the ones FolderProfile.pubxml names and they carry
+        # the runtime identifier both variants publish for.
+        os: [windows-latest, ubuntu-latest]
+        variant: [self-contained, framework-dependent]
         include:
-          # The pinned configurations are the ones FolderProfile.pubxml names and they
-          # carry the runtime identifier NativeAOT needs.
           - os: windows-latest
             rid: win-x64
             project: src/Broiler.Writer.Windows/Broiler.Writer.Windows.csproj
             configuration: Release-Windows
             executable: Broiler.Writer.Windows.exe
+            assembly: Broiler.Writer.Windows
           # NativeAOT cannot cross-compile, so the Linux binary links on Linux.
           - os: ubuntu-latest
             rid: linux-x64
             project: src/Broiler.Writer.Linux/Broiler.Writer.Linux.csproj
             configuration: Release-Linux
             executable: Broiler.Writer.Linux
+            assembly: Broiler.Writer.Linux
 
     env:
       VERSION: ${{ needs.version.outputs.version }}
-      OUT: artifacts/publish/${{ matrix.rid }}
-      # Read by NuGet for the github-broiler source in NuGet.config. Unused, and harmless,
-      # when Broiler.* restores from nuget.org.
-      NuGetPackageSourceCredentials_github-broiler: Username=${{ github.actor }};Password=${{ secrets.GITHUB_TOKEN }};ValidAuthenticationTypes=Basic
+      OUT: artifacts/publish/${{ matrix.rid }}-${{ matrix.variant }}
 
     steps:
       - name: Check out
@@ -125,35 +126,36 @@ jobs:
       - name: Set up
         uses: ./.github/actions/setup-broiler
 
-      # NuGet.config declares github-broiler but maps every package to nuget.org. A more
-      # specific Broiler.* pattern wins, so adding one moves exactly the Broiler packages.
-      - name: Restore Broiler.* from ${{ inputs.nuget-source }}
-        if: inputs.nuget-source == 'broiler-github'
-        run: |
-          sed -i '/<\/packageSourceMapping>/i\    <packageSource key="github-broiler"><package pattern="Broiler.*" /></packageSource>' NuGet.config
-          grep -q 'key="github-broiler"><package pattern="Broiler' NuGet.config
-
       # ILCompiler shells out to a platform linker. windows-latest carries the MSVC C++
       # tools; on Linux the toolchain is clang plus zlib headers.
       - name: Install the NativeAOT prerequisites
-        if: runner.os == 'Linux'
+        if: runner.os == 'Linux' && matrix.variant == 'self-contained'
         run: sudo apt-get update && sudo apt-get install -y clang zlib1g-dev
 
-      # PublishAot implies self-contained and trimmed: one native binary, no .NET runtime
-      # to install. BroilerWriterVersion flows into Version, so the About dialog and the
-      # file version match the artifact.
+      # self-contained: PublishAot implies self-contained and trimmed - one native binary,
+      # no .NET runtime to install. framework-dependent: PublishAot is switched off (the
+      # Windows head sets it in its project) and the output runs on an installed runtime.
+      # BroilerWriterVersion flows into Version, so the About dialog and the file version
+      # match the artifact.
       - name: Publish
         run: |
+          if [ '${{ matrix.variant }}' = self-contained ]; then
+            mode=(-p:PublishAot=true)
+          else
+            mode=(--self-contained false -p:PublishAot=false)
+          fi
           dotnet publish '${{ matrix.project }}' \
             -c '${{ matrix.configuration }}' \
-            -p:PublishAot=true \
+            "${mode[@]}" \
             -p:BroilerWriterVersion="$VERSION" \
             -o "$OUT"
 
-      # The artifact is the executable alone. Symbols (.pdb, and Linux's detached .dbg) and
-      # XML docs are dead weight next to it; anything else would be a file the application
-      # needs, so shipping without it would be broken - fail rather than drop it.
+      # The self-contained artifact is the executable alone. Symbols (.pdb, and Linux's
+      # detached .dbg) and XML docs are dead weight next to it; anything else would be a file
+      # the application needs, so shipping without it would be broken - fail rather than
+      # drop it.
       - name: Check that the executable is the whole application
+        if: matrix.variant == 'self-contained'
         run: |
           others=$(find "$OUT" -type f ! -name '${{ matrix.executable }}' \
             ! -name '*.pdb' ! -name '*.dbg' ! -name '*.xml')
@@ -163,11 +165,36 @@ jobs:
             exit 1
           fi
 
+      # The framework-dependent artifact is the whole publish folder: the executable, the
+      # application's assembly and runtimeconfig, and every managed dependency. It must not
+      # carry a runtime of its own - that would make it self-contained under the wrong name.
+      # Symbols and the XML docs that sit beside an assembly are dropped; everything else ships.
+      - name: Check the framework-dependent output
+        if: matrix.variant == 'framework-dependent'
+        run: |
+          for f in '${{ matrix.executable }}' '${{ matrix.assembly }}.dll' '${{ matrix.assembly }}.runtimeconfig.json'; do
+            if [ ! -f "$OUT/$f" ]; then
+              echo "::error::Expected $f in the publish output."
+              find "$OUT" -type f
+              exit 1
+            fi
+          done
+          runtime=$(find "$OUT" -type f \( -iname 'coreclr.dll' -o -name 'libcoreclr.so' -o -iname 'hostfxr.dll' -o -name 'libhostfxr.so' \))
+          if [ -n "$runtime" ]; then
+            echo "::error::The framework-dependent output carries a .NET runtime: $runtime"
+            exit 1
+          fi
+          find "$OUT" -type f \( -name '*.pdb' -o -name '*.dbg' \) -delete
+          find "$OUT" -type f -name '*.xml' | while read -r doc; do
+            if [ -f "${doc%.xml}.dll" ]; then rm "$doc"; fi
+          done
+          echo "$(find "$OUT" -type f | wc -l) files in the framework-dependent output."
+
       - name: Upload
         uses: actions/upload-artifact@v7
         with:
-          name: broiler-writer-${{ matrix.rid }}-${{ env.VERSION }}
-          path: ${{ env.OUT }}/${{ matrix.executable }}
+          name: broiler-writer-${{ matrix.rid }}-${{ matrix.variant }}-${{ env.VERSION }}
+          path: ${{ matrix.variant == 'self-contained' && format('{0}/{1}', env.OUT, matrix.executable) || env.OUT }}
           if-no-files-found: error
 
   android:
@@ -192,7 +219,6 @@ jobs:
       # major, as in the monorepo's preview package workflow.
       ANDROID_API_LEVEL: '36'
       ANDROID_BUILD_TOOLS: 36.0.0
-      NuGetPackageSourceCredentials_github-broiler: Username=${{ github.actor }};Password=${{ secrets.GITHUB_TOKEN }};ValidAuthenticationTypes=Basic
 
     steps:
       - name: Check out
@@ -217,13 +243,6 @@ jobs:
           ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
           ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: ./eng/sign-android-packages.ps1 -ValidateOnly | Out-Null
-
-      - name: Restore Broiler.* from ${{ inputs.nuget-source }}
-        if: inputs.nuget-source == 'broiler-github'
-        shell: bash
-        run: |
-          sed -i '/<\/packageSourceMapping>/i\    <packageSource key="github-broiler"><package pattern="Broiler.*" /></packageSource>' NuGet.config
-          grep -q 'key="github-broiler"><package pattern="Broiler' NuGet.config
 
       - name: Install the Android workload
         run: |
@@ -341,15 +360,15 @@ jobs:
       - name: Check out
         uses: actions/checkout@v7
 
-      # Only after both platforms built: a failed run leaves its number free. The tag is
-      # pushed here rather than left to the release, because a draft release does not
+      # Only after every platform and variant built: a failed run leaves its number free. The
+      # tag is pushed here rather than left to the release, because a draft release does not
       # create its tag until it is published - and the next run counts tags.
       - name: Tag the commit
         run: |
           git tag "$TAG" "$GITHUB_SHA"
           git push origin "refs/tags/$TAG"
 
-      - name: Download the executables
+      - name: Download the build artifacts
         uses: actions/download-artifact@v8
         with:
           pattern: broiler-writer-*
@@ -367,9 +386,14 @@ jobs:
           {
             echo "### Broiler.Writer $VERSION"
             echo
-            echo "Dependencies restored from \`${{ inputs.nuget-source }}\`; commit tagged \`$TAG\`."
+            echo "Commit tagged \`$TAG\`. A draft pre-release **Broiler Writer $VERSION** was created with:"
             echo
-            echo "A draft pre-release **Broiler Writer $VERSION** was created with"
-            echo "\`Broiler.Writer-$VERSION-win-x64.zip\` and \`Broiler.Writer-$VERSION-linux-x64.zip\`."
+            for rid in win-x64 linux-x64; do
+              for variant in self-contained framework-dependent; do
+                echo "- \`Broiler.Writer-$VERSION-$rid-$variant.zip\`"
+              done
+            done
+            echo "- \`Broiler.Writer-$VERSION.aab\` and \`Broiler.Writer-$VERSION-arm64.apk\`"
+            echo
             echo "Review it under Releases and publish it there."
           } >> "$GITHUB_STEP_SUMMARY"

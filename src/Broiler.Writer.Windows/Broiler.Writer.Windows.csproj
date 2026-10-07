@@ -19,18 +19,15 @@
     <RuntimeIdentifier Condition="'$(Configuration)' == 'Debug-Windows' Or '$(Configuration)' == 'Release-Windows'">win-x64</RuntimeIdentifier>
   </PropertyGroup>
 
-  <!-- The Win32 clipboard and window sizing, shared with the other desktop heads. -->
   <ItemGroup>
-    <Compile Include="..\Broiler.App\WindowsClipboard.cs" Link="WindowsClipboard.cs" />
-    <Compile Include="..\Broiler.App\WindowsWindowSizing.cs" Link="WindowsWindowSizing.cs" />
-  </ItemGroup>
-  <ItemGroup>
-    <PackageReference Include="Broiler.Documents.Pdf" Version="0.1.0-preview.21" />
-    <PackageReference Include="Broiler.Documents.Pdf.Images" Version="0.1.0-preview.21" />
-    <PackageReference Include="Broiler.Documents.Pdf.Fonts" Version="0.1.0-preview.21" />
-    <PackageReference Include="Broiler.Graphics" Version="0.1.0-preview.7" />
-    <PackageReference Include="Broiler.Graphics.Windows" Version="0.1.0-preview.7" />
-    <PackageReference Include="Broiler.Media.Image.Managed" Version="0.1.0-preview.14" />
+    <PackageReference Include="Broiler.Documents.Pdf" />
+    <PackageReference Include="Broiler.Documents.Pdf.Images" />
+    <PackageReference Include="Broiler.Documents.Pdf.Fonts" />
+    <PackageReference Include="Broiler.Graphics" />
+    <PackageReference Include="Broiler.Graphics.Windows" />
+    <!-- The Win32 clipboard and window sizing, shared with the other desktop applications. -->
+    <PackageReference Include="Broiler.Hosting.Windows" />
+    <PackageReference Include="Broiler.Media.Image.Managed" />
   </ItemGroup>
 
   <ItemGroup>

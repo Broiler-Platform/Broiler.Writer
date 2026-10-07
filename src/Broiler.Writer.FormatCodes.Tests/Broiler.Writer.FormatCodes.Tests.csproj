@@ -10,9 +10,9 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.8.0" />
-    <PackageReference Include="xunit" Version="2.5.3" />
-    <PackageReference Include="xunit.runner.visualstudio" Version="2.5.3" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" />
+    <PackageReference Include="xunit" />
+    <PackageReference Include="xunit.runner.visualstudio" />
   </ItemGroup>
 
   <!--
@@ -25,11 +25,11 @@
   <ItemGroup>
     <!-- Referenced so the tests can compose PDF the way the desktop heads do, and
          assert that the shared default format set still does not carry it. -->
-    <PackageReference Include="Broiler.Documents.Pdf" Version="0.1.0-preview.21" />
-    <PackageReference Include="Broiler.Documents.Pdf.Images" Version="0.1.0-preview.21" />
-    <PackageReference Include="Broiler.Documents.Pdf.Fonts" Version="0.1.0-preview.21" />
-    <PackageReference Include="Broiler.UI.RichEdit.Standard" Version="0.1.0-preview.10" />
-    <PackageReference Include="Broiler.Media.Image.Managed" Version="0.1.0-preview.13" />
+    <PackageReference Include="Broiler.Documents.Pdf" />
+    <PackageReference Include="Broiler.Documents.Pdf.Images" />
+    <PackageReference Include="Broiler.Documents.Pdf.Fonts" />
+    <PackageReference Include="Broiler.UI.RichEdit.Standard" />
+    <PackageReference Include="Broiler.Media.Image.Managed" />
   </ItemGroup>
 
   <ItemGroup>

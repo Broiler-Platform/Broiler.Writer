@@ -1,17 +1,13 @@
 name: Set up Broiler.Writer
 description: >-
-  Installs the .NET SDK and configures NuGet authentication for the
-  Broiler-Platform GitHub Packages feed.
+  Installs the .NET SDK. Every package restores from nuget.org as NuGet.config says, so no
+  feed or credentials are configured here.
 
 inputs:
   dotnet-version:
     description: .NET SDK version to install.
     required: false
     default: '10.0.x'
-  token:
-    description: GitHub token or PAT to authenticate against the GitHub Packages feed.
-    required: false
-    default: ${{ github.token }}
 
 runs:
   using: composite
@@ -20,6 +16,3 @@ runs:
       uses: actions/setup-dotnet@v6
       with:
         dotnet-version: ${{ inputs.dotnet-version }}
-        source-url: https://nuget.pkg.github.com/Broiler-Platform/index.json
-      env:
-        NUGET_AUTH_TOKEN: ${{ inputs.token }}

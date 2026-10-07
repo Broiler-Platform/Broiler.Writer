@@ -30,7 +30,10 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\..\Broiler.Hosting\src\Broiler.Hosting.Android\Broiler.Hosting.Android.csproj" />
+    <PackageReference Include="Broiler.Hosting.Android" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\Broiler.Writer\Broiler.Writer.Core.csproj" />
   </ItemGroup>
 

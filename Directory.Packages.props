@@ -1,0 +1,71 @@
+<Project>
+  <!--
+    Central Package Management: every NuGet package this repository references is versioned
+    here, and the projects name packages without a Version. MSBuild uses the nearest
+    Directory.Packages.props walking up from a project, so this file also keeps an in-tree
+    checkout of Broiler.Writer independent of any parent workspace's.
+
+    BroilerWriterVersion in Directory.Build.props is the application's own version, not a
+    package version, and stays there.
+  -->
+  <PropertyGroup>
+    <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
+    <BroilerDocumentsVersion>0.1.0-preview.21</BroilerDocumentsVersion>
+    <BroilerHostingVersion>0.1.0-preview.7</BroilerHostingVersion>
+    <BroilerGraphicsVersion>0.1.0-preview.7</BroilerGraphicsVersion>
+    <BroilerInputVersion>0.1.0-preview.5</BroilerInputVersion>
+    <BroilerMediaVersion>0.1.0-preview.14</BroilerMediaVersion>
+    <BroilerUiVersion>0.1.0-preview.18</BroilerUiVersion>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageVersion Include="Broiler.Documents.Docx" Version="$(BroilerDocumentsVersion)" />
+    <PackageVersion Include="Broiler.Documents.FormatCodes" Version="$(BroilerDocumentsVersion)" />
+    <PackageVersion Include="Broiler.Documents.Html" Version="$(BroilerDocumentsVersion)" />
+    <PackageVersion Include="Broiler.Documents.Markdown" Version="$(BroilerDocumentsVersion)" />
+    <PackageVersion Include="Broiler.Documents.Odt" Version="$(BroilerDocumentsVersion)" />
+    <PackageVersion Include="Broiler.Documents.Pdf" Version="$(BroilerDocumentsVersion)" />
+    <PackageVersion Include="Broiler.Documents.Pdf.Fonts" Version="$(BroilerDocumentsVersion)" />
+    <PackageVersion Include="Broiler.Documents.Pdf.Images" Version="$(BroilerDocumentsVersion)" />
+    <PackageVersion Include="Broiler.Documents.Rtf" Version="$(BroilerDocumentsVersion)" />
+    <PackageVersion Include="Broiler.Graphics" Version="$(BroilerGraphicsVersion)" />
+    <PackageVersion Include="Broiler.Graphics.Linux" Version="$(BroilerGraphicsVersion)" />
+    <PackageVersion Include="Broiler.Graphics.Linux.OpenGL" Version="$(BroilerGraphicsVersion)" />
+    <PackageVersion Include="Broiler.Graphics.WebAssembly" Version="$(BroilerGraphicsVersion)" />
+    <PackageVersion Include="Broiler.Graphics.Windows" Version="$(BroilerGraphicsVersion)" />
+    <PackageVersion Include="Broiler.Hosting.Android" Version="$(BroilerHostingVersion)" />
+    <PackageVersion Include="Broiler.Hosting.Linux" Version="$(BroilerHostingVersion)" />
+    <PackageVersion Include="Broiler.Hosting.Windows" Version="$(BroilerHostingVersion)" />
+    <PackageVersion Include="Broiler.Input.Android" Version="$(BroilerInputVersion)" />
+    <PackageVersion Include="Broiler.Input.Keyboard.Android" Version="$(BroilerInputVersion)" />
+    <PackageVersion Include="Broiler.Input.Keyboard.Linux" Version="$(BroilerInputVersion)" />
+    <PackageVersion Include="Broiler.Input.Linux" Version="$(BroilerInputVersion)" />
+    <PackageVersion Include="Broiler.Input.Mouse.Linux" Version="$(BroilerInputVersion)" />
+    <PackageVersion Include="Broiler.Input.Pen.Android" Version="$(BroilerInputVersion)" />
+    <PackageVersion Include="Broiler.Input.Text.Android" Version="$(BroilerInputVersion)" />
+    <PackageVersion Include="Broiler.Input.Touch.Android" Version="$(BroilerInputVersion)" />
+    <PackageVersion Include="Broiler.Media.Image" Version="$(BroilerMediaVersion)" />
+    <PackageVersion Include="Broiler.Media.Image.Managed" Version="$(BroilerMediaVersion)" />
+    <PackageVersion Include="Broiler.UI" Version="$(BroilerUiVersion)" />
+    <PackageVersion Include="Broiler.UI.AboutDialog" Version="$(BroilerUiVersion)" />
+    <PackageVersion Include="Broiler.UI.AboutDialog.Standard" Version="$(BroilerUiVersion)" />
+    <PackageVersion Include="Broiler.UI.Button.Standard" Version="$(BroilerUiVersion)" />
+    <PackageVersion Include="Broiler.UI.ComboBox.Standard" Version="$(BroilerUiVersion)" />
+    <PackageVersion Include="Broiler.UI.Dialog.Standard" Version="$(BroilerUiVersion)" />
+    <PackageVersion Include="Broiler.UI.Edit.Standard" Version="$(BroilerUiVersion)" />
+    <PackageVersion Include="Broiler.UI.FileDialog.Standard" Version="$(BroilerUiVersion)" />
+    <PackageVersion Include="Broiler.UI.FontDialog.Standard" Version="$(BroilerUiVersion)" />
+    <PackageVersion Include="Broiler.UI.FormatCodeView" Version="$(BroilerUiVersion)" />
+    <PackageVersion Include="Broiler.UI.FormatCodeView.Standard" Version="$(BroilerUiVersion)" />
+    <PackageVersion Include="Broiler.UI.Label.Standard" Version="$(BroilerUiVersion)" />
+    <PackageVersion Include="Broiler.UI.Menu.Standard" Version="$(BroilerUiVersion)" />
+    <PackageVersion Include="Broiler.UI.RichEdit" Version="$(BroilerUiVersion)" />
+    <PackageVersion Include="Broiler.UI.RichEdit.Standard" Version="$(BroilerUiVersion)" />
+    <PackageVersion Include="Broiler.UI.Splitter.Standard" Version="$(BroilerUiVersion)" />
+    <PackageVersion Include="Broiler.UI.Toolbar.Standard" Version="$(BroilerUiVersion)" />
+    <PackageVersion Include="Broiler.UI.Tooltip.Standard" Version="$(BroilerUiVersion)" />
+    <PackageVersion Include="Broiler.UI.Window.Standard" Version="$(BroilerUiVersion)" />
+    <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="17.8.0" />
+    <PackageVersion Include="xunit" Version="2.5.3" />
+    <PackageVersion Include="xunit.runner.visualstudio" Version="2.5.3" />
+  </ItemGroup>
+</Project>
