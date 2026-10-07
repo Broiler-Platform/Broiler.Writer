@@ -12,7 +12,7 @@ using Broiler.Graphics.Rendering;
 using Broiler.Graphics.RenderList;
 using Broiler.Graphics.Linux;
 using Broiler.Graphics.Linux.OpenGL;
-using Broiler.App;
+using Broiler.Hosting.Linux;
 
 namespace Broiler.Writer;
 
@@ -81,7 +81,7 @@ internal static class LinuxWriterRunner
             documentFormats: documentFormats,
             setWindowTitle: x11Window is null ? null : x11Window.SetTitle);
 
-        await using LinuxInputCoordinator input = new(canUseEvdev, Console.WriteLine, externalPointer: x11Window is not null);
+        await using LinuxInputCoordinator input = new(canUseEvdev, Console.WriteLine, externalPointer: x11Window is not null, applicationName: "Broiler Writer");
         await input.InitializeAsync(cancellationToken).ConfigureAwait(false);
 
         DateTimeOffset start = DateTimeOffset.UtcNow;
@@ -196,7 +196,7 @@ internal static class LinuxWriterRunner
         Console.WriteLine("  artifact: " + backendPath);
     }
 
-    private static string InputSummary(LinuxWriterInputSnapshot input)
+    private static string InputSummary(LinuxInputSnapshot input)
     {
         if (!input.Enabled)
             return "disabled";

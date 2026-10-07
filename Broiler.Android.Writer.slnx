@@ -10,7 +10,6 @@
     </Project>
   </Folder>
   <Folder Name="/Dependencies/src/">
-    <Project Path="../Broiler.Hosting/src/Broiler.Hosting.Android/Broiler.Hosting.Android.csproj" />
     <Project Path="src/Broiler.Writer.FormatCodes/Broiler.Writer.FormatCodes.csproj" />
     <Project Path="src/Broiler.Writer/Broiler.Writer.Core.csproj" />
   </Folder>

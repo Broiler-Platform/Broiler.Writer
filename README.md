@@ -310,7 +310,7 @@ this file a `-c Release-Linux` publish builds **unoptimized and with neither `RE
 
 It also carries the suppressed-warning list, with a documented reason and a measurement for
 every code. Nothing in that list is authored in this repository: the codes come from the
-component submodules and from the vendored Android glue. The list is measured against a clean
+component submodules. The list is measured against a clean
 rebuild of all five solutions rather than inherited, and it is worth re-measuring after a
 submodule bump — a code that no longer fires costs the signal the warning is meant to carry.
 
@@ -323,6 +323,11 @@ NuGet package versions are managed centrally in
 `BroilerWriterVersion` in `Directory.Build.props` is the application's own version, not a
 package version.
 
+The platform hosting glue — the Win32 clipboard and window sizing, the X11 clipboard and evdev
+input coordination, and the Android view, canvas renderer, inset layout and input connection —
+comes from the `Broiler.Hosting.Windows`, `Broiler.Hosting.Linux` and `Broiler.Hosting.Android`
+packages, the same ones the other Broiler applications use.
+
 ## Repository layout
 
 | Path | Contents |
@@ -334,8 +339,6 @@ package version.
 | `src/Broiler.Writer.Linux` | Linux head — X11 clipboard and input coordination |
 | `src/Broiler.Writer.Android` | Android head — activity, manifest, resources |
 | `src/Broiler.Writer.WebAssembly` | Browser head — direct-Canvas 2D backend, browser file picker and download |
-| `src/Broiler.App` | Source-only directory shared by the desktop heads — per-platform clipboards and Linux input coordination. It has no project of its own; each head links the files it needs. |
-| `src/Broiler.App.Android` | Android view, canvas renderer, inset layout, input connection |
 | `eng/`, `scripts/` | Solution manifest and generator |
 | `.github/` | CI and release workflows, and the `setup-broiler` composite action |
 | `Directory.Build.props` | Configuration decomposition and the documented warning suppressions |

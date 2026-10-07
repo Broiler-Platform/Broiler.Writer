@@ -74,8 +74,8 @@
         Tests                    24  CS8625 x14, CS8618 x8, CS8602 x2
         WebAssembly              24  CS8625 x14, CS8618 x8, CS8602 x2
         Android                  48  the same 24, plus CA1416 x16, CS8604 x4,
-                                     CS8601 x2 and CS8603 x2 — suppressed in the
-                                     one project that raises them, not here
+                                     CS8601 x2 and CS8603 x2 — raised by the vendored
+                                     Android glue, since replaced by a package
 
       ── Nullable Reference Type Warnings ──────────────────────────────
       CS8602 : Dereference of a possibly null reference
@@ -94,9 +94,9 @@
                 whole group. Re-measure after a submodule bump rather than assuming.
 
       ── Suppressed elsewhere, on purpose ──────────────────────────────
-      CS8601, CS8603, CS8604 and CA1416 are also emitted by this repository, but only ever by
-      src/Broiler.App.Android — the vendored .NET for Android glue — so they are suppressed
-      in that project rather than here, and documented there in full.
+      CS8601, CS8603, CS8604 and CA1416 were emitted only by src/Broiler.App.Android — the
+      vendored .NET for Android glue — and suppressed in that project. The glue now arrives as
+      the Broiler.Hosting.Android package, so the project and its suppressions are gone.
 
       They used to be in the NoWarn at the end of this block. Repo-wide was broader than the
       measurement justified:

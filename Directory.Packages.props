@@ -11,6 +11,7 @@
   <PropertyGroup>
     <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
     <BroilerDocumentsVersion>0.1.0-preview.21</BroilerDocumentsVersion>
+    <BroilerHostingVersion>0.1.0-preview.7</BroilerHostingVersion>
     <BroilerGraphicsVersion>0.1.0-preview.7</BroilerGraphicsVersion>
     <BroilerInputVersion>0.1.0-preview.5</BroilerInputVersion>
     <BroilerMediaVersion>0.1.0-preview.14</BroilerMediaVersion>
@@ -31,6 +32,9 @@
     <PackageVersion Include="Broiler.Graphics.Linux.OpenGL" Version="$(BroilerGraphicsVersion)" />
     <PackageVersion Include="Broiler.Graphics.WebAssembly" Version="$(BroilerGraphicsVersion)" />
     <PackageVersion Include="Broiler.Graphics.Windows" Version="$(BroilerGraphicsVersion)" />
+    <PackageVersion Include="Broiler.Hosting.Android" Version="$(BroilerHostingVersion)" />
+    <PackageVersion Include="Broiler.Hosting.Linux" Version="$(BroilerHostingVersion)" />
+    <PackageVersion Include="Broiler.Hosting.Windows" Version="$(BroilerHostingVersion)" />
     <PackageVersion Include="Broiler.Input.Android" Version="$(BroilerInputVersion)" />
     <PackageVersion Include="Broiler.Input.Keyboard.Android" Version="$(BroilerInputVersion)" />
     <PackageVersion Include="Broiler.Input.Keyboard.Linux" Version="$(BroilerInputVersion)" />

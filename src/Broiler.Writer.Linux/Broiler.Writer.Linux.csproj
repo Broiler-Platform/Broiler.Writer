@@ -17,17 +17,14 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <Compile Include="..\Broiler.App\LinuxInputCoordinator.cs" Link="LinuxInputCoordinator.cs" />
-    <Compile Include="..\Broiler.App\LinuxX11Clipboard.cs" Link="LinuxX11Clipboard.cs" />
-  </ItemGroup>
-
-  <ItemGroup>
     <PackageReference Include="Broiler.Documents.Pdf" />
     <PackageReference Include="Broiler.Documents.Pdf.Images" />
     <PackageReference Include="Broiler.Documents.Pdf.Fonts" />
     <PackageReference Include="Broiler.Graphics" />
     <PackageReference Include="Broiler.Graphics.Linux" />
     <PackageReference Include="Broiler.Graphics.Linux.OpenGL" />
+    <!-- The X11 clipboard and evdev input coordination, shared with the other desktop applications. -->
+    <PackageReference Include="Broiler.Hosting.Linux" />
     <PackageReference Include="Broiler.Input.Keyboard.Linux" />
     <PackageReference Include="Broiler.Input.Linux" />
     <PackageReference Include="Broiler.Input.Mouse.Linux" />
