@@ -6,13 +6,18 @@
 # <artifacts-dir> holds the Publish workflow's artifacts, extracted as
 # `gh run download` / actions/download-artifact leave them:
 #
-#   <artifacts-dir>/broiler-writer-win-x64-<version>/Broiler.Writer.Windows.exe
-#   <artifacts-dir>/broiler-writer-linux-x64-<version>/Broiler.Writer.Linux
+#   <artifacts-dir>/broiler-writer-win-x64-self-contained-<version>/Broiler.Writer.Windows.exe
+#   <artifacts-dir>/broiler-writer-win-x64-framework-dependent-<version>/Broiler.Writer.Windows.exe, *.dll, ...
+#   <artifacts-dir>/broiler-writer-linux-x64-self-contained-<version>/Broiler.Writer.Linux
+#   <artifacts-dir>/broiler-writer-linux-x64-framework-dependent-<version>/Broiler.Writer.Linux, *.dll, ...
 #   <artifacts-dir>/broiler-writer-android-<version>/Broiler.Writer-<version>.aab
 #                                                    Broiler.Writer-<version>-arm64.apk
 #
-# Each executable is zipped on its own into a release asset, recorded as rwxr-xr-x:
-# the workflow artifact drops the Linux binary's executable bit, the release zip restores it.
+# Each desktop artifact is zipped into one release asset,
+# Broiler.Writer-<version>-<rid>-<variant>.zip: the self-contained one holds the NativeAOT
+# executable alone, the framework-dependent one the whole publish folder. The executable is
+# recorded as rwxr-xr-x and every other file as rw-r--r--: the workflow artifact drops the
+# Linux binary's executable bit, the release zip restores it.
 # The Android packages are archives already and signed, so they are attached as they are.
 # They are optional, so a run from before Android was published can still be released;
 # ANDROID_SIGNING_CERT_SHA256, when set, is quoted in the notes for checking a download.
@@ -27,30 +32,49 @@ artifacts=${2:?usage: eng/release-draft.sh <version> <artifacts-dir>}
 tag="writer-v$version"
 out=$(mktemp -d)
 
-# Python writes the zip so the Unix mode is recorded explicitly (rwxr-xr-x) instead of
-# read from the file system, which on Windows has no executable bit to read.
+# Python writes the zip so the Unix mode is recorded explicitly instead of read from the
+# file system, which on Windows has no executable bit to read.
 asset() {
-  local rid=$1 executable=$2
-  local source="$artifacts/broiler-writer-$rid-$version/$executable"
-  local zip="$out/Broiler.Writer-$version-$rid.zip"
-  [ -f "$source" ] || { echo "missing $source" >&2; exit 1; }
+  local rid=$1 variant=$2 executable=$3
+  local source="$artifacts/broiler-writer-$rid-$variant-$version"
+  local zip="$out/Broiler.Writer-$version-$rid-$variant.zip"
+  [ -f "$source/$executable" ] || { echo "missing $source/$executable" >&2; exit 1; }
+  if [ "$variant" = self-contained ] && [ "$(find "$source" -type f | wc -l)" -ne 1 ]; then
+    echo "$source should hold $executable alone" >&2; exit 1
+  fi
   "$python" - "$source" "$zip" "$executable" <<'PY'
-import sys, zipfile, time
-source, target, name = sys.argv[1:4]
-info = zipfile.ZipInfo(name, date_time=time.localtime()[:6])
-info.compress_type = zipfile.ZIP_DEFLATED
-info.create_system = 3                      # Unix, so external_attr carries a mode
-info.external_attr = (0o100755 << 16)       # regular file, rwxr-xr-x
-with open(source, 'rb') as f, zipfile.ZipFile(target, 'w') as z:
-    z.writestr(info, f.read())
+import os, sys, zipfile, time
+source, target, executable = sys.argv[1:4]
+stamp = time.localtime()[:6]
+with zipfile.ZipFile(target, 'w') as z:
+    for root, dirs, files in os.walk(source):
+        dirs.sort()
+        for name in sorted(files):
+            path = os.path.join(root, name)
+            arcname = os.path.relpath(path, source).replace(os.sep, '/')
+            info = zipfile.ZipInfo(arcname, date_time=stamp)
+            info.compress_type = zipfile.ZIP_DEFLATED
+            info.create_system = 3          # Unix, so external_attr carries a mode
+            mode = 0o755 if arcname == executable else 0o644
+            info.external_attr = (0o100000 | mode) << 16   # regular file
+            with open(path, 'rb') as f:
+                z.writestr(info, f.read())
 PY
   echo "$zip"
 }
 
 python=$(command -v python3 || command -v python) || { echo "needs python3" >&2; exit 1; }
 
-win=$(asset win-x64 Broiler.Writer.Windows.exe)
-linux=$(asset linux-x64 Broiler.Writer.Linux)
+# One assignment per asset: under set -e a failing $(...) stops the script only when it is
+# the whole assignment, not one element of an array literal.
+desktop_assets=()
+for rid in win-x64 linux-x64; do
+  if [ "$rid" = win-x64 ]; then executable=Broiler.Writer.Windows.exe; else executable=Broiler.Writer.Linux; fi
+  for variant in self-contained framework-dependent; do
+    zip=$(asset "$rid" "$variant" "$executable")
+    desktop_assets+=("$zip")
+  done
+done
 
 android_dir="$artifacts/broiler-writer-android-$version"
 aab="$android_dir/Broiler.Writer-$version.aab"
@@ -72,13 +96,17 @@ production use.
 
 | Platform | File | Run |
 | --- | --- | --- |
-| Windows x64 | \`Broiler.Writer-$version-win-x64.zip\` | unzip, start \`Broiler.Writer.Windows.exe\` |
-| Linux x64 | \`Broiler.Writer-$version-linux-x64.zip\` | unzip, run \`./Broiler.Writer.Linux\` (X11) |
+| Windows x64 | \`Broiler.Writer-$version-win-x64-self-contained.zip\` | unzip, start \`Broiler.Writer.Windows.exe\` |
+| Windows x64 | \`Broiler.Writer-$version-win-x64-framework-dependent.zip\` | install the .NET 10 runtime, unzip into a folder, start \`Broiler.Writer.Windows.exe\` |
+| Linux x64 | \`Broiler.Writer-$version-linux-x64-self-contained.zip\` | unzip, run \`./Broiler.Writer.Linux\` (X11) |
+| Linux x64 | \`Broiler.Writer-$version-linux-x64-framework-dependent.zip\` | install the .NET 10 runtime, unzip into a folder, run \`./Broiler.Writer.Linux\` (X11) |
 $android_rows
 
-Each zip holds a single self-contained NativeAOT executable: no .NET runtime to install,
-nothing else to copy. The executables are not code-signed, so Windows SmartScreen may ask
-before the first start.
+The **self-contained** zips hold a single NativeAOT executable: no .NET runtime to install,
+nothing else to copy. The **framework-dependent** zips hold the executable together with the
+application's assemblies and run on the .NET 10 runtime installed on the machine, so they
+pick up its servicing updates. The executables are not code-signed, so Windows SmartScreen
+may ask before the first start.
 EOF
 
 if [ ${#android_assets[@]} -gt 0 ]; then
@@ -91,7 +119,7 @@ if [ ${#android_assets[@]} -gt 0 ]; then
   } >> "$out/notes.md"
 fi
 
-gh release create "$tag" "$win" "$linux" "${android_assets[@]}" \
+gh release create "$tag" "${desktop_assets[@]}" "${android_assets[@]}" \
   --verify-tag \
   --draft \
   --prerelease \

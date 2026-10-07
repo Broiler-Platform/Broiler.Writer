@@ -219,33 +219,42 @@ projects by changing the reference graph, then regenerate.
   configurations. They are project-level builds by necessity: the solutions declare only
   `Debug` and `Release`, so a solution-level build with either fails `MSB4126`.
 
-[`publish.yml`](.github/workflows/publish.yml) is dispatch-only and builds the Windows and
-Linux Writer with NativeAOT, and the Android Writer as a signed app bundle and APK. Each
-desktop platform comes out as one zip artifact on the run holding a single executable, which
-is the whole application: no .NET runtime to install and nothing beside it. Nothing is pushed
-to a feed. Each run also drafts a GitHub pre-release, *Broiler Writer <version>*, with both
-executables zipped as `Broiler.Writer-<version>-<rid>.zip` and the Android packages attached.
+[`publish.yml`](.github/workflows/publish.yml) is dispatch-only. It publishes the Windows and
+Linux Writer in two variants each, and the Android Writer as a signed app bundle and APK:
+
+- **self-contained** — NativeAOT. The artifact is a single executable, which is the whole
+  application: no .NET runtime to install and nothing beside it.
+- **framework-dependent** — a plain `dotnet publish --self-contained false` for the same
+  runtime identifier. The artifact is the publish folder: the executable plus the
+  application's managed assemblies, running on an installed .NET 10 runtime.
+
+Nothing is pushed to a feed. Each run also drafts a GitHub pre-release, *Broiler Writer
+<version>*, with every desktop artifact zipped as
+`Broiler.Writer-<version>-<rid>-<variant>.zip` (for example
+`Broiler.Writer-<version>-win-x64-self-contained.zip`) and the Android packages attached.
 It stays a draft until someone publishes it under Releases;
 [`eng/release-draft.sh`](eng/release-draft.sh) builds it and can be run by hand from a run's
 artifacts.
 
 | Artifact | Contents |
 | --- | --- |
-| `broiler-writer-win-x64-<version>` | `Broiler.Writer.Windows.exe` |
-| `broiler-writer-linux-x64-<version>` | `Broiler.Writer.Linux` (`chmod +x` after unzipping; artifact zips drop file modes) |
+| `broiler-writer-win-x64-self-contained-<version>` | `Broiler.Writer.Windows.exe` |
+| `broiler-writer-win-x64-framework-dependent-<version>` | `Broiler.Writer.Windows.exe` with its assemblies and runtimeconfig |
+| `broiler-writer-linux-x64-self-contained-<version>` | `Broiler.Writer.Linux` (`chmod +x` after unzipping; artifact zips drop file modes) |
+| `broiler-writer-linux-x64-framework-dependent-<version>` | `Broiler.Writer.Linux` with its assemblies and runtimeconfig (`chmod +x` likewise) |
 | `broiler-writer-android-<version>` | `Broiler.Writer-<version>.aab` (arm64 + x86_64) and `Broiler.Writer-<version>-arm64.apk`, both release-signed |
 
 The draft release carries the same `.aab` and `.apk` as assets, and the Linux executable in
-its release zip keeps its executable bit.
+its release zips keeps its executable bit.
 
-The run fails if a publish ever emits anything beside the executable other than symbols or
-XML docs, because an artifact without that file would be broken.
+The run fails if a self-contained publish ever emits anything beside the executable other
+than symbols or XML docs, because an artifact without that file would be broken, and if a
+framework-dependent publish lacks its executable, assembly or runtimeconfig or carries a
+.NET runtime of its own. The framework-dependent artifact drops symbols and assembly XML docs
+and ships everything else.
 
-Its inputs are `nuget-source`, the feed the `Broiler.*` dependencies are restored from, and
-an optional `version-suffix` such as `preview.7`. With `nuget.org`, the default, the build
-restores exactly as `NuGet.config` says. With `broiler-github`, `Broiler.*` comes from the
-Broiler-Platform GitHub Packages feed instead, for components published there but not yet to
-nuget.org. Everything else still comes from nuget.org.
+Its one input is an optional `version-suffix` such as `preview.7`. Every dependency restores
+exactly as `NuGet.config` says, from nuget.org; there is no other feed.
 
 Each run takes the next preview version: `BroilerWriterVersion` in `Directory.Build.props` is
 the floor, raised past every earlier run's `writer-v*` tag. A run tags its commit only after
@@ -265,7 +274,8 @@ message naming what is missing.
 
 ## NativeAOT
 
-The two desktop heads publish with NativeAOT, so the `win-x64` and `linux-x64` artifacts are
+The self-contained variant of the two desktop heads publishes with NativeAOT, so those `win-x64`
+and `linux-x64` artifacts are
 **a single self-contained native binary that runs with no .NET runtime installed** — 9.2 MB
 for the Windows head, against a 162-file framework-dependent drop.
 
@@ -306,6 +316,12 @@ submodule bump — a code that no longer fires costs the signal the warning is m
 
 There is no `Directory.Build.targets`. Broiler.Browser uses one solely to rewrite
 `Broiler.HTML`'s stale component paths, and the Writer does not consume `Broiler.HTML`.
+
+NuGet package versions are managed centrally in
+[`Directory.Packages.props`](Directory.Packages.props): projects name a package without a
+`Version`, and each Broiler component family shares one version property there.
+`BroilerWriterVersion` in `Directory.Build.props` is the application's own version, not a
+package version.
 
 ## Repository layout
 

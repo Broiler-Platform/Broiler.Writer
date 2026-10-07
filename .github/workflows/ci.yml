@@ -8,7 +8,6 @@ on:
 
 permissions:
   contents: read
-  packages: read
 
 concurrency:
   group: ci-${{ github.ref }}
@@ -112,7 +111,8 @@ jobs:
   # project-level builds — a solution-level build with an undeclared configuration
   # fails MSB4126 — so they are exercised here rather than in `build`.
   #
-  # This job publishes with NativeAOT because that is what publish.yml ships. AOT
+  # This job publishes with NativeAOT because that is publish.yml's self-contained
+  # variant (its framework-dependent variant is an ordinary publish). AOT
   # is the one build mode that fails on reflection the rest of the build accepts,
   # so leaving it to release time would mean discovering a regression only when
   # cutting a release. It costs this job a few minutes; that is the trade.
