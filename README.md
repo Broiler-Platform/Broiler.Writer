@@ -125,6 +125,20 @@ logical subwindows rendered inside the main viewport. That is the documented fal
 than a failure: a head either answers `IUiWindowHost` or does not, and Broiler.UI keeps the
 dialog inside its owner when it does not.
 
+## Printing
+
+File → Print... and Ctrl+P print the document as it stands. `Broiler.Documents.Pagination` lays it out
+on the page it states (a DOCX's or ODT's page size and margins), or on A4 with one-inch margins, and
+Broiler.UI's print dialog shows the printers, copies, page range, paper, orientation, colour and
+two-sided choices beside a live preview that is laid out again whenever the paper or orientation
+changes. The pages that were previewed are the pages printed.
+
+Each head passes its own print host: the Windows head prints through the spooler
+(`WindowsPrintHost`), the Linux head through CUPS when libcups is installed
+(`LinuxCupsPrintHost`, handed PDF written by `PdfRasterPageWriter`), and the Android head through
+the system print UI, which takes the place of the dialog (`AndroidPrintHost`). The WebAssembly head
+has no print host yet, so it offers no Print. The status line says how the job ended.
+
 ## Fonts
 
 The font dialog lists the fonts this machine has, not a fixed set of well-known names. Where the

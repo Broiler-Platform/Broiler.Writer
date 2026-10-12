@@ -65,7 +65,8 @@ internal sealed class WriterWindow : Direct2DWindow
             CloseNativeWindow,
             documentFormats: documentFormats,
             setWindowTitle: SetTitle,
-            setTicking: SetTicking);
+            setTicking: SetTicking,
+            printHost: new WindowsPrintHost());
     }
 
     protected override void OnCreated()
