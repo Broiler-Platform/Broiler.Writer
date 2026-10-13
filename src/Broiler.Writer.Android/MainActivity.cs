@@ -58,7 +58,8 @@ public sealed class MainActivity : Activity
             Finish,
             RequestOpenDocument,
             RequestSaveDocument,
-            compactMode: true);
+            compactMode: true,
+            printHost: new AndroidPrintHost(this));
 
         _view.RenderFrame = _app.RenderFrame;
         _view.DispatchInput = _app.Dispatch;

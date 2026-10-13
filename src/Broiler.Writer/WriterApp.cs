@@ -2,9 +2,12 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
+using System.Threading;
+using System.Threading.Tasks;
 using Broiler.Documents;
 using Broiler.Documents.FormatCodes;
 using Broiler.Documents.Model;
+using Broiler.Documents.Pagination;
 using Broiler.Graphics;
 using Broiler.Input.Keyboard;
 using Broiler.UI;
@@ -21,6 +24,8 @@ using Broiler.UI.Label;
 using Broiler.UI.Label.Standard;
 using Broiler.UI.Menu;
 using Broiler.UI.Menu.Standard;
+using Broiler.UI.PrintDialog;
+using Broiler.UI.PrintDialog.Standard;
 using Broiler.UI.RichEdit;
 using Broiler.UI.RichEdit.Standard;
 using Broiler.UI.Standard;
@@ -46,6 +51,7 @@ internal sealed class WriterApp : IDisposable
     private readonly Action _requestClose;
     private readonly Action? _requestOpenDocument;
     private readonly Action<string, bool, Action<bool>>? _requestSaveDocument;
+    private readonly IUiPrintHost? _printHost;
     private readonly WriterDocumentChanges _documentChanges;
     private readonly bool _compactMode;
     private readonly UiSession _session;
@@ -82,6 +88,16 @@ internal sealed class WriterApp : IDisposable
     private string? _currentDocumentPath;
     private string _documentName = UntitledDocumentName;
     private bool _isModified;
+
+    /// <summary>True from the moment the print dialog opens until its job has been handed over.</summary>
+    private bool _printing;
+
+    /// <summary>
+    /// A finished print job waiting to be reported. The job ends on a worker thread, and the
+    /// status line is the UI thread's, so the result is parked here and picked up by the next
+    /// frame rather than shown from where it arrived.
+    /// </summary>
+    private Task<UiPrintResult>? _finishedPrint;
 
     /// <summary>
     /// Depth of the loads that are currently replacing the document wholesale. The editor raises
@@ -129,6 +145,7 @@ internal sealed class WriterApp : IDisposable
 
     private static readonly BSize FileDialogPreferredSize = new(820, 520);
     private static readonly BSize FontDialogPreferredSize = new(560, 384);
+    private static readonly BSize PrintDialogPreferredSize = new(760, 520);
     private static readonly UiFileDialogFilter[] OpenPictureFileFilters =
     [
         new("Images", "*.png;*.jpg;*.jpeg;*.gif;*.bmp;*.webp", ".png"),
@@ -147,6 +164,10 @@ internal sealed class WriterApp : IDisposable
     /// <summary>The application's own name, which the window caption ends with.</summary>
     private const string ApplicationName = "Broiler Writer";
 
+    /// <param name="printHost">
+    /// How this head prints, or null where it cannot: File, Print and Ctrl+P are then
+    /// unavailable rather than failing.
+    /// </param>
     /// <param name="documentFormats">
     /// The formats this Writer offers. Null composes
     /// <see cref="WriterDocumentFormats.CreateDefault"/> — the RTF, DOCX, ODT,
@@ -162,9 +183,11 @@ internal sealed class WriterApp : IDisposable
         bool compactMode = false,
         WriterDocumentFormats? documentFormats = null,
         Action<string>? setWindowTitle = null,
-        Action<bool>? setTicking = null)
+        Action<bool>? setTicking = null,
+        IUiPrintHost? printHost = null)
     {
         _host = host ?? throw new ArgumentNullException(nameof(host));
+        _printHost = printHost;
         _requestClose = requestClose ?? throw new ArgumentNullException(nameof(requestClose));
         _requestOpenDocument = requestOpenDocument;
         _requestSaveDocument = requestSaveDocument;
@@ -356,6 +379,9 @@ internal sealed class WriterApp : IDisposable
     /// <summary>The most recent status-bar line, which is where a refused open is reported.</summary>
     internal string LastAction => _lastAction;
 
+    /// <summary>The last thing that went wrong, or null.</summary>
+    internal string? Problem => _problem;
+
     /// <summary>The size the document is being read at, which nothing but the view depends on.</summary>
     internal double Zoom => _zoom;
 
@@ -368,7 +394,17 @@ internal sealed class WriterApp : IDisposable
     /// <summary>The document surface, so a test can type into it and read back where it sits.</summary>
     internal StandardRichEdit Editor => _editor;
 
-    public BRenderList RenderFrame() => _session.RenderFrame();
+    /// <summary>True when this head can print, so File, Print and Ctrl+P are offered.</summary>
+    internal bool CanPrint => _printHost is not null;
+
+    /// <summary>True while a print dialog is open or its job is being handed to the printer.</summary>
+    internal bool IsPrinting => _printing;
+
+    public BRenderList RenderFrame()
+    {
+        ReportFinishedPrint();
+        return _session.RenderFrame();
+    }
 
     public void Dispatch(UiInputEvent input)
     {
@@ -381,6 +417,14 @@ internal sealed class WriterApp : IDisposable
 
         if (HandleFormattingCodesShortcut(input))
         {
+            _host.RequestInvalidate();
+            return;
+        }
+
+        if (input.Kind == UiInputEventKind.KeyboardKey &&
+            WriterPrintShortcut.IsPrint(input.KeyName, input.NativeKeyCode, input.KeyModifiers, input.KeyTransition == KeyboardKeyTransition.Down))
+        {
+            ShowPrintDialog();
             _host.RequestInvalidate();
             return;
         }
@@ -524,6 +568,7 @@ internal sealed class WriterApp : IDisposable
         dispatcher.Add(new StandardCommand("file.open", ShowOpenDialog));
         dispatcher.Add(new StandardCommand("file.save", SaveDocument));
         dispatcher.Add(new StandardCommand("file.save-as", ShowSaveDialog));
+        dispatcher.Add(new StandardCommand("file.print", ShowPrintDialog, () => _printHost is not null && !_printing));
         dispatcher.Add(new StandardCommand("file.exit", RequestClose));
         dispatcher.Add(new StandardCommand("insert.picture", ShowInsertPictureDialog));
         dispatcher.Add(new StandardCommand("view.formatting-codes", ToggleFormattingCodes));
@@ -558,6 +603,7 @@ internal sealed class WriterApp : IDisposable
         file.Children.Add(new UiMenuItem("open", "Open...") { CommandName = "file.open", AccessKey = 'O' });
         file.Children.Add(new UiMenuItem("save", "Save") { CommandName = "file.save", AccessKey = 'S' });
         file.Children.Add(new UiMenuItem("save-as", "Save as...") { CommandName = "file.save-as", AccessKey = 'A' });
+        file.Children.Add(new UiMenuItem("print", "Print...") { CommandName = "file.print", AccessKey = 'P', Accelerator = "Ctrl+P" });
         file.Children.Add(new UiMenuItem("exit", "Exit") { CommandName = "file.exit", AccessKey = 'X' });
 
         var edit = new UiMenuItem("edit", "Edit") { AccessKey = 'E' };
@@ -1373,6 +1419,104 @@ internal sealed class WriterApp : IDisposable
         dialog.ShowModal(_rootWindow, GetFontDialogPlacement());
         _lastAction = "Notes for " + _lastReadFileName;
         RefreshUi();
+    }
+
+    /// <summary>
+    /// Prints the document as it stands: laid out on its own page by
+    /// <see cref="DocumentPaginator"/>, chosen and previewed in the print dialog - or in the
+    /// platform's own print UI where there is one - and handed to the head's print host.
+    /// </summary>
+    private void ShowPrintDialog()
+    {
+        if (_printHost is null)
+        {
+            _lastAction = "Printing is not available here";
+            RefreshUi();
+            return;
+        }
+
+        if (_printing)
+            return;
+
+        var paginator = new DocumentPaginator(DocumentPaginator.CreateDefaultSettings() with
+        {
+            // A run that names no family is drawn on screen in the editor's; it prints in it too.
+            DefaultFontFamily = _editor.Font.FamilyName,
+        });
+        var document = new RichTextPagedDocument(_editor.Document, _documentName, paginator);
+
+        Task<UiPrintResult> printing;
+        try
+        {
+            printing = UiPrintDialog.PrintAsync(_printHost, document, CreatePrintDialog, _rootWindow, GetPrintDialogPlacement());
+        }
+        catch (Exception exception) when (exception is not OutOfMemoryException)
+        {
+            _problem = "Could not print: " + exception.Message;
+            RefreshUi();
+            return;
+        }
+
+        _printing = true;
+        _lastAction = "Print";
+        RefreshUi();
+        printing.ContinueWith(task =>
+        {
+            Volatile.Write(ref _finishedPrint, task);
+            _host.RequestInvalidate();
+        }, CancellationToken.None, TaskContinuationOptions.ExecuteSynchronously, TaskScheduler.Default);
+    }
+
+    private UiPrintDialog CreatePrintDialog() =>
+        new StandardPrintDialog
+        {
+            PreferredSize = PrintDialogPreferredSize,
+            TitleFont = new BFontStyle("Segoe UI", 14, BFontWeight.SemiBold),
+            LabelFont = new BFontStyle("Segoe UI", 13),
+        };
+
+    /// <summary>Shows on the status line how the last print job ended.</summary>
+    private void ReportFinishedPrint()
+    {
+        Task<UiPrintResult>? finished = Interlocked.Exchange(ref _finishedPrint, null);
+        if (finished is null)
+            return;
+
+        _printing = false;
+        if (finished.IsFaulted)
+        {
+            _problem = "Could not print: " + (finished.Exception?.GetBaseException().Message ?? "the job failed");
+            RefreshUi();
+            return;
+        }
+
+        UiPrintResult result = finished.IsCanceled ? UiPrintResult.Cancelled : finished.Result;
+        switch (result.Outcome)
+        {
+            case UiPrintOutcome.Printed:
+                _lastAction = result.PagesPrinted == 1
+                    ? "Printed 1 page"
+                    : "Printed " + result.PagesPrinted.ToString(CultureInfo.CurrentCulture) + " pages";
+                break;
+            case UiPrintOutcome.Cancelled:
+                _lastAction = "Printing cancelled";
+                break;
+            default:
+                _problem = "Could not print: " + (result.Message ?? "the printer refused the job");
+                break;
+        }
+
+        RefreshUi();
+    }
+
+    private BRect GetPrintDialogPlacement()
+    {
+        BSize viewport = _host.ViewportSize;
+        double width = PrintDialogPreferredSize.Width;
+        double height = PrintDialogPreferredSize.Height;
+        double x = Math.Max(12, (viewport.Width - width) / 2);
+        double y = Math.Max(42, (viewport.Height - height) / 2);
+        return new BRect(x, y, Math.Min(width, Math.Max(420, viewport.Width - 24)), Math.Min(height, Math.Max(320, viewport.Height - 64)));
     }
 
     private void ShowAbout()

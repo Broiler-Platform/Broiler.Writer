@@ -27,6 +27,7 @@
     <PackageReference Include="Broiler.Documents.Html" />
     <PackageReference Include="Broiler.Documents.Markdown" />
     <PackageReference Include="Broiler.Documents.Odt" />
+    <PackageReference Include="Broiler.Documents.Pagination" />
     <PackageReference Include="Broiler.Documents.Rtf" />
     <PackageReference Include="Broiler.UI.AboutDialog" />
     <PackageReference Include="Broiler.UI.AboutDialog.Standard" />
@@ -40,6 +41,7 @@
     <PackageReference Include="Broiler.UI.FormatCodeView.Standard" />
     <PackageReference Include="Broiler.UI.Label.Standard" />
     <PackageReference Include="Broiler.UI.Menu.Standard" />
+    <PackageReference Include="Broiler.UI.PrintDialog.Standard" />
     <PackageReference Include="Broiler.UI.RichEdit" />
     <PackageReference Include="Broiler.UI.RichEdit.Standard" />
     <PackageReference Include="Broiler.UI.Splitter.Standard" />
