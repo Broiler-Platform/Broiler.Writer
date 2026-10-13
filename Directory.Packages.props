@@ -16,12 +16,12 @@
     <BroilerInputVersion>0.1.0-preview.5</BroilerInputVersion>
     <BroilerMediaVersion>0.1.0-preview.14</BroilerMediaVersion>
     <BroilerUiVersion>0.1.0-preview.18</BroilerUiVersion>
-    <!-- Printing: the print dialog and preview are in Broiler.UI 0.1.0-preview.21, the paginator in
-         Broiler.Documents 0.1.0-preview.23, the page model in Broiler.Graphics 0.1.0-preview.13 and
+    <!-- Printing: the print dialog and preview are in Broiler.UI 0.1.0-preview.22, the paginator in
+         Broiler.Documents 0.1.0-preview.25, the page model in Broiler.Graphics 0.1.0-preview.13 and
          the print hosts in Broiler.Hosting 0.1.0-preview.10. Properties, so a build against local
          packs can name them. -->
-    <BroilerUiPackageVersion Condition="'$(BroilerUiPackageVersion)' == ''">0.1.0-preview.21</BroilerUiPackageVersion>
-    <BroilerDocumentsPackageVersion Condition="'$(BroilerDocumentsPackageVersion)' == ''">0.1.0-preview.23</BroilerDocumentsPackageVersion>
+    <BroilerUiPackageVersion Condition="'$(BroilerUiPackageVersion)' == ''">0.1.0-preview.22</BroilerUiPackageVersion>
+    <BroilerDocumentsPackageVersion Condition="'$(BroilerDocumentsPackageVersion)' == ''">0.1.0-preview.25</BroilerDocumentsPackageVersion>
     <BroilerGraphicsPackageVersion Condition="'$(BroilerGraphicsPackageVersion)' == ''">0.1.0-preview.13</BroilerGraphicsPackageVersion>
     <BroilerHostingPackageVersion Condition="'$(BroilerHostingPackageVersion)' == ''">0.1.0-preview.10</BroilerHostingPackageVersion>
   </PropertyGroup>
