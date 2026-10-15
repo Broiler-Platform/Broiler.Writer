@@ -21,7 +21,7 @@
          the print hosts in Broiler.Hosting 0.1.0-preview.10. Properties, so a build against local
          packs can name them. -->
     <BroilerUiPackageVersion Condition="'$(BroilerUiPackageVersion)' == ''">0.1.0-preview.22</BroilerUiPackageVersion>
-    <BroilerDocumentsPackageVersion Condition="'$(BroilerDocumentsPackageVersion)' == ''">0.1.0-preview.25</BroilerDocumentsPackageVersion>
+    <BroilerDocumentsPackageVersion Condition="'$(BroilerDocumentsPackageVersion)' == ''">0.1.0-preview.26</BroilerDocumentsPackageVersion>
     <BroilerGraphicsPackageVersion Condition="'$(BroilerGraphicsPackageVersion)' == ''">0.1.0-preview.13</BroilerGraphicsPackageVersion>
     <BroilerHostingPackageVersion Condition="'$(BroilerHostingPackageVersion)' == ''">0.1.0-preview.10</BroilerHostingPackageVersion>
   </PropertyGroup>
