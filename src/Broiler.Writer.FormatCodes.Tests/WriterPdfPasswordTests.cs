@@ -25,7 +25,7 @@ public sealed class WriterPdfPasswordTests
     private const int AllPermissions = -4;
     private const int NoCopying = -4 & ~(1 << 4);
 
-    [Fact(Timeout = 600000)]
+    [Fact]
     public void A_Password_Protected_Pdf_Asks_For_Its_Password()
     {
         using WriterApp app = WriterPdfFormatTests.CreateApp(WriterPdfFormatTests.DesktopFormats());
@@ -41,7 +41,7 @@ public sealed class WriterPdfPasswordTests
         Assert.Equal("Password needed to open locked.pdf", app.LastAction);
     }
 
-    [Fact(Timeout = 600000)]
+    [Fact]
     public void The_Right_Password_Opens_It()
     {
         using WriterApp app = WriterPdfFormatTests.CreateApp(WriterPdfFormatTests.DesktopFormats());
@@ -55,7 +55,7 @@ public sealed class WriterPdfPasswordTests
         Assert.Contains(app.LastReadDiagnostics, d => d.Code == PdfDiagnosticCodes.EncryptionDecrypted);
     }
 
-    [Fact(Timeout = 600000)]
+    [Fact]
     public void The_Dialog_Opens_The_Document_With_What_Was_Typed()
     {
         // The dialog's own Open closes it before the answer is read, and closing
@@ -72,7 +72,7 @@ public sealed class WriterPdfPasswordTests
         Assert.Contains(Body, app.Document.PlainText, StringComparison.Ordinal);
     }
 
-    [Fact(Timeout = 600000)]
+    [Fact]
     public void Escape_Cancels_Like_The_Cancel_Button()
     {
         using WriterApp app = WriterPdfFormatTests.CreateApp(WriterPdfFormatTests.DesktopFormats());
@@ -86,7 +86,7 @@ public sealed class WriterPdfPasswordTests
         Assert.StartsWith("Did not open locked.pdf", app.LastAction, StringComparison.Ordinal);
     }
 
-    [Fact(Timeout = 600000)]
+    [Fact]
     public void A_Wrong_Password_Asks_Again_Until_The_Right_One()
     {
         using WriterApp app = WriterPdfFormatTests.CreateApp(WriterPdfFormatTests.DesktopFormats());
@@ -104,7 +104,7 @@ public sealed class WriterPdfPasswordTests
         Assert.Contains(Body, app.Document.PlainText, StringComparison.Ordinal);
     }
 
-    [Fact(Timeout = 600000)]
+    [Fact]
     public void Cancelling_Leaves_The_Open_Document_Alone()
     {
         using WriterApp app = WriterPdfFormatTests.CreateApp(WriterPdfFormatTests.DesktopFormats());
@@ -120,7 +120,7 @@ public sealed class WriterPdfPasswordTests
             app.LastAction);
     }
 
-    [Fact(Timeout = 600000)]
+    [Fact]
     public void A_Pdf_That_Withholds_Copying_Asks_For_Its_Owner_Password()
     {
         using WriterApp app = WriterPdfFormatTests.CreateApp(WriterPdfFormatTests.DesktopFormats());
@@ -135,7 +135,7 @@ public sealed class WriterPdfPasswordTests
         Assert.Contains(Body, app.Document.PlainText, StringComparison.Ordinal);
     }
 
-    [Fact(Timeout = 600000)]
+    [Fact]
     public void A_Pdf_Protected_Only_By_Its_Permissions_Opens_Without_Asking()
     {
         using WriterApp app = WriterPdfFormatTests.CreateApp(WriterPdfFormatTests.DesktopFormats());
@@ -146,7 +146,7 @@ public sealed class WriterPdfPasswordTests
         Assert.Contains(Body, app.Document.PlainText, StringComparison.Ordinal);
     }
 
-    [Fact(Timeout = 600000)]
+    [Fact]
     public void A_Head_Without_Password_Support_Refuses_As_Before()
     {
         WriterDocumentFormats formats = WriterDocumentFormats.CreateDefault().With(
@@ -160,7 +160,7 @@ public sealed class WriterPdfPasswordTests
         Assert.Contains("user password", app.LastAction, StringComparison.Ordinal);
     }
 
-    [Fact(Timeout = 600000)]
+    [Fact]
     public void A_Stream_That_Cannot_Be_Rewound_Is_Refused_Rather_Than_Prompted()
     {
         // The caller's stream is gone by the time a password is typed, so it has
@@ -174,7 +174,7 @@ public sealed class WriterPdfPasswordTests
         Assert.Contains("Could not open locked.pdf", app.LastAction, StringComparison.Ordinal);
     }
 
-    [Fact(Timeout = 600000)]
+    [Fact]
     public void The_Password_Reaches_No_Status_And_No_Note()
     {
         using WriterApp app = WriterPdfFormatTests.CreateApp(WriterPdfFormatTests.DesktopFormats());
@@ -188,7 +188,7 @@ public sealed class WriterPdfPasswordTests
         Assert.All(app.LastReadDiagnostics, d => Assert.DoesNotContain("Needle", d.Message, StringComparison.Ordinal));
     }
 
-    [Fact(Timeout = 600000)]
+    [Fact]
     public void A_Prompt_Takes_One_Answer()
     {
         var answers = new List<string>();
@@ -205,7 +205,7 @@ public sealed class WriterPdfPasswordTests
         Assert.Equal(new[] { "submit:first" }, answers);
     }
 
-    [Theory(Timeout = 600000)]
+    [Theory]
     [InlineData(WriterPasswordReason.Required, "is protected by a password")]
     [InlineData(WriterPasswordReason.Incorrect, "That password did not open")]
     [InlineData(WriterPasswordReason.OwnerRequired, "owner password")]
@@ -214,7 +214,7 @@ public sealed class WriterPdfPasswordTests
         Assert.Contains(expected, WriterPasswordPrompt.Describe(reason, "locked.pdf"), StringComparison.Ordinal);
     }
 
-    [Fact(Timeout = 600000)]
+    [Fact]
     public void The_Desktop_Composition_Hands_The_Password_To_The_Pdf_Reader()
     {
         WriterPasswordSupport passwords = WriterPdfFormatTests.DesktopPdfPasswords();

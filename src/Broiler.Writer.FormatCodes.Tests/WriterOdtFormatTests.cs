@@ -22,7 +22,7 @@ namespace Broiler.Writer.FormatCodes.Tests;
 /// </remarks>
 public sealed class WriterOdtFormatTests
 {
-    [Fact(Timeout = 600000)]
+    [Fact]
     public void Every_Head_Carries_Odt_For_Opening_And_Saving()
     {
         WriterDocumentFormats formats = WriterDocumentFormats.CreateDefault();
@@ -34,7 +34,7 @@ public sealed class WriterOdtFormatTests
         Assert.Contains(".odt", formats.DescribeSaveExtensions());
     }
 
-    [Fact(Timeout = 600000)]
+    [Fact]
     public void Rtf_Is_Still_The_Extension_An_Unnamed_Save_Completes_With()
     {
         // DefaultExtension is the first savable format's extension, so inserting
@@ -42,7 +42,7 @@ public sealed class WriterOdtFormatTests
         Assert.Equal(".rtf", WriterDocumentFormats.CreateDefault().DefaultExtension);
     }
 
-    [Fact(Timeout = 600000)]
+    [Fact]
     public void Opens_An_Odt_Through_The_Registered_Codec()
     {
         using WriterApp app = CreateApp();
@@ -55,7 +55,7 @@ public sealed class WriterOdtFormatTests
         Assert.Contains("Prepared by the Writer.", text, StringComparison.Ordinal);
     }
 
-    [Fact(Timeout = 600000)]
+    [Fact]
     public void An_Odt_Is_Recognized_By_Its_Content_Without_The_Filename()
     {
         // ODF puts an uncompressed `mimetype` first in the package for exactly
@@ -68,7 +68,7 @@ public sealed class WriterOdtFormatTests
         Assert.Contains("Recognized by content", app.Document.PlainText, StringComparison.Ordinal);
     }
 
-    [Fact(Timeout = 600000)]
+    [Fact]
     public void Saves_An_Odt_The_Codec_Can_Read_Back()
     {
         using WriterApp app = CreateApp();

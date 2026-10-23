@@ -22,7 +22,7 @@ public sealed class WriterFormatCodesHostPolicyTests
         Assert.Equal(height, result.EditorHeight + result.SplitterHeight + result.PaneHeight, 2);
     }
 
-    [Fact(Timeout = 600000)]
+    [Fact]
     public void Hidden_Layout_Gives_All_Space_To_Editor()
     {
         WriterFormatCodesLayoutResult result = WriterFormatCodesLayout.Calculate(420, 0.68, false);
@@ -30,7 +30,7 @@ public sealed class WriterFormatCodesHostPolicyTests
         Assert.Equal(new WriterFormatCodesLayoutResult(420, 0, 0), result);
     }
 
-    [Fact(Timeout = 600000)]
+    [Fact]
     public void Desktop_And_Browser_Share_Toggle_And_Focus_Shortcut_Policy()
     {
         KeyboardModifierState toggle = KeyboardModifierState.Control | KeyboardModifierState.Shift;
