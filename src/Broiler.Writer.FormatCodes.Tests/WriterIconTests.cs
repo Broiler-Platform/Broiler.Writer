@@ -50,7 +50,7 @@ public sealed class WriterIconTests
         ["Outdent"] = WriterIcons.Outdent,
     };
 
-    [Theory(Timeout = 600000)]
+    [Theory]
     [MemberData(nameof(IconNames))]
     public void Every_Icon_Draws_Something(string name)
     {
@@ -61,7 +61,7 @@ public sealed class WriterIconTests
         list.Validate();
     }
 
-    [Theory(Timeout = 600000)]
+    [Theory]
     [MemberData(nameof(IconNames))]
     public void Every_Icon_Stays_Inside_The_Box_It_Was_Given(string name)
     {
@@ -80,7 +80,7 @@ public sealed class WriterIconTests
         }
     }
 
-    [Theory(Timeout = 600000)]
+    [Theory]
     [MemberData(nameof(IconNames))]
     public void Every_Icon_Uses_Only_The_Colour_It_Was_Given(string name)
     {
@@ -94,7 +94,7 @@ public sealed class WriterIconTests
             Assert.Equal(ink, used);
     }
 
-    [Theory(Timeout = 600000)]
+    [Theory]
     [MemberData(nameof(IconNames))]
     public void Every_Icon_Scales_With_Its_Box(string name)
     {
@@ -112,7 +112,7 @@ public sealed class WriterIconTests
             $"{name} did not grow with its box: {smallBounds.Width} then {largeBounds.Width}.");
     }
 
-    [Fact(Timeout = 600000)]
+    [Fact]
     public void The_Application_Mark_Rasterises_To_Something_A_Window_Manager_Can_Use()
     {
         BPixelBuffer icon = WriterIcons.RenderAppIcon(64, BColor.White, BColor.Blue, BColor.Black);

@@ -39,7 +39,7 @@ public sealed class WriterToolbarOverflowTests
     /// </summary>
     private const double PickerOverflowWidth = 340;
 
-    [Fact(Timeout = 600000)]
+    [Fact]
     public void The_Bar_Overflows_Rather_Than_Clipping()
     {
         using WriterApp app = CreateApp();
@@ -49,7 +49,7 @@ public sealed class WriterToolbarOverflowTests
         Assert.NotEmpty(app.Toolbar.OverflowItems);
     }
 
-    [Fact(Timeout = 600000)]
+    [Fact]
     public void Nothing_Left_On_The_Bar_Is_Drawn_Past_Its_Edge()
     {
         using WriterApp app = CreateApp();
@@ -70,7 +70,7 @@ public sealed class WriterToolbarOverflowTests
         }
     }
 
-    [Fact(Timeout = 600000)]
+    [Fact]
     public void Every_Control_Is_Either_On_The_Bar_Or_In_The_Drop_Down()
     {
         using WriterApp app = CreateApp();
@@ -87,7 +87,7 @@ public sealed class WriterToolbarOverflowTests
         }
     }
 
-    [Fact(Timeout = 600000)]
+    [Fact]
     public void The_Overflowed_Commands_Are_Reachable_Through_The_Chevron()
     {
         using WriterApp app = CreateApp();
@@ -103,7 +103,7 @@ public sealed class WriterToolbarOverflowTests
         Assert.Contains(app.Toolbar.OverflowItems, item => IsLabelled(app, item, "Outdent"));
     }
 
-    [Fact(Timeout = 600000)]
+    [Fact]
     public void A_Command_Chosen_From_The_Drop_Down_Runs_And_Shuts_It()
     {
         using WriterApp app = CreateApp();
@@ -119,7 +119,7 @@ public sealed class WriterToolbarOverflowTests
         Assert.Equal("Indent", app.LastAction);
     }
 
-    [Fact(Timeout = 600000)]
+    [Fact]
     public void A_Window_Wide_Enough_For_Everything_Shows_No_Chevron()
     {
         using WriterApp app = CreateApp(WindowsHeadWidth, WindowsHeadHeight);
@@ -130,7 +130,7 @@ public sealed class WriterToolbarOverflowTests
         Assert.Contains(app.Toolbar.Children, child => IsOnTheBar(app, child, "Outdent"));
     }
 
-    [Fact(Timeout = 600000)]
+    [Fact]
     public void The_Zoom_Picker_Still_Works_From_Inside_The_Drop_Down()
     {
         // Narrow enough that the zoom group overflows too. The picker has a list

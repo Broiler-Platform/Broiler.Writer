@@ -23,7 +23,7 @@ namespace Broiler.Writer.FormatCodes.Tests;
 /// </remarks>
 public sealed class WriterShellTests
 {
-    [Fact(Timeout = 600000)]
+    [Fact]
     public void A_Fresh_Document_Names_Itself_In_The_Caption()
     {
         using WriterApp app = CreateApp();
@@ -33,7 +33,7 @@ public sealed class WriterShellTests
         Assert.Equal("Untitled document — Broiler Writer", app.WindowTitle);
     }
 
-    [Fact(Timeout = 600000)]
+    [Fact]
     public void The_Caption_Reaches_The_Head_That_Owns_The_Window()
     {
         string? lastTitle = null;
@@ -44,7 +44,7 @@ public sealed class WriterShellTests
         Assert.Equal("report.rtf — Broiler Writer", lastTitle);
     }
 
-    [Fact(Timeout = 600000)]
+    [Fact]
     public void Opening_A_Document_Does_Not_Mark_It_Modified()
     {
         using WriterApp app = CreateApp();
@@ -58,7 +58,7 @@ public sealed class WriterShellTests
         Assert.DoesNotContain("•", app.WindowTitle);
     }
 
-    [Fact(Timeout = 600000)]
+    [Fact]
     public void Editing_Marks_The_Document_And_The_Caption()
     {
         using WriterApp app = CreateApp();
@@ -70,7 +70,7 @@ public sealed class WriterShellTests
         Assert.Equal("• report.rtf — Broiler Writer", app.WindowTitle);
     }
 
-    [Fact(Timeout = 600000)]
+    [Fact]
     public void Saving_Clears_The_Mark()
     {
         using WriterApp app = CreateApp();
@@ -85,7 +85,7 @@ public sealed class WriterShellTests
         Assert.Equal("report.rtf — Broiler Writer", app.WindowTitle);
     }
 
-    [Fact(Timeout = 600000)]
+    [Fact]
     public void The_Status_Line_Is_Two_Halves_And_Not_Seven_Segments()
     {
         using WriterApp app = CreateApp();
@@ -100,7 +100,7 @@ public sealed class WriterShellTests
         Assert.DoesNotContain(drawn, text => text.Contains(" | ", StringComparison.Ordinal));
     }
 
-    [Fact(Timeout = 600000)]
+    [Fact]
     public void A_Failed_Save_Still_Gets_Said()
     {
         using WriterApp app = CreateApp();
@@ -115,7 +115,7 @@ public sealed class WriterShellTests
         Assert.Contains(DrawnText(app), text => text.Contains(app.LastAction, StringComparison.Ordinal));
     }
 
-    [Fact(Timeout = 600000)]
+    [Fact]
     public void A_Problem_Retires_Once_The_Next_Open_Succeeds()
     {
         using WriterApp app = CreateApp();
@@ -127,7 +127,7 @@ public sealed class WriterShellTests
         Assert.DoesNotContain(DrawnText(app), text => text.Contains("Save failed", StringComparison.Ordinal));
     }
 
-    [Fact(Timeout = 600000)]
+    [Fact]
     public void The_Formatting_Codes_Pane_Is_Headed_And_Goes_Away_Whole()
     {
         using WriterApp app = CreateApp();
@@ -140,7 +140,7 @@ public sealed class WriterShellTests
         Assert.DoesNotContain("Formatting Codes", DrawnText(app));
     }
 
-    [Fact(Timeout = 600000)]
+    [Fact]
     public void The_Document_Starts_Directly_Under_The_Toolbar()
     {
         using WriterApp app = CreateApp();
@@ -151,7 +151,7 @@ public sealed class WriterShellTests
         Assert.InRange(gap, 0, 20);
     }
 
-    [Fact(Timeout = 600000)]
+    [Fact]
     public void Resting_On_An_Icon_Button_Asks_For_A_Tick_And_Then_Shows_A_Tip()
     {
         using WriterApp app = CreateApp();
@@ -169,7 +169,7 @@ public sealed class WriterShellTests
         Assert.True(app.WantsTick);
     }
 
-    [Fact(Timeout = 600000)]
+    [Fact]
     public void The_Compact_Bar_Builds_And_Groups_Only_What_It_Carries()
     {
         // Android is the only head that builds this, and no other test runs its code path: a

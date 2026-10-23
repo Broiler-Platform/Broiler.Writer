@@ -20,7 +20,7 @@ public sealed class WriterPictureEncodingTests
     // is made of, and straight alpha is what has to survive.
     private static readonly byte[] Samples = [255, 0, 0, 255, 0, 64, 255, 128];
 
-    [Fact(Timeout = 600000)]
+    [Fact]
     public void A_Decoded_Picture_Is_Encoded_As_Png_Without_Losing_A_Sample()
     {
         (RichTextDocument document, DocumentConversionContextBuilder resources) = DocumentWith(DocumentResourcePolicy.AllowOwnDocuments);
@@ -47,7 +47,7 @@ public sealed class WriterPictureEncodingTests
         Assert.True(resources.Build().IsAllowed(picture.ResourceId, DocumentResourceOperations.ByteTransfer, picture.Resource));
     }
 
-    [Fact(Timeout = 600000)]
+    [Fact]
     public void A_Picture_Saved_Twice_Is_Encoded_Once()
     {
         (RichTextDocument document, DocumentConversionContextBuilder resources) = DocumentWith(DocumentResourcePolicy.AllowOwnDocuments, twice: true);
@@ -65,7 +65,7 @@ public sealed class WriterPictureEncodingTests
         Assert.Equal(2, resources.Build().Entries.Count);
     }
 
-    [Fact(Timeout = 600000)]
+    [Fact]
     public void Without_Leave_To_Transform_The_Picture_Is_Left_For_The_Writer_To_Report()
     {
         // The read default puts a picture in the model and grants nothing that
@@ -80,7 +80,7 @@ public sealed class WriterPictureEncodingTests
         Assert.Single(resources.Build().Entries);
     }
 
-    [Fact(Timeout = 600000)]
+    [Fact]
     public void A_Picture_That_Already_Has_Bytes_Is_Left_As_It_Is()
     {
         var resources = new DocumentConversionContextBuilder(DocumentResourcePolicy.AllowOwnDocuments);

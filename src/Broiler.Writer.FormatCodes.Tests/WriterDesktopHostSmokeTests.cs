@@ -10,7 +10,7 @@ namespace Broiler.Writer.FormatCodes.Tests;
 
 public sealed class WriterDesktopHostSmokeTests
 {
-    [Fact(Timeout = 600000)]
+    [Fact]
     public void Desktop_Host_Renders_Toggles_And_Cycles_Focus()
     {
         var host = new Broiler.Writer.WriterUiHost(
@@ -35,7 +35,7 @@ public sealed class WriterDesktopHostSmokeTests
         Assert.True(restored.Count > 0);
     }
 
-    [Fact(Timeout = 600000)]
+    [Fact]
     public void The_Toolbar_Offers_Justify_Beside_The_Other_Alignments()
     {
         var host = new Broiler.Writer.WriterUiHost(

@@ -28,7 +28,7 @@ namespace Broiler.Writer.FormatCodes.Tests;
 /// </summary>
 public sealed class WriterPdfFormatTests
 {
-    [Fact(Timeout = 600000)]
+    [Fact]
     public void The_Shared_Default_Formats_Do_Not_Carry_Pdf()
     {
         // The guard behind "Android and WebAssembly cannot acquire PDF
@@ -42,7 +42,7 @@ public sealed class WriterPdfFormatTests
         Assert.DoesNotContain(formats.CreateSaveFilters(), FilterMentionsPdf);
     }
 
-    [Fact(Timeout = 600000)]
+    [Fact]
     public void Registering_Pdf_Offers_It_For_Opening_Only()
     {
         WriterDocumentFormats formats = DesktopFormats();
@@ -56,7 +56,7 @@ public sealed class WriterPdfFormatTests
         Assert.DoesNotContain(".pdf", formats.DescribeSaveExtensions());
     }
 
-    [Fact(Timeout = 600000)]
+    [Fact]
     public void A_Writer_Composed_Without_A_Format_Set_Gets_The_Default_One()
     {
         using WriterApp bare = CreateApp();
@@ -66,7 +66,7 @@ public sealed class WriterPdfFormatTests
         Assert.Contains(desktop.DocumentFormats.Formats, format => format.MatchesExtension(".pdf"));
     }
 
-    [Fact(Timeout = 600000)]
+    [Fact]
     public void Registering_A_Format_For_Saving_Needs_A_Codec_That_Writes()
     {
         // PdfDocumentCodec does implement writing, so this is the check that the
@@ -83,7 +83,7 @@ public sealed class WriterPdfFormatTests
         ]));
     }
 
-    [Fact(Timeout = 600000)]
+    [Fact]
     public void Opens_A_Pdf_Through_The_Registered_Codec()
     {
         using WriterApp app = CreateApp(DesktopFormats());
@@ -96,7 +96,7 @@ public sealed class WriterPdfFormatTests
         Assert.Contains("Prepared by the Writer.", text, StringComparison.Ordinal);
     }
 
-    [Fact(Timeout = 600000)]
+    [Fact]
     public void A_Head_That_Did_Not_Register_Pdf_Refuses_One()
     {
         using WriterApp app = CreateApp();
@@ -111,7 +111,7 @@ public sealed class WriterPdfFormatTests
         Assert.Contains("The open document is unchanged.", app.LastAction, StringComparison.Ordinal);
     }
 
-    [Fact(Timeout = 600000)]
+    [Fact]
     public void A_Rejected_Read_Leaves_The_Open_Document_Alone()
     {
         using WriterApp app = CreateApp(DesktopFormats());
@@ -129,7 +129,7 @@ public sealed class WriterPdfFormatTests
         Assert.Contains("The open document is unchanged.", app.LastAction, StringComparison.Ordinal);
     }
 
-    [Fact(Timeout = 600000)]
+    [Fact]
     public void A_Partial_Read_That_Recovered_No_Text_Is_Not_Committed()
     {
         // The shape a scanned PDF produces: the file parsed, every page carried
@@ -151,7 +151,7 @@ public sealed class WriterPdfFormatTests
         Assert.True(WriterApp.MayReplaceDocument(new DocumentReadResult(RichTextDocument.Empty)));
     }
 
-    [Fact(Timeout = 600000)]
+    [Fact]
     public void A_Partial_Open_Is_Never_Reported_As_A_Clean_One()
     {
         string status = WriterApp.DescribeOpen(
@@ -164,7 +164,7 @@ public sealed class WriterPdfFormatTests
         Assert.Equal("Opened report.pdf with 1 note(s); parts of it were skipped or approximated", status);
     }
 
-    [Fact(Timeout = 600000)]
+    [Fact]
     public void Saving_As_Pdf_Is_Refused_Even_Where_Pdf_Opens()
     {
         using WriterApp app = CreateApp(DesktopFormats());
@@ -176,7 +176,7 @@ public sealed class WriterPdfFormatTests
         Assert.Contains("Unsupported save format '.pdf'", app.LastAction, StringComparison.Ordinal);
     }
 
-    [Fact(Timeout = 600000)]
+    [Fact]
     public void The_Formats_Still_Save_Every_Format_They_Advertise()
     {
         WriterDocumentFormats formats = DesktopFormats();
@@ -240,7 +240,7 @@ public sealed class WriterPdfFormatTests
                     .WithCredentials(PdfDecryptionCredentials.FromPassword(password)));
 
 
-    [Fact(Timeout = 600000)]
+    [Fact]
     public void The_Desktop_Composition_Decodes_Jpeg_And_Nothing_Else()
     {
         PdfCodecServices desktop = DesktopPdfServices();
@@ -262,7 +262,7 @@ public sealed class WriterPdfFormatTests
         Assert.False(PdfCodecServices.Base.SupportsFilter(PdfFilterNames.Dct));
     }
 
-    [Fact(Timeout = 600000)]
+    [Fact]
     public void The_Desktop_Composition_Admits_Http_And_Mailto_Links()
     {
         PdfUriPolicy policy = DesktopPdfServices().UriPolicy;
@@ -289,7 +289,7 @@ public sealed class WriterPdfFormatTests
         Assert.True(PdfUriPolicy.Default.IsAdmitted("https://example.org/docs"));
     }
 
-    [Fact(Timeout = 600000)]
+    [Fact]
     public void The_Desktop_Composition_Inspects_Embedded_Font_Programs()
     {
         // The codec discovers nothing: a reader is present only because a head
@@ -301,7 +301,7 @@ public sealed class WriterPdfFormatTests
         Assert.Null(PdfCodecServices.Base.FontProgramReader);
     }
 
-    [Fact(Timeout = 600000)]
+    [Fact]
     public void A_Jpeg_In_A_Pdf_Reaches_The_Document()
     {
         // What composing the decoder is for, and what it did not do before the
@@ -324,7 +324,7 @@ public sealed class WriterPdfFormatTests
             d => d.Code == "pdf.image.dct.tuple-unsupported" || d.Code == "pdf.image.not-composed");
     }
 
-    [Fact(Timeout = 600000)]
+    [Fact]
     public void Without_The_Decoder_The_Same_File_Reports_Instead()
     {
         // The other half of the boundary. The base graph composes no image
@@ -348,7 +348,7 @@ public sealed class WriterPdfFormatTests
         Assert.Contains("32x16 8bpc DeviceRGB DCTDecode", skipped.Message, StringComparison.Ordinal);
     }
 
-    [Fact(Timeout = 600000)]
+    [Fact]
     public void The_Desktop_Composition_Converts_Icc_Colour()
     {
         // Like the font-program reader, present only because a head put it
@@ -359,7 +359,7 @@ public sealed class WriterPdfFormatTests
         Assert.Null(PdfCodecServices.Base.ColorProfileReader);
     }
 
-    [Fact(Timeout = 600000)]
+    [Fact]
     public void A_Picture_In_Icc_Colour_Reaches_The_Document_Converted()
     {
         // Gray levels 128 and 64 through a profile whose tone curve is gamma 1
@@ -376,7 +376,7 @@ public sealed class WriterPdfFormatTests
         Assert.InRange(pixels.Rgba[4], 136, 138);
     }
 
-    [Fact(Timeout = 600000)]
+    [Fact]
     public void Without_The_Profile_Reader_The_Same_Picture_Is_Refused_By_Name()
     {
         using var stream = new MemoryStream(PdfWithIccPicture(), writable: false);
@@ -390,7 +390,7 @@ public sealed class WriterPdfFormatTests
             d => d.Message.Contains("ICCBased, whose profile no composed reader converts", StringComparison.Ordinal));
     }
 
-    [Fact(Timeout = 600000)]
+    [Fact]
     public void A_Picture_From_A_Pdf_Is_Drawn_Rather_Than_Outlined()
     {
         // An opened PDF's pictures are decoded samples. The editor found no bytes
@@ -423,7 +423,7 @@ public sealed class WriterPdfFormatTests
         Assert.InRange(right.R, 127, 147);
     }
 
-    [Fact(Timeout = 600000)]
+    [Fact]
     public void A_Picture_From_A_Pdf_Is_Saved_With_The_Document()
     {
         // An opened PDF's pictures are decoded samples, and a writer needs bytes.
@@ -451,7 +451,7 @@ public sealed class WriterPdfFormatTests
         Assert.InRange(rgba[4], 136, 138);
     }
 
-    [Fact(Timeout = 600000)]
+    [Fact]
     public void Every_Save_Format_Keeps_A_Picture_From_A_Pdf()
     {
         // Derived from the set rather than listed, as the save test above is.
@@ -484,7 +484,7 @@ public sealed class WriterPdfFormatTests
         }
     }
 
-    [Fact(Timeout = 600000)]
+    [Fact]
     public void Saving_Leaves_The_Open_Document_As_It_Was()
     {
         // The encoding is made for the file. The editor goes on drawing the

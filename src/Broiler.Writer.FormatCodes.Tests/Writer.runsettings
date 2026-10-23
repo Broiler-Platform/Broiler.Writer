@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RunSettings>
+  <RunConfiguration>
+    <!-- xUnit 2.9 supports per-test Timeout only on async tests. Bound the entire
+         run instead, including synchronous tests, without bypassing assertions. -->
+    <TestSessionTimeout>600000</TestSessionTimeout>
+  </RunConfiguration>
+</RunSettings>

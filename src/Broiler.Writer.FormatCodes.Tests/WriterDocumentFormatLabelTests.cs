@@ -30,7 +30,7 @@ public sealed class WriterDocumentFormatLabelTests
         "Word", "Microsoft", "WordPad", "Office", "Acrobat", "LibreOffice", "OpenOffice",
     ];
 
-    [Fact(Timeout = 600000)]
+    [Fact]
     public void No_Format_Label_Names_A_Vendor_Or_Its_Product()
     {
         WriterDocumentFormats formats = WriterDocumentFormats.CreateDefault();
@@ -45,7 +45,7 @@ public sealed class WriterDocumentFormatLabelTests
         Assert.Empty(offending);
     }
 
-    [Fact(Timeout = 600000)]
+    [Fact]
     public void No_Dialog_Filter_Names_A_Vendor_Or_Its_Product()
     {
         // The display name is what the rule is written about, but a filter is what
@@ -66,7 +66,7 @@ public sealed class WriterDocumentFormatLabelTests
         Assert.Empty(offending);
     }
 
-    [Fact(Timeout = 600000)]
+    [Fact]
     public void The_Docx_Format_Is_Labelled_As_The_Register_Approves()
     {
         // The positive half. DOCX-IP-006's approved Save As label is
