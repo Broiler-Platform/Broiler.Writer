@@ -1,5 +1,13 @@
 <Project>
 
+  <!-- About artwork and website support currently live in the sibling UI checkout.
+       Set BroilerUiSourceRoot for a different checkout location. Once released, switch
+       UseBroilerUiSource to false and select the corresponding UI package version. -->
+  <PropertyGroup>
+    <UseBroilerUiSource Condition="'$(UseBroilerUiSource)' == ''">true</UseBroilerUiSource>
+    <BroilerUiSourceRoot Condition="'$(BroilerUiSourceRoot)' == ''">$(MSBuildThisFileDirectory)..\Broiler.UI</BroilerUiSourceRoot>
+  </PropertyGroup>
+
   <!-- Components can import these props in an in-tree build; retain their own versions. -->
   <PropertyGroup Condition="$(MSBuildProjectName.StartsWith('Broiler.Writer'))">
     <BroilerWriterVersion Condition="'$(BroilerWriterVersion)' == ''">0.1.0-preview.1</BroilerWriterVersion>

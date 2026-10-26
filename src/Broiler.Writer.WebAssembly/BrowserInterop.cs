@@ -10,6 +10,9 @@ namespace Broiler.Writer.WebAssembly;
 /// </summary>
 internal static partial class BrowserInterop
 {
+    [JSImport("writer.openUrl", "main.js")]
+    internal static partial void OpenUrl(string url);
+
     /// <summary>Requests a coalesced animation-frame render (managed → page).</summary>
     [JSImport("writer.scheduleFrame", "main.js")]
     internal static partial void ScheduleFrame();

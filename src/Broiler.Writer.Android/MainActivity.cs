@@ -43,6 +43,8 @@ public sealed class MainActivity : Activity
         // list /system/fonts and then draw all of it the same. The Windows head needs no
         // equivalent, because Direct2D lays out through DirectWrite.
         Broiler.Graphics.Text.BSystemFonts.InstallFontFileResolver();
+        Broiler.Graphics.Imaging.BImageCodecs.Use(new Broiler.Media.MediaCodecCatalog(
+            Broiler.Media.Image.Managed.ManagedImageCodecs.CreateCodecs()));
 
         _view = new AndroidBroilerView(this, WriterPalette.Canvas);
         _host = new WriterUiHost(
@@ -52,14 +54,16 @@ public sealed class MainActivity : Activity
             _view.Present,
             _view.GetClipboardText,
             _view.SetClipboardText,
-            _view.NotifyCaretChanged);
+            _view.NotifyCaretChanged,
+            getRenderer: () => _view.Renderer);
         _app = new WriterApp(
             _host,
             Finish,
             RequestOpenDocument,
             RequestSaveDocument,
             compactMode: true,
-            printHost: new AndroidPrintHost(this));
+            printHost: new AndroidPrintHost(this),
+            openUrl: url => StartActivity(new Intent(Intent.ActionView, global::Android.Net.Uri.Parse(url.AbsoluteUri))));
 
         _view.RenderFrame = _app.RenderFrame;
         _view.DispatchInput = _app.Dispatch;

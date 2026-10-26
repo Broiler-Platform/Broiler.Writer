@@ -26,6 +26,8 @@ internal static class BrowserWriterApp
 
     internal static async Task StartAsync()
     {
+        Broiler.Graphics.Imaging.BImageCodecs.Use(new Broiler.Media.MediaCodecCatalog(
+            Broiler.Media.Image.Managed.ManagedImageCodecs.CreateCodecs()));
         // The managed JSHost.ImportAsync runs its dynamic import() from inside _framework/, so a
         // "./" specifier resolves there and 404s. The replay module publishes to the app root and is
         // fingerprinted in the page import map by its root URL, so import it with "../".

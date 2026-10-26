@@ -31,6 +31,7 @@
 
   <ItemGroup>
     <PackageReference Include="Broiler.Hosting.Android" />
+    <PackageReference Include="Broiler.Media.Image.Managed" />
   </ItemGroup>
 
   <ItemGroup>

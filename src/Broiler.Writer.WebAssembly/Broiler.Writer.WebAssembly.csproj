@@ -20,6 +20,7 @@
 
   <ItemGroup>
     <PackageReference Include="Broiler.Graphics.WebAssembly" />
+    <PackageReference Include="Broiler.Media.Image.Managed" />
   </ItemGroup>
 
   <ItemGroup>

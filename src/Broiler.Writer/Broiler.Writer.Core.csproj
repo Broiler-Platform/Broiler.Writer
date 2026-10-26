@@ -11,6 +11,10 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <EmbeddedResource Include="..\..\About.png" LogicalName="Broiler.Writer.About.png" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\Broiler.Writer.FormatCodes\Broiler.Writer.FormatCodes.csproj" />
   </ItemGroup>
 
@@ -29,6 +33,9 @@
     <PackageReference Include="Broiler.Documents.Odt" />
     <PackageReference Include="Broiler.Documents.Pagination" />
     <PackageReference Include="Broiler.Documents.Rtf" />
+  </ItemGroup>
+
+  <ItemGroup>
     <PackageReference Include="Broiler.UI.AboutDialog" />
     <PackageReference Include="Broiler.UI.AboutDialog.Standard" />
     <PackageReference Include="Broiler.UI.Button.Standard" />

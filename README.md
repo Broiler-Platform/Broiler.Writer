@@ -43,6 +43,10 @@ own dependencies, but nothing this repository builds reaches them — see
 
 Build and run the Windows head:
 
+The current About dialog enhancement also requires the sibling `../Broiler.UI` checkout with
+the picture/website API. If it lives elsewhere, pass `-p:BroilerUiSourceRoot=<path>` to the
+build and run commands.
+
 ```bash
 dotnet build Broiler.Windows.Writer.slnx -c Release
 ```
@@ -103,14 +107,17 @@ window-manager close still bypasses confirmation because the current graphics pa
 only a latched close flag, without a cancellation/reset API.
 
 Help → About Broiler Writer opens Broiler.UI's `StandardAboutDialog`, showing Writer's
-assembly informational version and a snapshot of the loaded Broiler component versions.
+assembly informational version, the embedded `About.png` artwork, the
+[Broiler website](https://broiler-platform.github.io/), and a snapshot of loaded component versions.
 `Directory.Build.props` supplies the application version (including its preview label);
 Android's display version uses the same value. The About dialog omits commit-hash build metadata.
 Override Writer's version with `-p:BroilerWriterVersion=0.2.0-preview.1`; this keeps source
 dependencies on their own versions, whereas the global `-p:Version` also overrides dependencies.
 
-`Broiler.Writer.Core` composes the About dialog and references the Broiler.UI About dialog
-packages alongside the other shared UI controls.
+`Broiler.Writer.Core` composes the About dialog. Until the artwork/website API is released as a
+package, builds use the sibling `../Broiler.UI` source checkout for UI controls. Set
+`-p:BroilerUiSourceRoot=<path>` to use another checkout. After that API is released, builds can
+return to packages with `-p:UseBroilerUiSource=false -p:BroilerUiPackageVersion=<version>`.
 
 Open, Save As, Insert Picture, Font and About are **real top-level OS windows** on the Windows head:
 each can be moved onto another monitor, is ordered by the window manager, and carries the one

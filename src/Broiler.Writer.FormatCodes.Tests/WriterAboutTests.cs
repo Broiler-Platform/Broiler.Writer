@@ -1,5 +1,7 @@
 using System.Reflection;
 using Broiler.Graphics.Geometry;
+using Broiler.Graphics.Rendering;
+using Broiler.Graphics.RenderList;
 using Broiler.Input;
 using Broiler.Input.Keyboard;
 using Broiler.UI;
@@ -16,8 +18,10 @@ public sealed class WriterAboutTests
     public void About_Menu_Shows_Writer_Metadata_And_Restores_Editor_Focus(
         double width, double height, string key, UiDialogResultKind result)
     {
-        using var host = new WriterUiHost(() => new BSize(width, height), () => 1, () => { }, _ => { });
-        using var app = new WriterApp(host, () => { });
+        using var renderer = new BImageRenderer();
+        using var host = new WriterUiHost(() => new BSize(width, height), () => 1, () => { }, _ => { }, getRenderer: () => renderer);
+        Uri? openedUrl = null;
+        using var app = new WriterApp(host, () => { }, openUrl: url => openedUrl = url);
         app.RenderFrame();
 
         Assert.True(app.Menu.CommandDispatcher!.TryExecute("help.about"));
@@ -30,6 +34,15 @@ public sealed class WriterAboutTests
         Assert.Equal(version, dialog.ProductVersion);
         Assert.Equal(version, dialog.ComponentVersions["Broiler.Writer.Core"]);
         Assert.Contains("Broiler.UI.AboutDialog.Standard", dialog.ComponentVersions.Keys);
+        Assert.NotNull(dialog.Picture);
+        Assert.True(dialog.Picture.HasIntrinsicSize);
+        Assert.Equal("https://broiler-platform.github.io/", dialog.ProductUrl!.AbsoluteUri);
+        BRenderCommand.DrawImage picture = Assert.Single(app.RenderFrame().Commands.OfType<BRenderCommand.DrawImage>());
+        Assert.Equal((double)dialog.Picture.PixelWidth!.Value / dialog.Picture.PixelHeight!.Value,
+            picture.Destination.Width / picture.Destination.Height, 6);
+        dialog.WebsiteButton.Click();
+        Assert.Equal(dialog.ProductUrl, openedUrl);
+        Assert.True(dialog.IsPresented);
         Assert.True(dialog.IsModal);
         Assert.InRange(dialog.Bounds.Left, 0, width);
         Assert.InRange(dialog.Bounds.Right, 0, width);

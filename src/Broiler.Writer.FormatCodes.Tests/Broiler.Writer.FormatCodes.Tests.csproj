@@ -28,7 +28,8 @@
     <PackageReference Include="Broiler.Documents.Pdf" />
     <PackageReference Include="Broiler.Documents.Pdf.Images" />
     <PackageReference Include="Broiler.Documents.Pdf.Fonts" />
-    <PackageReference Include="Broiler.UI.RichEdit.Standard" />
+    <PackageReference Include="Broiler.UI.RichEdit.Standard" Condition="'$(UseBroilerUiSource)' != 'true'" />
+    <ProjectReference Include="$(BroilerUiSourceRoot)\src\Implementations\Standard\Text\Broiler.UI.RichEdit.Standard\Broiler.UI.RichEdit.Standard.csproj" Condition="'$(UseBroilerUiSource)' == 'true'" />
     <PackageReference Include="Broiler.Media.Image.Managed" />
   </ItemGroup>
 

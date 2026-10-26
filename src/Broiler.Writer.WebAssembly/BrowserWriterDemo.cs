@@ -1152,7 +1152,8 @@ internal sealed class BrowserWriterDemo : IDisposable
     private void ShowAbout()
     {
         _session.SetFocus(_editor);
-        WriterAbout.Show(_rootWindow, _host.ViewportSize, typeof(BrowserWriterDemo).Assembly);
+        WriterAbout.Show(_rootWindow, _host.ViewportSize, typeof(BrowserWriterDemo).Assembly,
+            url => BrowserInterop.OpenUrl(url.AbsoluteUri));
     }
 
     // ---- Input plumbing ---------------------------------------------------------------------

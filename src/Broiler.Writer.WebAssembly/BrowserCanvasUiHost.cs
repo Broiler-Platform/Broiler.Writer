@@ -4,6 +4,8 @@ using System.Diagnostics;
 using Broiler.Graphics;
 using Broiler.Graphics.Color;
 using Broiler.Graphics.Geometry;
+using Broiler.Graphics.Imaging;
+using Broiler.Graphics.Resources;
 using Broiler.Graphics.RenderList;
 using Broiler.Graphics.WebAssembly;
 using Broiler.UI;
@@ -58,7 +60,7 @@ internal sealed class BrowserUiClock : IUiClock
 /// the browser. Structurally identical to the Broiler.UI WebAssembly demo host.
 /// </summary>
 internal sealed class BrowserCanvasUiHost :
-    IUiHost, IUiTextInputHost, IUiClipboardHost, IUiCursorHost, IUiSystemSettingsHost, IDisposable
+    IUiHost, IUiTextInputHost, IUiClipboardHost, IUiCursorHost, IUiSystemSettingsHost, IUiImageHost, IDisposable
 {
     private readonly BrowserCanvasRenderer _renderer;
     private UiTextCaretInfo? _caret;
@@ -91,6 +93,23 @@ internal sealed class BrowserCanvasUiHost :
     internal long FrameIndex => _renderer.FrameIndex;
 
     public BRenderList CreateRenderList(int capacity = 0) => new(capacity);
+
+    public BImageHandle CreateImage(ReadOnlySpan<byte> encodedImage)
+    {
+        try
+        {
+            using BBitmap bitmap = BBitmap.Decode(encodedImage);
+            return _renderer.CreateImage(bitmap.ToPixelBuffer());
+        }
+        catch (Exception error) when (error is not OutOfMemoryException)
+        {
+            return BImageHandle.Invalid;
+        }
+    }
+
+    public BImageHandle CreateImage(BPixelBuffer pixels) => _renderer.CreateImage(pixels);
+
+    public void ReleaseImage(BImageHandle image) => _renderer.ReleaseImage(image);
 
     public void Invalidate(UiInvalidation invalidation)
     {

@@ -313,6 +313,7 @@ const { setModuleImports, getAssemblyExports, runMain } = await dotnet.create();
 
 setModuleImports('main.js', {
     writer: {
+        openUrl: url => { window.open(url, '_blank', 'noopener,noreferrer'); },
         scheduleFrame: () => scheduleFrame(),
         setCursor: cursor => { if (canvas) canvas.style.cursor = CURSORS[cursor] || 'default'; },
         // The tab is this application's title bar, so the open document's name belongs here.

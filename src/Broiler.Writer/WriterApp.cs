@@ -52,6 +52,7 @@ internal sealed class WriterApp : IDisposable
     private readonly Action? _requestOpenDocument;
     private readonly Action<string, bool, Action<bool>>? _requestSaveDocument;
     private readonly IUiPrintHost? _printHost;
+    private readonly Action<Uri>? _openUrl;
     private readonly WriterDocumentChanges _documentChanges;
     private readonly bool _compactMode;
     private readonly UiSession _session;
@@ -184,10 +185,12 @@ internal sealed class WriterApp : IDisposable
         WriterDocumentFormats? documentFormats = null,
         Action<string>? setWindowTitle = null,
         Action<bool>? setTicking = null,
-        IUiPrintHost? printHost = null)
+        IUiPrintHost? printHost = null,
+        Action<Uri>? openUrl = null)
     {
         _host = host ?? throw new ArgumentNullException(nameof(host));
         _printHost = printHost;
+        _openUrl = openUrl;
         _requestClose = requestClose ?? throw new ArgumentNullException(nameof(requestClose));
         _requestOpenDocument = requestOpenDocument;
         _requestSaveDocument = requestSaveDocument;
@@ -1522,7 +1525,7 @@ internal sealed class WriterApp : IDisposable
     private void ShowAbout()
     {
         _session.SetFocus(_editor);
-        WriterAbout.Show(_rootWindow, _host.ViewportSize, typeof(WriterApp).Assembly);
+        WriterAbout.Show(_rootWindow, _host.ViewportSize, typeof(WriterApp).Assembly, _openUrl);
     }
 
     private void SeedDocument()
