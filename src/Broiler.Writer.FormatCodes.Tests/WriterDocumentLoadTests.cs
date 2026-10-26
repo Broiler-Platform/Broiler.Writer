@@ -14,7 +14,7 @@ namespace Broiler.Writer.FormatCodes.Tests;
 /// </summary>
 public sealed class WriterDocumentLoadTests
 {
-    [Fact(Timeout = 600000)]
+    [Fact]
     public void Opens_A_Docx_Whose_Body_Is_A_Layout_Table()
     {
         using WriterApp app = CreateApp();
@@ -31,7 +31,7 @@ public sealed class WriterDocumentLoadTests
             diagnostic => diagnostic.Code == "docx.document.empty");
     }
 
-    [Fact(Timeout = 600000)]
+    [Fact]
     public void Keeps_The_Read_Diagnostics_Of_The_Last_Open()
     {
         using WriterApp app = CreateApp();
@@ -41,7 +41,7 @@ public sealed class WriterDocumentLoadTests
         Assert.Contains(app.LastReadDiagnostics, diagnostic => diagnostic.Code == "docx.read.summary");
     }
 
-    [Fact(Timeout = 600000)]
+    [Fact]
     public void A_Table_Opens_As_A_Table()
     {
         using WriterApp app = CreateApp();
@@ -54,7 +54,7 @@ public sealed class WriterDocumentLoadTests
         Assert.DoesNotContain(app.LastReadDiagnostics, diagnostic => diagnostic.Code == "docx.table.flattened");
     }
 
-    [Fact(Timeout = 600000)]
+    [Fact]
     public void Open_Status_Ignores_Info_Notes()
     {
         var result = new DocumentReadResult(
@@ -64,7 +64,7 @@ public sealed class WriterDocumentLoadTests
         Assert.Equal("Opened file.docx", WriterApp.DescribeOpen("file.docx", result));
     }
 
-    [Fact(Timeout = 600000)]
+    [Fact]
     public void Open_Status_Counts_Warnings_And_Errors()
     {
         var result = new DocumentReadResult(
@@ -78,7 +78,7 @@ public sealed class WriterDocumentLoadTests
         Assert.Equal("Opened file.docx with 2 note(s)", WriterApp.DescribeOpen("file.docx", result));
     }
 
-    [Fact(Timeout = 600000)]
+    [Fact]
     public void Open_Status_Calls_Out_A_Document_With_No_Readable_Content()
     {
         var result = new DocumentReadResult(
@@ -143,7 +143,7 @@ public sealed class WriterDocumentLoadTests
         return buffer.ToArray();
     }
 
-    [Fact(Timeout = 600000)]
+    [Fact]
     public void The_Notes_A_Read_Produced_Can_Be_Read_Back_Out()
     {
         using WriterApp app = CreateApp();

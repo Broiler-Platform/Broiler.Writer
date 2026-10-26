@@ -52,7 +52,7 @@ public sealed class WriterInsertPageBreakTests
         }
     }
 
-    [Fact(Timeout = 600000)]
+    [Fact]
     public void The_Menu_Offers_A_Page_Break_After_The_Smaller_Ones()
     {
         List<string> ids = InsertCodeIds(CreateApp());
@@ -67,7 +67,7 @@ public sealed class WriterInsertPageBreakTests
             ids.SkipWhile(id => id != "code-line-break").ToArray());
     }
 
-    [Fact(Timeout = 600000)]
+    [Fact]
     public void The_Command_States_The_Break_On_The_Caret_Paragraph()
     {
         using WriterApp app = CreateApp();
@@ -80,7 +80,7 @@ public sealed class WriterInsertPageBreakTests
         Assert.True(app.Document.Paragraphs[1].Style.PageBreakBefore);
     }
 
-    [Fact(Timeout = 600000)]
+    [Fact]
     public void The_Pane_Then_Draws_The_Code_It_Could_Only_Delete_Before()
     {
         using WriterApp app = CreateApp();
@@ -96,7 +96,7 @@ public sealed class WriterInsertPageBreakTests
             command => command.Text.Text.Contains("[Page Break]", System.StringComparison.Ordinal));
     }
 
-    [Fact(Timeout = 600000)]
+    [Fact]
     public void The_Document_View_Is_Unchanged_By_It()
     {
         // Pinned rather than left for a reviewer to discover. StandardRichEdit

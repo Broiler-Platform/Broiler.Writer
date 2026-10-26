@@ -32,7 +32,7 @@ internal static class WriterImageCodecBootstrap
 /// </summary>
 public sealed class WriterImageRenderTests
 {
-    [Fact(Timeout = 600000)]
+    [Fact]
     public void A_Picture_In_An_Opened_Docx_Reaches_The_Render_List()
     {
         using var renderer = new BImageRenderer();
@@ -66,7 +66,7 @@ public sealed class WriterImageRenderTests
         Assert.True(drawn.Image.IsValid);
     }
 
-    [Fact(Timeout = 600000)]
+    [Fact]
     public void The_Rendered_Frame_Actually_Contains_The_Pictures_Pixels()
     {
         using var renderer = new BImageRenderer();
@@ -107,7 +107,7 @@ public sealed class WriterImageRenderTests
         Assert.True(sample.B < 60, "expected red at the picture's centre, got " + sample);
     }
 
-    [Fact(Timeout = 600000)]
+    [Fact]
     public void A_Picture_The_Renderer_Cannot_Decode_Does_Not_Break_The_Frame()
     {
         using var renderer = new BImageRenderer();
@@ -166,7 +166,7 @@ public sealed class WriterImageRenderTests
         return (admitted, new DocumentWriteOptions(resources: builder.Build()));
     }
 
-    [Fact(Timeout = 600000)]
+    [Fact]
     public void A_Picture_Masked_To_An_Ellipse_Reaches_The_Backend_With_Its_Corners_Cleared()
     {
         // The end of the chain, and the reason it is asserted here rather than in

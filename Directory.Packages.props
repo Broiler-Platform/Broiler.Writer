@@ -10,19 +10,21 @@
   -->
   <PropertyGroup>
     <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
-    <BroilerDocumentsVersion>0.1.0-preview.21</BroilerDocumentsVersion>
-    <BroilerHostingVersion>0.1.0-preview.7</BroilerHostingVersion>
-    <BroilerGraphicsVersion>0.1.0-preview.7</BroilerGraphicsVersion>
-    <BroilerInputVersion>0.1.0-preview.5</BroilerInputVersion>
-    <BroilerMediaVersion>0.1.0-preview.14</BroilerMediaVersion>
-    <BroilerUiVersion>0.1.0-preview.18</BroilerUiVersion>
+    <!-- Documents preview.28 removes APIs used by the published UI preview.23 binaries.
+         Keep preview.27 until a compatible UI package is published. -->
+    <BroilerDocumentsVersion>0.1.0-preview.27</BroilerDocumentsVersion>
+    <BroilerHostingVersion>0.1.0-preview.10</BroilerHostingVersion>
+    <BroilerGraphicsVersion>0.1.0-preview.14</BroilerGraphicsVersion>
+    <BroilerInputVersion>0.1.0-preview.7</BroilerInputVersion>
+    <BroilerMediaVersion>0.1.0-preview.16</BroilerMediaVersion>
+    <BroilerUiVersion>0.1.0-preview.23</BroilerUiVersion>
     <!-- Printing: the print dialog and preview are in Broiler.UI 0.1.0-preview.22, the paginator in
          Broiler.Documents 0.1.0-preview.25, the page model in Broiler.Graphics 0.1.0-preview.13 and
          the print hosts in Broiler.Hosting 0.1.0-preview.10. Properties, so a build against local
          packs can name them. -->
-    <BroilerUiPackageVersion Condition="'$(BroilerUiPackageVersion)' == ''">0.1.0-preview.22</BroilerUiPackageVersion>
-    <BroilerDocumentsPackageVersion Condition="'$(BroilerDocumentsPackageVersion)' == ''">0.1.0-preview.26</BroilerDocumentsPackageVersion>
-    <BroilerGraphicsPackageVersion Condition="'$(BroilerGraphicsPackageVersion)' == ''">0.1.0-preview.13</BroilerGraphicsPackageVersion>
+    <BroilerUiPackageVersion Condition="'$(BroilerUiPackageVersion)' == ''">0.1.0-preview.23</BroilerUiPackageVersion>
+    <BroilerDocumentsPackageVersion Condition="'$(BroilerDocumentsPackageVersion)' == ''">0.1.0-preview.27</BroilerDocumentsPackageVersion>
+    <BroilerGraphicsPackageVersion Condition="'$(BroilerGraphicsPackageVersion)' == ''">0.1.0-preview.14</BroilerGraphicsPackageVersion>
     <BroilerHostingPackageVersion Condition="'$(BroilerHostingPackageVersion)' == ''">0.1.0-preview.10</BroilerHostingPackageVersion>
   </PropertyGroup>
   <ItemGroup>
@@ -37,23 +39,23 @@
     <PackageVersion Include="Broiler.Documents.Pdf.Images" Version="0.1.0-preview.27" />
     <PackageVersion Include="Broiler.Documents.Rtf" Version="0.1.0-preview.27" />
     <PackageVersion Include="Broiler.Graphics" Version="$(BroilerGraphicsPackageVersion)" />
-    <PackageVersion Include="Broiler.Graphics.Linux" Version="0.1.0-preview.12" />
-    <PackageVersion Include="Broiler.Graphics.Linux.OpenGL" Version="0.1.0-preview.12" />
+    <PackageVersion Include="Broiler.Graphics.Linux" Version="0.1.0-preview.14" />
+    <PackageVersion Include="Broiler.Graphics.Linux.OpenGL" Version="0.1.0-preview.14" />
     <PackageVersion Include="Broiler.Graphics.WebAssembly" Version="$(BroilerGraphicsVersion)" />
-    <PackageVersion Include="Broiler.Graphics.Windows" Version="0.1.0-preview.13" />
+    <PackageVersion Include="Broiler.Graphics.Windows" Version="0.1.0-preview.14" />
     <PackageVersion Include="Broiler.Hosting.Android" Version="$(BroilerHostingPackageVersion)" />
     <PackageVersion Include="Broiler.Hosting.Linux" Version="$(BroilerHostingPackageVersion)" />
     <PackageVersion Include="Broiler.Hosting.Windows" Version="$(BroilerHostingPackageVersion)" />
     <PackageVersion Include="Broiler.Input.Android" Version="$(BroilerInputVersion)" />
     <PackageVersion Include="Broiler.Input.Keyboard.Android" Version="$(BroilerInputVersion)" />
-    <PackageVersion Include="Broiler.Input.Keyboard.Linux" Version="0.1.0-preview.6" />
-    <PackageVersion Include="Broiler.Input.Linux" Version="0.1.0-preview.6" />
-    <PackageVersion Include="Broiler.Input.Mouse.Linux" Version="0.1.0-preview.6" />
+    <PackageVersion Include="Broiler.Input.Keyboard.Linux" Version="0.1.0-preview.7" />
+    <PackageVersion Include="Broiler.Input.Linux" Version="0.1.0-preview.7" />
+    <PackageVersion Include="Broiler.Input.Mouse.Linux" Version="0.1.0-preview.7" />
     <PackageVersion Include="Broiler.Input.Pen.Android" Version="$(BroilerInputVersion)" />
     <PackageVersion Include="Broiler.Input.Text.Android" Version="$(BroilerInputVersion)" />
     <PackageVersion Include="Broiler.Input.Touch.Android" Version="$(BroilerInputVersion)" />
-    <PackageVersion Include="Broiler.Media.Image" Version="0.1.0-preview.15" />
-    <PackageVersion Include="Broiler.Media.Image.Managed" Version="0.1.0-preview.15" />
+    <PackageVersion Include="Broiler.Media.Image" Version="0.1.0-preview.16" />
+    <PackageVersion Include="Broiler.Media.Image.Managed" Version="0.1.0-preview.16" />
     <PackageVersion Include="Broiler.UI" Version="$(BroilerUiPackageVersion)" />
     <PackageVersion Include="Broiler.UI.AboutDialog" Version="0.1.0-preview.23" />
     <PackageVersion Include="Broiler.UI.AboutDialog.Standard" Version="0.1.0-preview.23" />
@@ -74,8 +76,8 @@
     <PackageVersion Include="Broiler.UI.Toolbar.Standard" Version="0.1.0-preview.23" />
     <PackageVersion Include="Broiler.UI.Tooltip.Standard" Version="0.1.0-preview.23" />
     <PackageVersion Include="Broiler.UI.Window.Standard" Version="0.1.0-preview.23" />
-    <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="17.8.0" />
-    <PackageVersion Include="xunit" Version="2.5.3" />
-    <PackageVersion Include="xunit.runner.visualstudio" Version="2.5.3" />
+    <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="18.11.0" />
+    <PackageVersion Include="xunit" Version="2.9.3" />
+    <PackageVersion Include="xunit.runner.visualstudio" Version="4.0.1" />
   </ItemGroup>
 </Project>

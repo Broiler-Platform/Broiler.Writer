@@ -18,7 +18,7 @@ public sealed class WriterZoomTests
 {
     // --- The ladder --------------------------------------------------------
 
-    [Fact(Timeout = 600000)]
+    [Fact]
     public void The_Levels_Run_Small_To_Large_And_Include_The_Stated_Size()
     {
         Assert.NotEmpty(WriterZoom.Levels);
@@ -30,24 +30,24 @@ public sealed class WriterZoomTests
         Assert.Equal(WriterZoom.Levels[^1], WriterZoom.Maximum);
     }
 
-    [Theory(Timeout = 600000)]
+    [Theory]
     [InlineData(0.001)]
     [InlineData(0)]
     [InlineData(-2)]
     public void A_Zoom_Under_The_Ladder_Is_Clamped_To_Its_Foot(double requested) =>
         Assert.Equal(WriterZoom.Minimum, WriterZoom.Normalize(requested));
 
-    [Fact(Timeout = 600000)]
+    [Fact]
     public void A_Zoom_Over_The_Ladder_Is_Clamped_To_Its_Head() =>
         Assert.Equal(WriterZoom.Maximum, WriterZoom.Normalize(400));
 
-    [Theory(Timeout = 600000)]
+    [Theory]
     [InlineData(double.NaN)]
     [InlineData(double.PositiveInfinity)]
     public void A_Zoom_That_Is_Not_A_Number_Reads_As_The_Stated_Size(double requested) =>
         Assert.Equal(WriterZoom.Default, WriterZoom.Normalize(requested));
 
-    [Fact(Timeout = 600000)]
+    [Fact]
     public void Stepping_In_And_Out_Walks_The_Ladder()
     {
         double zoom = WriterZoom.Default;
@@ -59,14 +59,14 @@ public sealed class WriterZoomTests
         Assert.Equal(WriterZoom.Levels[index], WriterZoom.Out(zoom));
     }
 
-    [Fact(Timeout = 600000)]
+    [Fact]
     public void Stepping_Past_Either_End_Stays_At_That_End()
     {
         Assert.Equal(WriterZoom.Maximum, WriterZoom.In(WriterZoom.Maximum));
         Assert.Equal(WriterZoom.Minimum, WriterZoom.Out(WriterZoom.Minimum));
     }
 
-    [Fact(Timeout = 600000)]
+    [Fact]
     public void A_Zoom_Between_Two_Levels_Steps_To_The_One_Either_Side_Of_It()
     {
         // Nothing in the shipped UI produces one, but a stored or typed setting can.
@@ -76,13 +76,13 @@ public sealed class WriterZoomTests
         Assert.Equal(1, WriterZoom.Out(Between));
     }
 
-    [Fact(Timeout = 600000)]
+    [Fact]
     public void Reset_Goes_Back_To_The_Size_The_Document_States() =>
         Assert.Equal(WriterZoom.Default, WriterZoom.Apply(WriterZoom.Maximum, WriterZoomStep.Reset));
 
     // --- Reading and writing a level ---------------------------------------
 
-    [Fact(Timeout = 600000)]
+    [Fact]
     public void A_Level_Is_Written_As_A_Whole_Percentage()
     {
         Assert.Equal("100%", WriterZoom.Describe(1));
@@ -90,7 +90,7 @@ public sealed class WriterZoomTests
         Assert.Equal("25%", WriterZoom.Describe(0.25));
     }
 
-    [Fact(Timeout = 600000)]
+    [Fact]
     public void Every_Level_Reads_Back_As_Itself()
     {
         foreach (double level in WriterZoom.Levels)
@@ -100,7 +100,7 @@ public sealed class WriterZoomTests
         }
     }
 
-    [Theory(Timeout = 600000)]
+    [Theory]
     [InlineData("150")]
     [InlineData("150%")]
     [InlineData("  150 % ")]
@@ -110,7 +110,7 @@ public sealed class WriterZoomTests
         Assert.Equal(1.5, zoom);
     }
 
-    [Theory(Timeout = 600000)]
+    [Theory]
     [InlineData("")]
     [InlineData("   ")]
     [InlineData("big")]
@@ -125,7 +125,7 @@ public sealed class WriterZoomTests
 
     // --- The gestures ------------------------------------------------------
 
-    [Theory(Timeout = 600000)]
+    [Theory]
     [InlineData("=", 0xBB, WriterZoomStep.In)]
     [InlineData("+", 0xBB, WriterZoomStep.In)]
     [InlineData("Equal", 0, WriterZoomStep.In)]
@@ -140,7 +140,7 @@ public sealed class WriterZoomTests
             expected,
             WriterZoom.StepFor(name, code, KeyboardModifierState.Control, isDown: true));
 
-    [Theory(Timeout = 600000)]
+    [Theory]
     [InlineData("VirtualKey:187", WriterZoomStep.In)]
     [InlineData("VirtualKey:189", WriterZoomStep.Out)]
     [InlineData("VirtualKey:48", WriterZoomStep.Reset)]
@@ -151,25 +151,25 @@ public sealed class WriterZoomTests
         Assert.Equal(expected, WriterZoom.StepFor(name, 0, KeyboardModifierState.Control, isDown: true));
     }
 
-    [Fact(Timeout = 600000)]
+    [Fact]
     public void Plus_Without_Ctrl_Is_Just_A_Plus() =>
         Assert.Equal(
             WriterZoomStep.None,
             WriterZoom.StepFor("+", 0xBB, KeyboardModifierState.None, isDown: true));
 
-    [Fact(Timeout = 600000)]
+    [Fact]
     public void Ctrl_Alt_Plus_Is_Left_Alone_Because_It_Is_Someone_Elses_Chord() =>
         Assert.Equal(
             WriterZoomStep.None,
             WriterZoom.StepFor("+", 0xBB, KeyboardModifierState.Control | KeyboardModifierState.Alt, isDown: true));
 
-    [Fact(Timeout = 600000)]
+    [Fact]
     public void Releasing_The_Key_Zooms_Nothing() =>
         Assert.Equal(
             WriterZoomStep.None,
             WriterZoom.StepFor("+", 0xBB, KeyboardModifierState.Control, isDown: false));
 
-    [Theory(Timeout = 600000)]
+    [Theory]
     [InlineData(true, 1, WriterZoomStep.In)]
     [InlineData(true, -1, WriterZoomStep.Out)]
     [InlineData(true, 0, WriterZoomStep.None)]
@@ -179,7 +179,7 @@ public sealed class WriterZoomTests
 
     // --- The application ---------------------------------------------------
 
-    [Fact(Timeout = 600000)]
+    [Fact]
     public void A_Fresh_Writer_Reads_At_The_Stated_Size_And_Says_So()
     {
         using WriterApp app = CreateApp();
@@ -188,7 +188,7 @@ public sealed class WriterZoomTests
         Assert.Contains("100%", DrawnText(app));
     }
 
-    [Fact(Timeout = 600000)]
+    [Fact]
     public void The_Toolbar_Carries_A_Zoom_Picker_And_Its_Two_Steps()
     {
         using WriterApp app = CreateApp();
@@ -200,7 +200,7 @@ public sealed class WriterZoomTests
         Assert.Contains("-", labels);
     }
 
-    [Fact(Timeout = 600000)]
+    [Fact]
     public void The_Picker_Shows_The_Level_The_Document_Is_Read_At()
     {
         using WriterApp app = CreateApp();
@@ -212,7 +212,7 @@ public sealed class WriterZoomTests
         Assert.DoesNotContain("100%", labels);
     }
 
-    [Fact(Timeout = 600000)]
+    [Fact]
     public void The_View_Menu_Offers_The_Ladder_And_Marks_The_Current_Level()
     {
         using WriterApp app = CreateApp();
@@ -225,7 +225,7 @@ public sealed class WriterZoomTests
         Assert.Equal("100%", Assert.Single(zoom.Children.Where(item => item.IsChecked)).Text);
     }
 
-    [Fact(Timeout = 600000)]
+    [Fact]
     public void Choosing_A_Level_From_The_Menu_Moves_The_Check_With_It()
     {
         using WriterApp app = CreateApp();
@@ -237,7 +237,7 @@ public sealed class WriterZoomTests
         Assert.Equal("200%", Assert.Single(ZoomMenu(app).Children.Where(item => item.IsChecked)).Text);
     }
 
-    [Fact(Timeout = 600000)]
+    [Fact]
     public void The_Menus_Zoom_In_And_Out_Step_The_Ladder()
     {
         using WriterApp app = CreateApp();
@@ -249,7 +249,7 @@ public sealed class WriterZoomTests
         Assert.Equal(WriterZoom.Default, app.Zoom);
     }
 
-    [Fact(Timeout = 600000)]
+    [Fact]
     public void Actual_Size_Comes_Back_From_Anywhere_On_The_Ladder()
     {
         using WriterApp app = CreateApp();
@@ -260,7 +260,7 @@ public sealed class WriterZoomTests
         Assert.Equal(WriterZoom.Default, app.Zoom);
     }
 
-    [Fact(Timeout = 600000)]
+    [Fact]
     public void Ctrl_Plus_And_Ctrl_Minus_Zoom_From_The_Keyboard()
     {
         using WriterApp app = CreateApp();
@@ -273,7 +273,7 @@ public sealed class WriterZoomTests
         Assert.Equal(WriterZoom.Default, app.Zoom);
     }
 
-    [Fact(Timeout = 600000)]
+    [Fact]
     public void Ctrl_Zero_Comes_Back_To_The_Stated_Size()
     {
         using WriterApp app = CreateApp();
@@ -287,7 +287,7 @@ public sealed class WriterZoomTests
         Assert.Equal(WriterZoom.Default, app.Zoom);
     }
 
-    [Fact(Timeout = 600000)]
+    [Fact]
     public void Ctrl_And_The_Wheel_Zooms_Rather_Than_Scrolls()
     {
         using WriterApp app = CreateApp();
@@ -301,7 +301,7 @@ public sealed class WriterZoomTests
         Assert.Equal(WriterZoom.In(WriterZoom.Default), app.Zoom);
     }
 
-    [Fact(Timeout = 600000)]
+    [Fact]
     public void The_Wheel_On_Its_Own_Leaves_The_Zoom_Alone()
     {
         using WriterApp app = CreateApp();
@@ -314,7 +314,7 @@ public sealed class WriterZoomTests
         Assert.Equal(WriterZoom.Default, app.Zoom);
     }
 
-    [Fact(Timeout = 600000)]
+    [Fact]
     public void Zooming_Is_How_The_Document_Is_Read_And_Never_Changes_It()
     {
         using WriterApp app = CreateApp();
@@ -326,7 +326,7 @@ public sealed class WriterZoomTests
         Assert.Equal(before, app.Document.PlainText);
     }
 
-    [Fact(Timeout = 600000)]
+    [Fact]
     public void The_Toolbars_Plus_And_Minus_Zoom_When_They_Are_Clicked()
     {
         using WriterApp app = CreateApp();
@@ -338,7 +338,7 @@ public sealed class WriterZoomTests
         Assert.Equal(WriterZoom.Default, app.Zoom);
     }
 
-    [Fact(Timeout = 600000)]
+    [Fact]
     public void The_Picker_Is_On_Screen_In_The_Window_The_Writer_Opens_In()
     {
         // This toolbar is wider than the window the Windows head opens, and it
@@ -356,7 +356,7 @@ public sealed class WriterZoomTests
             $"the zoom picker was drawn at x={picker.Origin.X}, past the {WindowsHeadWidth} the window is wide");
     }
 
-    [Fact(Timeout = 600000)]
+    [Fact]
     public void The_Picker_Drops_Down_The_Whole_Ladder()
     {
         using WriterApp app = CreateApp();

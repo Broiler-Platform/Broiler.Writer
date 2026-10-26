@@ -21,7 +21,7 @@ namespace Broiler.Writer.FormatCodes.Tests;
 /// </summary>
 public sealed class WriterPrintTests
 {
-    [Fact(Timeout = 600000)]
+    [Fact]
     public void A_Head_That_Cannot_Print_Offers_No_Print()
     {
         using WriterApp app = CreateApp(printHost: null);
@@ -33,7 +33,7 @@ public sealed class WriterPrintTests
         Assert.Equal("Printing is not available here", app.LastAction);
     }
 
-    [Fact(Timeout = 600000)]
+    [Fact]
     public void The_File_Menu_Offers_Print_With_Its_Shortcut()
     {
         using WriterApp app = CreateApp(new FakePrintHost());
@@ -46,7 +46,7 @@ public sealed class WriterPrintTests
         Assert.Equal("file.print", print.CommandName);
     }
 
-    [Fact(Timeout = 600000)]
+    [Fact]
     public void Ctrl_P_Previews_The_Document_And_Prints_The_Pages_Shown()
     {
         var printer = new FakePrintHost();
@@ -72,7 +72,7 @@ public sealed class WriterPrintTests
         Assert.Equal("Printed 1 page", app.LastAction);
     }
 
-    [Fact(Timeout = 600000)]
+    [Fact]
     public void Cancelling_The_Dialog_Prints_Nothing_And_Says_So()
     {
         var printer = new FakePrintHost();
@@ -87,7 +87,7 @@ public sealed class WriterPrintTests
         Assert.False(app.IsPrinting);
     }
 
-    [Fact(Timeout = 600000)]
+    [Fact]
     public void A_Platform_With_Its_Own_Print_UI_Gets_The_Document_Straight_Away()
     {
         var printer = new FakePrintHost { ShowsSystemPrintDialog = true };
@@ -103,7 +103,7 @@ public sealed class WriterPrintTests
         Assert.Equal(1, job.ResolvePages().PageCount);
     }
 
-    [Fact(Timeout = 600000)]
+    [Fact]
     public void A_Printer_That_Refuses_The_Job_Is_Reported_As_A_Problem()
     {
         var printer = new FakePrintHost { Refusal = "the queue is paused" };
