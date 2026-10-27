@@ -158,7 +158,7 @@ public sealed class WriterShellTests
         app.RenderFrame();
 
         UiElement save = Assert.Single(
-            app.Toolbar.Children.Where(child => child.GetSemanticNode().Name == "Save"));
+            app.Toolbar.Children, child => child.GetSemanticNode().Name == "Save");
         Assert.Equal("Save (Ctrl+S)", save.ToolTipText);
 
         Assert.False(app.WantsTick);

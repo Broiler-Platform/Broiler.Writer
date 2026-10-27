@@ -343,7 +343,7 @@ public sealed class WriterPdfFormatTests
         // image went missing, which is what lets a reader decide whether
         // composing a decoder would have helped.
         DocumentDiagnostic skipped = Assert.Single(
-            result.Diagnostics.Where(d => d.Code == "pdf.image.dct.tuple-unsupported"));
+            result.Diagnostics, d => d.Code == "pdf.image.dct.tuple-unsupported");
         Assert.Contains("composes no image decoder", skipped.Message, StringComparison.Ordinal);
         Assert.Contains("32x16 8bpc DeviceRGB DCTDecode", skipped.Message, StringComparison.Ordinal);
     }

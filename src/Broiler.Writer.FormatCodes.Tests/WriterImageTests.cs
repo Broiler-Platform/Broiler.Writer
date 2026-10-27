@@ -134,8 +134,8 @@ public sealed class WriterImageTests
     private static InlineImage? SingleImage(RichTextDocument document) =>
         Assert.Single(document.Paragraphs
             .SelectMany(paragraph => paragraph.Runs)
-            .Select(run => run.Style.Image)
-            .Where(image => image is not null));
+            .Select(run => run.Style.Image),
+            image => image is not null);
 
     private static void WriteBigEndian(byte[] buffer, int offset, int value)
     {

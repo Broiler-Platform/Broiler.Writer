@@ -76,13 +76,13 @@ public sealed class WriterDocumentFormatLabelTests
         WriterDocumentFormats formats = WriterDocumentFormats.CreateDefault();
 
         WriterDocumentFormat docx = Assert.Single(
-            formats.Formats.Where(format => format.MatchesExtension(".docx")));
+            formats.Formats, format => format.MatchesExtension(".docx"));
 
         Assert.Equal("DOCX Document", docx.DisplayName);
         Assert.Equal("DOCX Document (*.docx)", docx.FilterName);
 
         UiFileDialogFilter filter = Assert.Single(
-            formats.CreateSaveFilters().Where(f => f.Pattern.Contains(".docx", StringComparison.Ordinal)));
+            formats.CreateSaveFilters(), f => f.Pattern.Contains(".docx", StringComparison.Ordinal));
         Assert.Equal("DOCX Document (*.docx)", filter.Name);
     }
 }

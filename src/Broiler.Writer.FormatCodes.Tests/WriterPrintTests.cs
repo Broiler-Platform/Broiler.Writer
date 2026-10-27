@@ -38,8 +38,8 @@ public sealed class WriterPrintTests
     {
         using WriterApp app = CreateApp(new FakePrintHost());
 
-        UiMenuItem file = Assert.Single(app.Menu.Items.Where(item => item.Id == "file"));
-        UiMenuItem print = Assert.Single(file.Children.Where(item => item.Id == "print"));
+        UiMenuItem file = Assert.Single(app.Menu.Items, item => item.Id == "file");
+        UiMenuItem print = Assert.Single(file.Children, item => item.Id == "print");
 
         Assert.Equal("Print...", print.Text);
         Assert.Equal("Ctrl+P", print.Accelerator);

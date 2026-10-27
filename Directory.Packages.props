@@ -10,8 +10,11 @@
   -->
   <PropertyGroup>
     <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
-    <!-- Documents preview.28 removes APIs used by the published UI preview.23 binaries.
-         Keep preview.27 until a compatible UI package is published. -->
+    <!-- Documents preview.28 removes/changes APIs used by the published UI preview.23 binaries:
+         Specifically, TextWrapExclusions.Add(DocumentShape, double, double) was changed to
+         TextWrapExclusions.Add(DocumentShape, double, double, double?, double?), which causes
+         MissingMethodException at runtime in Broiler.UI.RichEdit.Standard (RegisterWrapShapes).
+         Keep preview.27 until a compatible Broiler.UI package is published. -->
     <BroilerDocumentsVersion>0.1.0-preview.27</BroilerDocumentsVersion>
     <BroilerHostingVersion>0.1.0-preview.10</BroilerHostingVersion>
     <BroilerGraphicsVersion>0.1.0-preview.14</BroilerGraphicsVersion>
@@ -28,16 +31,17 @@
     <BroilerHostingPackageVersion Condition="'$(BroilerHostingPackageVersion)' == ''">0.1.0-preview.10</BroilerHostingPackageVersion>
   </PropertyGroup>
   <ItemGroup>
-    <PackageVersion Include="Broiler.Documents.Docx" Version="0.1.0-preview.27" />
-    <PackageVersion Include="Broiler.Documents.FormatCodes" Version="0.1.0-preview.27" />
-    <PackageVersion Include="Broiler.Documents.Html" Version="0.1.0-preview.27" />
-    <PackageVersion Include="Broiler.Documents.Markdown" Version="0.1.0-preview.27" />
-    <PackageVersion Include="Broiler.Documents.Pagination" Version="0.1.0-preview.27" />
-    <PackageVersion Include="Broiler.Documents.Odt" Version="0.1.0-preview.27" />
-    <PackageVersion Include="Broiler.Documents.Pdf" Version="0.1.0-preview.27" />
-    <PackageVersion Include="Broiler.Documents.Pdf.Fonts" Version="0.1.0-preview.27" />
-    <PackageVersion Include="Broiler.Documents.Pdf.Images" Version="0.1.0-preview.27" />
-    <PackageVersion Include="Broiler.Documents.Rtf" Version="0.1.0-preview.27" />
+    <PackageVersion Include="Broiler.Documents.Docx" Version="$(BroilerDocumentsPackageVersion)" />
+    <PackageVersion Include="Broiler.Documents.FormatCodes" Version="$(BroilerDocumentsPackageVersion)" />
+    <PackageVersion Include="Broiler.Documents.Html" Version="$(BroilerDocumentsPackageVersion)" />
+    <PackageVersion Include="Broiler.Documents.Markdown" Version="$(BroilerDocumentsPackageVersion)" />
+    <PackageVersion Include="Broiler.Documents.Model" Version="$(BroilerDocumentsPackageVersion)" />
+    <PackageVersion Include="Broiler.Documents.Pagination" Version="$(BroilerDocumentsPackageVersion)" />
+    <PackageVersion Include="Broiler.Documents.Odt" Version="$(BroilerDocumentsPackageVersion)" />
+    <PackageVersion Include="Broiler.Documents.Pdf" Version="$(BroilerDocumentsPackageVersion)" />
+    <PackageVersion Include="Broiler.Documents.Pdf.Fonts" Version="$(BroilerDocumentsPackageVersion)" />
+    <PackageVersion Include="Broiler.Documents.Pdf.Images" Version="$(BroilerDocumentsPackageVersion)" />
+    <PackageVersion Include="Broiler.Documents.Rtf" Version="$(BroilerDocumentsPackageVersion)" />
     <PackageVersion Include="Broiler.Graphics" Version="$(BroilerGraphicsPackageVersion)" />
     <PackageVersion Include="Broiler.Graphics.Linux" Version="0.1.0-preview.14" />
     <PackageVersion Include="Broiler.Graphics.Linux.OpenGL" Version="0.1.0-preview.14" />

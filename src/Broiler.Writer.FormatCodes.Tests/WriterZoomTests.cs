@@ -222,7 +222,7 @@ public sealed class WriterZoomTests
         foreach (UiMenuItem item in zoom.Children)
             Assert.True(item.IsCheckable, item.Text + " is not checkable");
 
-        Assert.Equal("100%", Assert.Single(zoom.Children.Where(item => item.IsChecked)).Text);
+        Assert.Equal("100%", Assert.Single(zoom.Children, item => item.IsChecked).Text);
     }
 
     [Fact]
@@ -234,7 +234,7 @@ public sealed class WriterZoomTests
         app.RenderFrame();
 
         Assert.Equal(2, app.Zoom);
-        Assert.Equal("200%", Assert.Single(ZoomMenu(app).Children.Where(item => item.IsChecked)).Text);
+        Assert.Equal("200%", Assert.Single(ZoomMenu(app).Children, item => item.IsChecked).Text);
     }
 
     [Fact]
@@ -348,8 +348,8 @@ public sealed class WriterZoomTests
         using WriterApp app = CreateApp(WindowsHeadWidth, 780);
 
         BRenderCommand.DrawText picker = Assert.Single(
-            app.RenderFrame().Commands.OfType<BRenderCommand.DrawText>()
-                .Where(command => command.Text.Text == "100%"));
+            app.RenderFrame().Commands.OfType<BRenderCommand.DrawText>(),
+                command => command.Text.Text == "100%");
 
         Assert.True(
             picker.Origin.X < WindowsHeadWidth,
@@ -388,8 +388,8 @@ public sealed class WriterZoomTests
 
     private static UiMenuItem ZoomMenu(WriterApp app)
     {
-        UiMenuItem view = Assert.Single(app.Menu.Items.Where(item => item.Id == "view"));
-        return Assert.Single(view.Children.Where(item => item.Id == "zoom"));
+        UiMenuItem view = Assert.Single(app.Menu.Items, item => item.Id == "view");
+        return Assert.Single(view.Children, item => item.Id == "zoom");
     }
 
     private static InputEventHeader Header(string device) =>
@@ -419,8 +419,8 @@ public sealed class WriterZoomTests
     private static BPoint PointOn(WriterApp app, string text)
     {
         BRenderCommand.DrawText drawn = Assert.Single(
-            app.RenderFrame().Commands.OfType<BRenderCommand.DrawText>()
-                .Where(command => command.Text.Text == text));
+            app.RenderFrame().Commands.OfType<BRenderCommand.DrawText>(),
+                command => command.Text.Text == text);
         return new BPoint(drawn.Origin.X + 2, drawn.Origin.Y + 2);
     }
 

@@ -112,7 +112,7 @@ public sealed class WriterToolbarOverflowTests
         app.RenderFrame();
 
         UiElement indent = Assert.Single(
-            app.Toolbar.OverflowItems.Where(item => IsLabelled(app, item, "Indent")));
+            app.Toolbar.OverflowItems, item => IsLabelled(app, item, "Indent"));
         Click(app, Middle(indent.Bounds));
 
         Assert.False(app.Toolbar.IsOverflowOpen);
