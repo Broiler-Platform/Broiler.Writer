@@ -59,6 +59,11 @@ with zipfile.ZipFile(target, 'w') as z:
             info.external_attr = (0o100000 | mode) << 16   # regular file
             with open(path, 'rb') as f:
                 z.writestr(info, f.read())
+    for license_name in ('LICENSE', 'LICENSE.md', 'LICENSE.txt'):
+        if os.path.isfile(license_name):
+            if 'LICENSE' not in z.namelist():
+                z.write(license_name, 'LICENSE')
+            break
 PY
   echo "$zip"
 }
@@ -75,6 +80,21 @@ for rid in win-x64 linux-x64; do
     desktop_assets+=("$zip")
   done
 done
+
+web_source="$artifacts/broiler-writer-web-$version"
+web_zip="$out/Broiler.Writer-$version-browser-wasm.zip"
+[ -f "$web_source/wwwroot/index.html" ] || { echo "missing published Writer web bundle" >&2; exit 1; }
+"$python" - "$web_source" "$web_zip" <<'PY'
+import pathlib, sys, zipfile
+source, target = pathlib.Path(sys.argv[1]), sys.argv[2]
+with zipfile.ZipFile(target, 'w', zipfile.ZIP_DEFLATED) as archive:
+    for path in sorted(source.rglob('*')):
+        if path.is_symlink():
+            raise ValueError('Writer web artifact must not contain links')
+        if path.is_file():
+            archive.write(path, path.relative_to(source).as_posix())
+PY
+desktop_assets+=("$web_zip")
 
 android_dir="$artifacts/broiler-writer-android-$version"
 aab="$android_dir/Broiler.Writer-$version.aab"
@@ -119,7 +139,9 @@ if [ ${#android_assets[@]} -gt 0 ]; then
   } >> "$out/notes.md"
 fi
 
-gh release create "$tag" "${desktop_assets[@]}" "${android_assets[@]}" \
+"$python" eng/write-component-manifest.py --directory "$out" --product writer --version "$version" --repository Broiler-Platform/Broiler.Writer --tag "$tag" --commit "$(git rev-parse HEAD)" --self-contained-mode native-aot --additional "${android_assets[@]}"
+
+gh release create "$tag" "${desktop_assets[@]}" "${android_assets[@]}" "$out/component-release.json" "$out/SHA256SUMS.txt" \
   --verify-tag \
   --draft \
   --prerelease \

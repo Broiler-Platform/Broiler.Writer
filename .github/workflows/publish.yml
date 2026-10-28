@@ -346,9 +346,40 @@ jobs:
           path: artifacts/android/signed/*
           if-no-files-found: error
 
+  web:
+    name: Publish reusable Writer WebAssembly artifact
+    needs: version
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/setup-broiler
+      - name: Install WebAssembly workload
+        run: dotnet workload install wasm-tools
+      - name: Publish Writer web client once
+        env:
+          COMPONENT_VERSION: ${{ needs.version.outputs.version }}
+        run: |
+          dotnet publish src/Broiler.Writer.WebAssembly/Broiler.Writer.WebAssembly.csproj -c Release -p:BroilerWriterVersion="$COMPONENT_VERSION" -p:RunAOTCompilation=false -o artifacts/web
+          test -f artifacts/web/wwwroot/index.html
+      - uses: actions/upload-artifact@v7
+        with:
+          name: broiler-writer-web-${{ needs.version.outputs.version }}
+          path: artifacts/web/
+          if-no-files-found: error
+
+  release-tests:
+    name: Product release regression tests
+    needs: version
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/setup-broiler
+      - name: Test product before release
+        run: dotnet test src/Broiler.Writer.FormatCodes.Tests/Broiler.Writer.FormatCodes.Tests.csproj -c Release
+
   release:
     name: Tag and draft release ${{ needs.version.outputs.tag }}
-    needs: [version, build, android]
+    needs: [version, build, android, web, release-tests]
     runs-on: ubuntu-latest
     permissions:
       contents: write
