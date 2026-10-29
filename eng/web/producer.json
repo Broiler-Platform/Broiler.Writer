@@ -1,0 +1,7 @@
+{
+  "product": "writer",
+  "productName": "Writer",
+  "repository": "Broiler-Platform/Broiler.Writer",
+  "project": "src/Broiler.Writer.WebAssembly/Broiler.Writer.WebAssembly.csproj",
+  "versionProperty": "BroilerWriterVersion"
+}

@@ -2,6 +2,10 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
+using System.IO.Compression;
+using System.Linq;
+using System.Text;
+using Broiler.Documents.Resources;
 using Broiler.Documents;
 using Broiler.Documents.Docx;
 using Broiler.Documents.FormatCodes;
@@ -53,7 +57,7 @@ namespace Broiler.Writer.WebAssembly;
 /// system, Open uses the browser file picker and Save/Save As download the encoded document; both
 /// go through the identical <c>Broiler.Documents</c> RTF/DOCX/HTML/Markdown codecs.
 /// </summary>
-internal sealed class BrowserWriterDemo : IDisposable
+internal sealed partial class BrowserWriterDemo : IDisposable
 {
     private WriterDocumentChanges? _documentChanges;
     private static readonly InputDeviceId PointerDevice = InputDeviceId.FromOpaqueValue("browser-primary-pointer");
@@ -79,7 +83,17 @@ internal sealed class BrowserWriterDemo : IDisposable
     private readonly StandardLabel _status;
     private readonly StandardLabel _statusState;
     private string _documentName = UntitledDocumentName;
-    private bool _isModified;
+    private readonly BrowserDocumentState _documentState = new();
+    private bool _isModified => _documentState.IsModified;
+    private Action<bool>? _saveCompletion;
+    private string? _exportName;
+    private string _operationNotes = string.Empty;
+    private bool _exportCanMarkClean;
+    private bool _choosingExportName;
+    private Action<bool>? _nameCompletion;
+    private DocumentConversionContext _resources = DocumentConversionContext.Empty;
+    internal const int MaximumFileBytes = 8 * 1024 * 1024;
+    internal const int MaximumTextCharacters = 250000;
     private int _replacingDocument;
     private string? _problem;
     private readonly StandardTooltip _tooltip;
@@ -287,6 +301,7 @@ internal sealed class BrowserWriterDemo : IDisposable
         if (_disposed)
             return;
 
+        long frameStarted = System.Diagnostics.Stopwatch.GetTimestamp();
         _dispatcher.Drain();
         _host.BeginFrame();
         // A tooltip counting out its delay needs frames to notice the clock, and an animation
@@ -296,6 +311,8 @@ internal sealed class BrowserWriterDemo : IDisposable
 
         _session.RenderFrame();
         PublishFrameState();
+        double elapsed = System.Diagnostics.Stopwatch.GetElapsedTime(frameStarted).TotalMilliseconds;
+        if (elapsed > 1000) Console.WriteLine("Writer frame exceeded 1s: " + elapsed.ToString("F0", CultureInfo.InvariantCulture) + "ms");
     }
 
     internal void PointerMove(double x, double y, int buttons, double timestampMilliseconds) =>
@@ -376,8 +393,9 @@ internal sealed class BrowserWriterDemo : IDisposable
             // App-level accelerators the RichEdit itself does not own: Ctrl+S saves, Ctrl+O opens.
             if (down && !repeat && (modifierState & KeyboardModifierState.Control) != 0)
             {
-                if (StringComparer.OrdinalIgnoreCase.Equals(keyName, "S")) { SaveDocument(); return; }
+                if (StringComparer.OrdinalIgnoreCase.Equals(keyName, "S")) { if ((modifierState & KeyboardModifierState.Shift) != 0) SaveDocumentAs(); else SaveDocument(); return; }
                 if (StringComparer.OrdinalIgnoreCase.Equals(keyName, "O")) { RequestOpenDocument(); return; }
+                if (StringComparer.OrdinalIgnoreCase.Equals(keyName, "N")) { NewDocument(); return; }
             }
 
             var input = new KeyboardKeyEvent(
@@ -423,9 +441,12 @@ internal sealed class BrowserWriterDemo : IDisposable
         if (_disposed)
             return string.Empty;
 
+        _dispatcher.Drain();
+
         _host.BeginClipboardEvent(StringComparer.Ordinal.Equals(operation, "paste") ? text ?? string.Empty : null);
-        RunClipboardOperation(operation);
-        string output = _host.EndClipboardEvent();
+        string output;
+        try { RunClipboardOperation(operation); }
+        finally { output = _host.EndClipboardEvent(); }
         BrowserInterop.ScheduleFrame();
         return output;
     }
@@ -435,25 +456,39 @@ internal sealed class BrowserWriterDemo : IDisposable
         {
             try
             {
+                if (_documentState.IsExporting || _choosingExportName) throw new InvalidOperationException("Finish the current export before opening another document.");
                 byte[] bytes = Convert.FromBase64String(base64Data ?? string.Empty);
-                string name = string.IsNullOrWhiteSpace(fileName) ? "Untitled" + DefaultDocumentExtension : fileName;
+                string name = DisplayFileName(fileName);
+                if (bytes.Length > MaximumFileBytes) throw new IOException("The file exceeds the 8 MiB browser limit.");
+                ValidateArchive(name, bytes);
                 DocumentReadResult result = ReadDocument(name, bytes);
-                _currentDocumentName = name;
-                _hasSavedName = true;
-                SetDocumentName(name, modified: false);
-                _lastAction = result.Diagnostics.Count == 0
-                    ? "Opened " + name
-                    : "Opened " + name + " with " + result.Diagnostics.Count.ToString(CultureInfo.InvariantCulture) + " note(s)";
+                if (!WriterDocumentLoadPolicy.MayReplace(result, rejectLimits: true)) {
+                    ReportOperation("Failed", "Could not open the file. The current document is unchanged.", result.Diagnostics);
+                    RefreshUi(); return;
+                }
+                if (result.Document.PlainText.Length > MaximumTextCharacters || result.Document.ParagraphCount > 10000)
+                    throw new IOException("This document exceeds the browser text or paragraph limit.");
+                long imagePixels = 0;
+                foreach (var image in result.Document.Paragraphs.SelectMany(paragraph => paragraph.Runs).Select(run => run.Style.Image)
+                    .Concat(result.Document.Shapes.Select(shape => shape.Image)).Where(image => image is not null)) {
+                    BrowserImageBudget.Add(image!.Data.Span, ref imagePixels);
+                    try { using var decoded = Broiler.Graphics.Imaging.BBitmap.Decode(image.Data.Span); }
+                    catch (Exception error) when (error is not OutOfMemoryException) { throw new InvalidDataException("An embedded image could not be decoded. The current document is unchanged.", error); }
+                }
                 ReplaceDocument(() =>
                 {
                     _editor.Document = result.Document;
                     _editor.Selection = RichTextRange.Caret(RichTextDocument.Start);
                 });
+                _resources = result.Resources;
+                _currentDocumentName = name; _hasSavedName = true;
+                SetDocumentName(name, modified: false);
+                ReportOperation("Opened", result.Status == DocumentResultStatus.Partial ? "Opened a supported subset of " + name + ". Review the format notes." : "Opened " + name, result.Diagnostics);
                 _session.SetFocus(_editor);
             }
             catch (Exception ex) when (IsDocumentException(ex))
             {
-                _lastAction = "Open failed: " + ex.Message;
+                ReportOperation("Failed", "Open failed: " + ex.Message);
             }
 
             RefreshUi();
@@ -512,8 +547,8 @@ internal sealed class BrowserWriterDemo : IDisposable
         var file = new UiMenuItem("file", "File") { AccessKey = 'F' };
         file.Children.Add(new UiMenuItem("new", "New document") { CommandName = "file.new", AccessKey = 'N' });
         file.Children.Add(new UiMenuItem("open", "Open...") { CommandName = "file.open", AccessKey = 'O' });
-        file.Children.Add(new UiMenuItem("save", "Save") { CommandName = "file.save", AccessKey = 'S' });
-        file.Children.Add(new UiMenuItem("save-as", "Save as...") { CommandName = "file.save-as", AccessKey = 'A' });
+        file.Children.Add(new UiMenuItem("save", "Export download") { CommandName = "file.save", AccessKey = 'S' });
+        file.Children.Add(new UiMenuItem("save-as", "Export as...") { CommandName = "file.save-as", AccessKey = 'A' });
 
         var edit = new UiMenuItem("edit", "Edit") { AccessKey = 'E' };
         edit.Children.Add(RichEditItem("undo", "Undo", "edit.undo", RichEditCommand.Undo, 'U'));
@@ -751,8 +786,8 @@ internal sealed class BrowserWriterDemo : IDisposable
 
         StandardButton newButton = ToolbarAction("New", "New document (Ctrl+N)", NewDocument, WriterIcons.NewDocument);
         StandardButton openButton = ToolbarAction("Open", "Open... (Ctrl+O)", RequestOpenDocument, WriterIcons.OpenDocument);
-        StandardButton saveButton = ToolbarAction("Save", "Save (Ctrl+S)", SaveDocument, WriterIcons.Save);
-        StandardButton saveAsButton = ToolbarAction("Save as", "Save as...", SaveDocumentAs, WriterIcons.SaveAs);
+        StandardButton saveButton = ToolbarAction("Export", "Export download (Ctrl+S)", SaveDocument, WriterIcons.Save);
+        StandardButton saveAsButton = ToolbarAction("Export as", "Export as (Ctrl+Shift+S)", SaveDocumentAs, WriterIcons.SaveAs);
         StandardButton undoButton = ToolbarCommand("Undo", "Undo (Ctrl+Z)", RichEditCommand.Undo, WriterIcons.Undo);
         StandardButton redoButton = ToolbarCommand("Redo", "Redo (Ctrl+Y)", RichEditCommand.Redo, WriterIcons.Redo);
 
@@ -944,12 +979,10 @@ internal sealed class BrowserWriterDemo : IDisposable
 
     private void ConfirmDocumentChange(Action action)
     {
+        if (_documentState.IsExporting || _choosingExportName) { ReportOperation("Failed", "Finish the current file operation first."); return; }
         _documentChanges ??= new WriterDocumentChanges(_rootWindow, () => _host.ViewportSize,
-            () => _isModified, () => _documentName, completed =>
-            {
-                SaveDocument();
-                completed(!_isModified);
-            });
+            () => _isModified, () => _documentName, SaveDocumentWithCompletion,
+            saveLabel: "Export", detailText: "A download keeps this document open.", showCloseButton: false);
         _documentChanges.Run(action);
     }
 
@@ -959,9 +992,10 @@ internal sealed class BrowserWriterDemo : IDisposable
     {
         _currentDocumentName = "Untitled document";
         _hasSavedName = false;
+        _resources = DocumentConversionContext.Empty;
         ReplaceDocument(() => _editor.SetPlainText(string.Empty));
         SetDocumentName(UntitledDocumentName, modified: false);
-        _lastAction = "New document";
+        ReportOperation("New", "New document");
         _session.SetFocus(_editor);
         RefreshUi();
     }
@@ -971,56 +1005,142 @@ internal sealed class BrowserWriterDemo : IDisposable
     private void RequestOpenDocumentCore()
     {
         BrowserInterop.RequestOpenFile(OpenAcceptExtensions);
-        _lastAction = "Open document";
+        ReportOperation("Pending", "Choose a document to open.");
         RefreshUi();
     }
 
     private void SaveDocument()
+        => SaveDocumentWithCompletion(null);
+
+    private void SaveDocumentWithCompletion(Action<bool>? completed)
     {
+        if (_documentState.IsExporting || _choosingExportName) { completed?.Invoke(false); return; }
         if (!_hasSavedName)
         {
-            SaveDocumentAs();
+            SaveDocumentAsWithCompletion(completed);
             return;
         }
 
-        DownloadDocument(_currentDocumentName);
+        DownloadDocument(_currentDocumentName, completed);
     }
 
     private void SaveDocumentAs()
-    {
-        string suggested = _hasSavedName ? _currentDocumentName : "Untitled" + DefaultDocumentExtension;
-        string chosen = BrowserInterop.PromptFileName(suggested);
-        if (string.IsNullOrWhiteSpace(chosen))
-        {
-            _lastAction = "Save cancelled";
-            RefreshUi();
-            return;
-        }
+        => SaveDocumentAsWithCompletion(null);
 
-        DownloadDocument(chosen);
+    private void SaveDocumentAsWithCompletion(Action<bool>? completed)
+    {
+        if (_documentState.IsExporting || _choosingExportName) { completed?.Invoke(false); return; }
+        string suggested = _hasSavedName ? _currentDocumentName : "Untitled" + DefaultDocumentExtension;
+        _choosingExportName = true; _nameCompletion = completed;
+        BrowserInterop.RequestExportName(suggested);
     }
 
-    private void DownloadDocument(string name)
+    internal void ExportNameSelected(string name) => _dispatcher.Post(() => {
+        if (!_choosingExportName) return;
+        _choosingExportName = false; var completed = _nameCompletion; _nameCompletion = null;
+        if (string.IsNullOrWhiteSpace(name)) { ReportOperation("Canceled", "Export canceled. The document is unchanged."); completed?.Invoke(false); RefreshUi(); return; }
+        DownloadDocument(name, completed);
+    });
+
+    private void DownloadDocument(string name, Action<bool>? completed = null)
     {
         try
         {
-            string resolved = EnsureExtension(name);
+            if (_documentState.IsExporting) { completed?.Invoke(false); return; }
+            string resolved = EnsureExtension(DisplayFileName(name));
             DocumentWriteResult result = WriteDocument(resolved, _editor.Document, out byte[] bytes);
-            BrowserInterop.DownloadFile(resolved, Convert.ToBase64String(bytes));
-            _currentDocumentName = resolved;
-            _hasSavedName = true;
-            SetDocumentName(resolved, modified: false);
-            _lastAction = result.Diagnostics.Count == 0
-                ? "Saved " + resolved
-                : "Saved " + resolved + " with " + result.Diagnostics.Count.ToString(CultureInfo.InvariantCulture) + " note(s)";
+            EnsureWritableResult(result, bytes);
+            int token = BeginExport(resolved, result); _saveCompletion = completed;
+            BrowserInterop.DownloadFile(resolved, Convert.ToBase64String(bytes), token);
+            ReportOperation("Pending", "Preparing export of " + resolved, result.Diagnostics);
         }
         catch (Exception ex) when (IsDocumentException(ex))
         {
-            _lastAction = "Save failed: " + ex.Message;
+            ReportOperation("Failed", "Export failed: " + ex.Message); completed?.Invoke(false);
         }
 
         _session.SetFocus(_editor);
         RefreshUi();
+    }
+
+    private int BeginExport(string name, DocumentWriteResult result)
+    {
+        _exportCanMarkClean = result.Status == DocumentResultStatus.Success &&
+            !result.Diagnostics.Any(note => note.Severity != DocumentDiagnosticSeverity.Info);
+        _exportName = name;
+        return _documentState.BeginExport();
+    }
+
+    internal string PrepareHandleExport(string name)
+    {
+        _dispatcher.Drain();
+        try {
+            if (_documentState.IsExporting || _choosingExportName) throw new InvalidOperationException("A file operation is already in progress.");
+            string resolved = EnsureExtension(DisplayFileName(name));
+            DocumentWriteResult result = WriteDocument(resolved, _editor.Document, out byte[] bytes);
+            EnsureWritableResult(result, bytes);
+            int token = BeginExport(resolved, result);
+            ReportOperation("Pending", "Writing " + resolved, result.Diagnostics);
+            return token.ToString(CultureInfo.InvariantCulture) + "\0" + resolved + "\0" + Convert.ToBase64String(bytes);
+        } catch (Exception error) when (IsDocumentException(error)) {
+            ReportOperation("Failed", "Save failed: " + error.Message); return string.Empty;
+        }
+    }
+
+    internal void ExportCompleted(int token, string outcome, string error) => _dispatcher.Post(() => {
+        if (!Enum.TryParse(outcome, out BrowserExportOutcome status)) status = BrowserExportOutcome.Failed;
+        if (!_documentState.CompleteExport(token, status, _exportCanMarkClean)) return;
+        if (status is BrowserExportOutcome.ExportInitiated or BrowserExportOutcome.SavedToHandle) {
+            _currentDocumentName = _exportName!; _hasSavedName = true; _documentName = _exportName!;
+        }
+        string message = status switch {
+            BrowserExportOutcome.ExportInitiated => "Download requested for " + _exportName + ". Disk persistence is not confirmed; modified content stays open.",
+            BrowserExportOutcome.SavedToHandle => _isModified ? "File written. Newer edits or conversion notes remain unsaved." : "Saved to file " + _exportName,
+            BrowserExportOutcome.Canceled => "File operation canceled. The document is unchanged.",
+            _ => "File operation failed: " + error + ". The document is unchanged.",
+        };
+        ReportOperation(status.ToString(), message, preserveNotes: true);
+        UpdateWindowTitle();
+        var completed = _saveCompletion; _saveCompletion = null; completed?.Invoke(status == BrowserExportOutcome.SavedToHandle && !_isModified);
+        _session.SetFocus(_editor); RefreshUi();
+    });
+
+    internal string PreviewText { get { string text = _editor.GetPlainText(); return text[..Math.Min(text.Length, 16000)]; } }
+    internal void FileOperationMessage(string outcome, string message) => _dispatcher.Post(() => { ReportOperation(outcome, message); RefreshUi(); });
+
+    private void ReportOperation(string outcome, string message, IReadOnlyList<DocumentDiagnostic>? diagnostics = null, bool preserveNotes = false)
+    {
+        _lastAction = message; _problem = outcome == "Failed" ? message : null;
+        if (!preserveNotes) _operationNotes = diagnostics is null ? string.Empty : string.Join("\n", diagnostics.Take(100).Select(note => note.Severity + " · " + note.Code + ": " + note.Message)) +
+            (diagnostics.Count > 100 ? "\nOnly the first 100 format notes are shown." : string.Empty);
+        BrowserInterop.ReportOperation(outcome, message, _operationNotes);
+    }
+
+    private static void EnsureWritableResult(DocumentWriteResult result, byte[] bytes)
+    {
+        if (result.Status == DocumentResultStatus.Rejected || result.DestinationState != DocumentDestinationState.Committed)
+            throw new IOException("The document codec did not complete an export.");
+        if (bytes.Length > MaximumFileBytes) throw new IOException("The export exceeds the 8 MiB browser limit.");
+    }
+
+    private static string DisplayFileName(string name)
+    {
+        string leaf = (name ?? string.Empty).Replace('\\', '/').Split('/')[^1].Trim();
+        if (leaf.Length == 0 || leaf is "." or ".." || leaf.Any(char.IsControl)) throw new ArgumentException("Choose a document filename.");
+        return leaf;
+    }
+
+    private static void ValidateArchive(string name, byte[] bytes)
+    {
+        string extension = Path.GetExtension(name).ToLowerInvariant();
+        if (extension is not (".docx" or ".odt")) return;
+        using var archive = new ZipArchive(new MemoryStream(bytes, writable: false), ZipArchiveMode.Read);
+        if (archive.Entries.Count > 2000) throw new IOException("This archive has too many entries for the browser edition.");
+        long expanded = 0;
+        foreach (var entry in archive.Entries) {
+            if (entry.Length > 32 * 1024 * 1024 - expanded) throw new IOException("This archive exceeds the browser expansion limit.");
+            expanded += entry.Length;
+        }
     }
 
     private DocumentReadResult ReadDocument(string name, byte[] bytes)
@@ -1034,24 +1154,33 @@ internal sealed class BrowserWriterDemo : IDisposable
             throw new NotSupportedException("No readable document codec recognized '" + Path.GetExtension(name) + "'.");
 
         using var readStream = new MemoryStream(bytes, writable: false);
-        return match.Codec.Read(readStream);
+        return match.Codec.Read(readStream, new DocumentReadOptions(
+            limits: new DocumentLimits(maxDocumentBytes: MaximumFileBytes, maxRunLength: MaximumTextCharacters, maxParagraphCount: 10000, maxBinBytes: MaximumFileBytes),
+            resourcePolicy: DocumentResourcePolicy.AllowOwnDocuments));
     }
 
-    private static DocumentWriteResult WriteDocument(string name, RichTextDocument document, out byte[] bytes)
+    private DocumentWriteResult WriteDocument(string name, RichTextDocument document, out byte[] bytes)
     {
+        if (document.PlainText.Length > MaximumTextCharacters || document.ParagraphCount > 10000)
+            throw new NotSupportedException("This export exceeds the browser text or paragraph limit. The document is kept open.");
         string extension = Path.GetExtension(name).ToLowerInvariant();
         using var stream = new MemoryStream();
+        var options = new DocumentWriteOptions(resources: _resources);
         DocumentWriteResult result = extension switch
         {
-            ".rtf" => RtfWriter.Write(document, stream),
-            ".docx" => DocxWriter.Write(document, stream),
-            ".odt" => OdtWriter.Write(document, stream),
-            ".html" or ".htm" => HtmlWriter.Write(document, stream),
-            ".md" or ".markdown" => MarkdownWriter.Write(document, stream),
+            ".rtf" => RtfWriter.Write(document, stream, options),
+            ".docx" => DocxWriter.Write(document, stream, options),
+            ".odt" => OdtWriter.Write(document, stream, options),
+            ".html" or ".htm" => HtmlWriter.Write(document, stream, options),
+            ".md" or ".markdown" => MarkdownWriter.Write(document, stream, options),
             _ => throw new NotSupportedException("Unsupported save format '" + extension + "'. Use .rtf, .docx, .odt, .html, or .md."),
         };
 
         bytes = stream.ToArray();
+        if (extension is ".md" or ".markdown")
+            return new DocumentWriteResult(result.BytesWritten, result.Diagnostics.Concat(new[] {
+                DocumentDiagnostic.Warning("writer.browser.markdown.subset", "Markdown preserves a supported text/emphasis/link subset. Underline, exact fonts and page layout may be omitted; original editing content is retained and existing unsaved changes are not cleared.")
+            }), DocumentResultStatus.Partial, result.DestinationState);
         return result;
     }
 
@@ -1059,7 +1188,7 @@ internal sealed class BrowserWriterDemo : IDisposable
         Path.HasExtension(name) ? name : name + DefaultDocumentExtension;
 
     private static bool IsDocumentException(Exception ex) =>
-        ex is IOException or NotSupportedException or ArgumentException or FormatException;
+        ex is IOException or InvalidDataException or NotSupportedException or ArgumentException or FormatException or InvalidOperationException or System.Xml.XmlException;
 
     // ---- Font dialog ------------------------------------------------------------------------
 
@@ -1074,6 +1203,7 @@ internal sealed class BrowserWriterDemo : IDisposable
 
         var dialog = new StandardFontDialog
         {
+            CanClose = false,
             PreferredSize = FontDialogPreferredSize,
             SelectedFont = CurrentEditorFont(),
             Underline = _editor.GetCommandState(RichEditCommand.Underline).IsToggled,
@@ -1373,17 +1503,17 @@ internal sealed class BrowserWriterDemo : IDisposable
     {
         _problem = null;
         _documentName = string.IsNullOrWhiteSpace(name) ? UntitledDocumentName : name;
-        _isModified = modified;
+        _documentState.Replaced(modified);
         UpdateWindowTitle();
     }
 
     private void MarkModified()
     {
         // A load raises DocumentChanged exactly as a keystroke does.
-        if (_replacingDocument > 0 || _isModified)
+        if (_replacingDocument > 0)
             return;
 
-        _isModified = true;
+        _documentState.Changed();
         UpdateWindowTitle();
     }
 
@@ -1407,6 +1537,7 @@ internal sealed class BrowserWriterDemo : IDisposable
     private void UpdateWindowTitle()
     {
         BrowserInterop.SetHasUnsavedChanges(_isModified);
+        BrowserInterop.SetDocumentState(_documentName, _isModified, _documentState.Generation, _documentState.Revision);
         _rootWindow.Title = WindowTitle;
         BrowserInterop.SetTitle(WindowTitle);
     }

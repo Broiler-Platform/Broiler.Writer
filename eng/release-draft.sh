@@ -83,18 +83,12 @@ done
 
 web_source="$artifacts/broiler-writer-web-$version"
 web_zip="$out/Broiler.Writer-$version-browser-wasm.zip"
-[ -f "$web_source/wwwroot/index.html" ] || { echo "missing published Writer web bundle" >&2; exit 1; }
-"$python" - "$web_source" "$web_zip" <<'PY'
-import pathlib, sys, zipfile
-source, target = pathlib.Path(sys.argv[1]), sys.argv[2]
-with zipfile.ZipFile(target, 'w', zipfile.ZIP_DEFLATED) as archive:
-    for path in sorted(source.rglob('*')):
-        if path.is_symlink():
-            raise ValueError('Writer web artifact must not contain links')
-        if path.is_file():
-            archive.write(path, path.relative_to(source).as_posix())
-PY
+web_metadata="$web_source/Broiler.Writer-$version-browser-wasm.web-artifact.json"
+web_sums="$web_source/Broiler.Writer-$version-browser-wasm.SHA256SUMS.txt"
+"$python" eng/web/artifact.py verify --archive "$web_source/$(basename "$web_zip")" --metadata "$web_metadata" --require-release --product writer --version "$version" --tag "$tag" --commit "$(git rev-parse HEAD)" --repository "${GITHUB_REPOSITORY:-Broiler-Platform/Broiler.Writer}"
+cp "$web_source/$(basename "$web_zip")" "$web_zip"
 desktop_assets+=("$web_zip")
+web_assets=("$web_metadata" "$web_sums")
 
 android_dir="$artifacts/broiler-writer-android-$version"
 aab="$android_dir/Broiler.Writer-$version.aab"
@@ -141,7 +135,7 @@ fi
 
 "$python" eng/write-component-manifest.py --directory "$out" --product writer --version "$version" --repository Broiler-Platform/Broiler.Writer --tag "$tag" --commit "$(git rev-parse HEAD)" --self-contained-mode native-aot --additional "${android_assets[@]}"
 
-gh release create "$tag" "${desktop_assets[@]}" "${android_assets[@]}" "$out/component-release.json" "$out/SHA256SUMS.txt" \
+gh release create "$tag" "${desktop_assets[@]}" "${android_assets[@]}" "${web_assets[@]}" "$out/component-release.json" "$out/SHA256SUMS.txt" \
   --verify-tag \
   --draft \
   --prerelease \

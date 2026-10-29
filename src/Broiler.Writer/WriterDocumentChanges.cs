@@ -17,7 +17,10 @@ public sealed class WriterDocumentChanges(
     Func<BSize> viewport,
     Func<bool> isModified,
     Func<string> documentName,
-    Action<Action<bool>> save)
+    Action<Action<bool>> save,
+    string saveLabel = "Save",
+    string detailText = "Discard will lose your unsaved changes.",
+    bool showCloseButton = true)
 {
     private bool _pending;
 
@@ -39,6 +42,7 @@ public sealed class WriterDocumentChanges(
         {
             Title = "Unsaved changes",
             PreferredSize = new BSize(460, 210),
+            CanClose = showCloseButton,
         };
         var name = new StandardLabel
         {
@@ -53,10 +57,10 @@ public sealed class WriterDocumentChanges(
         };
         var detail = new StandardLabel
         {
-            Text = "Discard will lose your unsaved changes.",
+            Text = detailText,
             Font = new BFontStyle("Segoe UI", 13),
         };
-        var saveButton = new StandardButton { Text = "Save" };
+        var saveButton = new StandardButton { Text = saveLabel };
         var discardButton = new StandardButton { Text = "Discard" };
         var cancelButton = new StandardButton { Text = "Cancel" };
         saveButton.Clicked += (_, _) => dialog.Accept();

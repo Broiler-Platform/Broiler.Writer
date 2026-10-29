@@ -73,17 +73,22 @@ internal static partial class BrowserInterop
     [JSImport("writer.setHasUnsavedChanges", "main.js")]
     internal static partial void SetHasUnsavedChanges(bool modified);
 
+    [JSImport("writer.setDocumentState", "main.js")]
+    internal static partial void SetDocumentState(string name, bool modified, double generation, double revision);
+
+    [JSImport("writer.reportOperation", "main.js")]
+    internal static partial void ReportOperation(string outcome, string message, string notes);
+
     /// <summary>
     /// Triggers a browser download of an encoded document (managed → page). The bytes are passed as
     /// base64 to keep the interop signature a simple string.
     /// </summary>
     [JSImport("writer.downloadFile", "main.js")]
-    internal static partial void DownloadFile(string fileName, string base64Data);
+    internal static partial void DownloadFile(string fileName, string base64Data, int token);
 
     /// <summary>
-    /// Prompts for a file name for Save As (page → managed, sync). Returns an empty string when the
-    /// user cancels. The chosen extension selects the save format.
+    /// Opens the asynchronous export-name dialog. The page reports the result via ExportNameSelected.
     /// </summary>
-    [JSImport("writer.promptFileName", "main.js")]
-    internal static partial string PromptFileName(string defaultName);
+    [JSImport("writer.requestExportName", "main.js")]
+    internal static partial void RequestExportName(string defaultName);
 }

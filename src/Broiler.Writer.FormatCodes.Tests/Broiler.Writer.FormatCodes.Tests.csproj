@@ -41,6 +41,8 @@
 
   <ItemGroup>
     <Using Include="Xunit" />
+    <Compile Include="../Broiler.Writer.WebAssembly/BrowserDocumentState.cs" Link="BrowserDocumentState.cs" />
+    <Compile Include="../Broiler.Writer.WebAssembly/BrowserImageBudget.cs" Link="BrowserImageBudget.cs" />
   </ItemGroup>
 
 </Project>

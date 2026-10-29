@@ -1,0 +1,140 @@
+name: Office web Pages
+on:
+  workflow_dispatch:
+    inputs:
+      operation:
+        description: Stage immutable files, or promote/rollback the approved suite (Launcher repository only).
+        type: choice
+        options: [stage, promote]
+        default: stage
+      suite_tag:
+        description: Published Office web suite release tag in Broiler-Platform/Broiler.
+        type: string
+        required: true
+      lock_sha256:
+        description: Reviewed SHA-256 of that release's office-web.lock.json asset.
+        type: string
+        required: true
+      expected_previous_sha256:
+        description: Promotion concurrency guard; current approved office-web.json SHA-256, or none on first promotion.
+        type: string
+        default: none
+      integration_run_id:
+        description: Successful Verify Office web suite run for this exact lock; required for promotion/rollback.
+        type: string
+        default: ''
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+concurrency:
+  group: office-web-pages
+  cancel-in-progress: false
+jobs:
+  deploy:
+    runs-on: ubuntu-24.04
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+      - name: Download and verify the reviewed suite lock
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SUITE_TAG: ${{ inputs.suite_tag }}
+          LOCK_SHA: ${{ inputs.lock_sha256 }}
+        run: |
+          mkdir -p lock
+          gh release download "$SUITE_TAG" --repo Broiler-Platform/Broiler --pattern office-web.lock.json --dir lock
+          python - <<'PY'
+          import hashlib, os, pathlib, re
+          expected = os.environ['LOCK_SHA']
+          assert re.fullmatch('[0-9a-f]{64}', expected), 'Invalid reviewed lock digest'
+          assert hashlib.sha256(pathlib.Path('lock/office-web.lock.json').read_bytes()).hexdigest() == expected, 'Suite lock differs'
+          PY
+          python eng/web-deploy/office_web.py validate --lock lock/office-web.lock.json
+      - name: Require successful browser integration before promotion
+        if: inputs.operation == 'promote'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          INTEGRATION_RUN: ${{ inputs.integration_run_id }}
+          LOCK_SHA: ${{ inputs.lock_sha256 }}
+        run: |
+          test "$GITHUB_REPOSITORY" = Broiler-Platform/Broiler
+          [[ "$INTEGRATION_RUN" =~ ^[0-9]+$ ]]
+          gh api "repos/$GITHUB_REPOSITORY/actions/runs/$INTEGRATION_RUN" > integration-run.json
+          python - <<'PY'
+          import json, os
+          run=json.load(open('integration-run.json'))
+          assert run['conclusion']=='success' and run['path']=='.github/workflows/office-web-integration.yml'
+          assert run['head_sha']==os.environ['GITHUB_SHA'], 'Repeat integration on the current deployment code'
+          PY
+          gh run download "$INTEGRATION_RUN" --repo "$GITHUB_REPOSITORY" --name office-web-integration-evidence --dir integration-evidence
+          python - <<'PY'
+          import hashlib, json, os, pathlib
+          root=pathlib.Path('integration-evidence')
+          assert hashlib.sha256((root/'lock/office-web.lock.json').read_bytes()).hexdigest()==os.environ['LOCK_SHA']
+          for name in ('launcher','writer','cell','suite'):
+              report=json.loads((root/'evidence'/f'{name}.json').read_text())
+              assert len(report['runs'])==3 and {r['engine'] for r in report['runs']}=={'chromium','firefox','webkit'}
+              assert all(r.get('pass') is True for r in report['runs'])
+          PY
+      - name: Restore retained immutable versions
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh auth setup-git
+          git init site
+          git -C site remote add origin "https://github.com/$GITHUB_REPOSITORY.git"
+          if git ls-remote --exit-code --heads "https://github.com/$GITHUB_REPOSITORY.git" web-pages; then
+            git -C site fetch --depth=1 origin web-pages
+            git -C site checkout -B web-pages FETCH_HEAD
+          else
+            git -C site checkout --orphan web-pages
+          fi
+      - name: Stage or approve the exact suite bytes
+        env:
+          GH_TOKEN: ${{ github.token }}
+          OPERATION: ${{ inputs.operation }}
+          PREVIOUS_SHA: ${{ inputs.expected_previous_sha256 }}
+        run: |
+          case "$GITHUB_REPOSITORY" in
+            Broiler-Platform/Broiler) product=launcher ;;
+            Broiler-Platform/Broiler.Writer) product=writer ;;
+            Broiler-Platform/Broiler.Cells) product=cell ;;
+            *) echo 'Unexpected deployment repository'; exit 1 ;;
+          esac
+          if [ "$OPERATION" = stage ]; then
+            python eng/web-deploy/office_web.py stage --lock lock/office-web.lock.json --product "$product" --site site --cache cache
+          elif [ "$OPERATION" = promote ] && [ "$product" = launcher ]; then
+            python eng/web-deploy/office_web.py promote --lock lock/office-web.lock.json --site site --expected-previous-sha256 "$PREVIOUS_SHA"
+          else
+            echo 'Promotion belongs to the Launcher origin'; exit 1
+          fi
+      - name: Retain history and export the static site
+        env:
+          SUITE_TAG: ${{ inputs.suite_tag }}
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          assert sum(p.stat().st_size for p in Path('site').rglob('*') if p.is_file() and '.git' not in p.parts) < 900*1024*1024, 'Retained site approaches Pages size limit; review storage without deleting rollback releases'
+          PY
+          git -C site config user.name github-actions[bot]
+          git -C site config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git -C site add --all
+          if ! git -C site diff --cached --quiet; then
+            git -C site commit -m "Office web deployment: $SUITE_TAG"
+            git -C site push origin HEAD:refs/heads/web-pages
+          fi
+          mkdir _pages
+          git -C site archive --format=tar HEAD | tar -xf - -C _pages
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _pages
+      - name: Deploy GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

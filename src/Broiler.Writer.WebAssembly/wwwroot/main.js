@@ -1,4 +1,8 @@
+import { OfficeRecovery } from './broiler.recovery.js';
+export const officeInputProtocolVersion = 1;
+if (location.origin === 'https://broiler-platform.github.io') document.querySelector('.office-nav a').href = '/demo/';
 import { dotnet } from './_framework/dotnet.js';
+import { maximumFileBytes, bytesToBase64, base64ToBytes, download, writeHandle } from './writer.files.js';
 
 // Page glue for Broiler Writer in WebAssembly. The managed side owns rendering (it presents straight
 // to #writer-canvas through the direct-Canvas 2D backend), so this module only bridges input,
@@ -12,9 +16,10 @@ const CURSORS = {
 
 // Ctrl/Cmd chords the managed editor consumes; prevent the browser's own default so they reach it.
 // Copy/Cut/Paste (C/X/V) are deliberately excluded so the trusted clipboard events still fire.
-const EDITOR_CTRL_KEYS = new Set(['b', 'i', 'u', 'z', 'y', 'a', 's', 'o']);
+const EDITOR_CTRL_KEYS = new Set(['b', 'i', 'u', 'z', 'y', 'a', 's', 'o', 'n']);
 
 let writerExports;
+let recovery;
 let canvas;
 let textInput;
 let host;
@@ -26,7 +31,14 @@ let frameInProgress = false;
 let observedWidth = 1280;
 let observedHeight = 800;
 let nativeCompositionActive = false;
-let suppressNextInput = false;
+let compositionEcho = null;
+let compositionEchoTimer = 0;
+let fileBusy = false;
+let currentName = 'Untitled.rtf';
+let documentGeneration = 0;
+let pickerGeneration = 0;
+let currentModified = false;
+let framePending = false;
 let caretActive = false;
 let focusedIsText = false;
 const activePointers = new Set();
@@ -52,7 +64,9 @@ function showError(message) {
 }
 
 function scheduleFrame() {
-    if (!started || frameRequest !== 0 || frameInProgress) return;
+    if (!started) return;
+    if (frameInProgress) { framePending = true; return; }
+    if (frameRequest !== 0) return;
     frameRequest = requestAnimationFrame(() => {
         frameRequest = 0;
         frameInProgress = true;
@@ -60,6 +74,7 @@ function scheduleFrame() {
             writerExports.RenderUiFrame();
         } finally {
             frameInProgress = false;
+            if (framePending) { framePending = false; scheduleFrame(); }
         }
     });
 }
@@ -79,7 +94,7 @@ function localPoint(event) {
 
 function keyboardModifiers(event) {
     return (event.shiftKey ? 1 : 0) |
-        (event.ctrlKey ? 2 : 0) |
+        (event.ctrlKey || event.metaKey ? 2 : 0) |
         (event.altKey ? 4 : 0) |
         (event.metaKey ? 8 : 0);
 }
@@ -99,7 +114,8 @@ function dispatchKey(event, down) {
         // (and the app-level Ctrl+S / Ctrl+O accelerators) handle these instead.
         event.preventDefault();
     } else if (!event.ctrlKey && !event.metaKey &&
-        ['Tab', 'Space', 'Up', 'Down', 'Left', 'Right', 'Home', 'End', 'Backspace', 'Delete', 'Enter'].includes(key)) {
+        (key === 'Space' ? event.target !== textInput :
+            ['Tab', 'Up', 'Down', 'Left', 'Right', 'Home', 'End', 'Backspace', 'Delete', 'Enter'].includes(key))) {
         event.preventDefault();
     }
     writerExports.UiKeyboardKey(
@@ -124,7 +140,7 @@ function publishFrame(
         textInput.style.height = `${Math.max(8, caretHeight)}px`;
     }
     const active2 = document.activeElement;
-    if (isText && (active2 === canvas || active2 === textInput))
+    if (isText && active2 === canvas)
         textInput.focus({ preventScroll: true });
 }
 
@@ -135,15 +151,17 @@ function setupTextInput() {
         if (event.isComposing || nativeCompositionActive || (event.inputType || '').includes('Composition')) return;
         if (event.inputType === 'insertText' && event.data) {
             event.preventDefault();
-            writerExports.UiTextInput(event.data, event.timeStamp);
+            if (compositionEcho !== null && compositionEcho === event.data) compositionEcho = null;
+            else writerExports.UiTextInput(event.data, event.timeStamp);
         } else if ((event.inputType || '').startsWith('delete')) {
             event.preventDefault();
         }
     });
     addListener(textInput, 'input', event => {
-        if (suppressNextInput) { suppressNextInput = false; return; }
-        if (!nativeCompositionActive && event.data)
+        if (compositionEcho !== null && compositionEcho === event.data) { compositionEcho = null; textInput.value = ''; return; }
+        if (!nativeCompositionActive && !event.isComposing && event.data)
             writerExports.UiTextInput(event.data, event.timeStamp);
+        if (!nativeCompositionActive) textInput.value = '';
     });
     addListener(textInput, 'compositionstart', event => {
         nativeCompositionActive = true;
@@ -155,14 +173,15 @@ function setupTextInput() {
     });
     addListener(textInput, 'compositionend', event => {
         nativeCompositionActive = false;
-        suppressNextInput = true;
+        compositionEcho = event.data ?? '';
+        clearTimeout(compositionEchoTimer);
+        compositionEchoTimer = setTimeout(() => { compositionEcho = null; }, 0);
         writerExports.UiTextComposition(event.data ?? '', 2, textInput.selectionStart ?? 0, 0, event.timeStamp);
         textInput.value = '';
     });
     addListener(textInput, 'blur', event => {
         if (!nativeCompositionActive) return;
         nativeCompositionActive = false;
-        suppressNextInput = false;
         writerExports.UiTextComposition('', 3, 0, 0, event.timeStamp);
     });
     for (const operation of ['copy', 'cut', 'paste']) {
@@ -183,49 +202,72 @@ function setupTextInput() {
 
 // ---- Browser-native open / save ------------------------------------------------------------------
 
-function bytesToBase64(bytes) {
-    let binary = '';
-    const chunk = 0x8000;
-    for (let i = 0; i < bytes.length; i += chunk)
-        binary += String.fromCharCode.apply(null, bytes.subarray(i, i + chunk));
-    return btoa(binary);
-}
-
-function base64ToBytes(base64) {
-    const binary = atob(base64);
-    const bytes = new Uint8Array(binary.length);
-    for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
-    return bytes;
-}
-
 function requestOpenFile(accept) {
-    if (!filePicker) return;
+    if (!filePicker || fileBusy) { reportOperation('Failed', 'Finish the current file operation first.'); return; }
+    fileBusy = true;
+    pickerGeneration = documentGeneration;
     filePicker.value = '';
     filePicker.accept = accept || '';
-    filePicker.click();
+    try { filePicker.click(); } catch (error) { fileBusy = false; writerExports.FileOperationMessage('Failed', 'Could not open the file picker: ' + error); }
 }
 
 async function onFilePicked(file) {
     try {
+        if (file.size > maximumFileBytes) throw new Error('The file exceeds the 8 MiB browser limit.');
+        const generation = pickerGeneration;
         const buffer = await file.arrayBuffer();
+        if (buffer.byteLength > maximumFileBytes) throw new Error('The file exceeds the 8 MiB browser limit.');
+        if (generation !== documentGeneration) throw new Error('The document changed while the picker was open. Please open the file again.');
         const base64 = bytesToBase64(new Uint8Array(buffer));
         writerExports.LoadDocument(file.name || 'Untitled.rtf', base64);
         (focusedIsText ? textInput : canvas).focus({ preventScroll: true });
     } catch (error) {
-        showError(error instanceof Error ? error.stack ?? error.message : String(error));
+        writerExports.FileOperationMessage('Failed', 'Open failed: ' + (error.message || error));
+    } finally {
+        fileBusy = false;
     }
 }
 
-function downloadFile(fileName, base64Data) {
-    const blob = new Blob([base64ToBytes(base64Data)], { type: 'application/octet-stream' });
-    const url = URL.createObjectURL(blob);
-    const anchor = document.createElement('a');
-    anchor.href = url;
-    anchor.download = fileName || 'document.rtf';
-    document.body.appendChild(anchor);
-    anchor.click();
-    anchor.remove();
-    setTimeout(() => URL.revokeObjectURL(url), 0);
+async function downloadFile(fileName, base64Data, token) {
+    const result = fileBusy ? { outcome: 'Failed', message: 'Another file operation is in progress.' } : await download(fileName, base64Data);
+    writerExports.ExportCompleted(token, result.outcome, result.message || '');
+}
+
+function reportOperation(outcome, message, notes = '') {
+    const status = document.getElementById('writer-operation');
+    status.dataset.outcome = outcome; status.textContent = message; status.title = message;
+    document.getElementById('writer-operation-detail').textContent = message;
+    document.getElementById('writer-notes').textContent = notes || 'No format notes for this operation.';
+    if (/Warning|Error/.test(notes)) document.getElementById('writer-info').open = true;
+}
+
+function updatePreview() {
+    if (started && document.getElementById('writer-info').open)
+        document.getElementById('writer-preview').textContent = writerExports.DocumentPreview();
+}
+
+async function saveToHandle() {
+    if (fileBusy) return;
+    fileBusy = true;
+    const generation = documentGeneration;
+    let token = 0;
+    try {
+        const handle = await window.showSaveFilePicker({ suggestedName: /\.(rtf|docx|odt|html?|md|markdown)$/i.test(currentName) ? currentName : 'Untitled.rtf', types: [
+            { description: 'Writer documents', accept: { 'application/rtf': ['.rtf'], 'application/vnd.openxmlformats-officedocument.wordprocessingml.document': ['.docx'],
+                'application/vnd.oasis.opendocument.text': ['.odt'], 'text/html': ['.html', '.htm'], 'text/markdown': ['.md', '.markdown'] } },
+        ], excludeAcceptAllOption: true });
+        if (generation !== documentGeneration) throw new Error('The document changed while choosing a file. Please save again.');
+        const prepared = writerExports.PrepareHandleExport(handle.name);
+        if (!prepared) return;
+        const fields = prepared.split('\0'); token = Number(fields[0]);
+        if (fields[1] !== handle.name) throw new Error('Choose a supported document extension.');
+        const result = await writeHandle(handle, base64ToBytes(fields[2]));
+        writerExports.ExportCompleted(token, result.outcome, result.message || '');
+    } catch (error) {
+        const outcome = error?.name === 'AbortError' ? 'Canceled' : 'Failed';
+        if (token) writerExports.ExportCompleted(token, outcome, String(error));
+        else writerExports.FileOperationMessage(outcome, 'Save ' + (outcome === 'Canceled' ? 'canceled.' : 'failed: ' + error));
+    } finally { fileBusy = false; }
 }
 
 function attachInput() {
@@ -242,6 +284,16 @@ function attachInput() {
     addListener(filePicker, 'change', () => {
         const file = filePicker.files && filePicker.files[0];
         if (file) onFilePicked(file);
+        else { fileBusy = false; writerExports.FileOperationMessage('Canceled', 'Open canceled. The document is unchanged.'); }
+    });
+    addListener(filePicker, 'cancel', () => { fileBusy = false; writerExports.FileOperationMessage('Canceled', 'Open canceled. The document is unchanged.'); });
+    addListener(document.getElementById('writer-info'), 'toggle', updatePreview);
+    const saveFile = document.getElementById('writer-save-file');
+    saveFile.hidden = typeof window.showSaveFilePicker !== 'function';
+    addListener(saveFile, 'click', saveToHandle);
+    const exportDialog = document.getElementById('writer-export-name');
+    addListener(exportDialog, 'close', () => {
+        if (started) writerExports.ExportNameSelected(exportDialog.returnValue === 'export' ? document.getElementById('writer-filename').value : '');
     });
 
     started = true;
@@ -285,7 +337,10 @@ function attachInput() {
     addListener(canvas, 'keyup', event => dispatchKey(event, false));
     setupTextInput();
 
-    addListener(window, 'blur', () => writerExports.UiCancelPointer(performance.now()));
+    addListener(window, 'blur', () => {
+        writerExports.UiCancelPointer(performance.now());
+        if (nativeCompositionActive) { nativeCompositionActive = false; writerExports.UiTextComposition('', 3, 0, 0, performance.now()); }
+    });
     addListener(document, 'visibilitychange', () => {
         if (document.hidden) writerExports.UiCancelPointer(performance.now());
     });
@@ -305,6 +360,8 @@ function stop() {
     if (frameRequest !== 0) { cancelAnimationFrame(frameRequest); frameRequest = 0; }
     for (const cleanup of listenerCleanups.splice(0)) cleanup();
     activePointers.clear();
+    filePicker?.remove(); clearTimeout(compositionEchoTimer);
+    window.removeEventListener('beforeunload', confirmUnsavedChanges);
     started = false;
     try { writerExports?.Dispose(); } catch { /* teardown best-effort */ }
 }
@@ -313,7 +370,15 @@ const { setModuleImports, getAssemblyExports, runMain } = await dotnet.create();
 
 setModuleImports('main.js', {
     writer: {
-        openUrl: url => { window.open(url, '_blank', 'noopener,noreferrer'); },
+        openUrl: value => {
+            try {
+                const url = new URL(value, location.href);
+                if (!['http:', 'https:', 'mailto:'].includes(url.protocol) || value.startsWith('#')) {
+                    writerExports.FileOperationMessage('Failed', 'This link cannot be opened in the browser edition.'); return;
+                }
+                window.open(url.href, '_blank', 'noopener,noreferrer');
+            } catch { writerExports.FileOperationMessage('Failed', 'This document link is invalid.'); }
+        },
         scheduleFrame: () => scheduleFrame(),
         setCursor: cursor => { if (canvas) canvas.style.cursor = CURSORS[cursor] || 'default'; },
         // The tab is this application's title bar, so the open document's name belongs here.
@@ -325,28 +390,50 @@ setModuleImports('main.js', {
             writerExports.ResizeUi(observedWidth, observedHeight, window.devicePixelRatio || 1);
             scheduleFrame();
             statusLine.hidden = true;
+            queueMicrotask(() => recovery.start());
         },
         failed: (exceptionType, details) => showError(`${exceptionType}: ${details}`),
         publishFrame,
         prefersDarkScheme: () => prefersDark(),
         prefersReducedMotion: () => prefersReducedMotion(),
         requestOpenFile: accept => requestOpenFile(accept),
+        setDocumentState: (name, modified, generation, revision) => {
+            recovery?.changed({name, modified, generation, revision});
+            currentName = name; currentModified = modified; documentGeneration = generation;
+            document.body.dataset.modified = String(modified);
+            document.getElementById('writer-document-name').textContent = name + (modified ? ' · Modified' : ' · No unsaved edits');
+            queueMicrotask(updatePreview);
+        },
+        reportOperation,
         setHasUnsavedChanges: modified => {
+            if (modified === currentModified) return;
+            currentModified = modified;
             window.removeEventListener('beforeunload', confirmUnsavedChanges);
             if (modified) window.addEventListener('beforeunload', confirmUnsavedChanges);
         },
-        downloadFile: (fileName, base64Data) => downloadFile(fileName, base64Data),
-        promptFileName: defaultName => {
-            const chosen = window.prompt('Save document as (extension selects RTF, DOCX, HTML, or MD):', defaultName || 'Untitled.rtf');
-            return chosen == null ? '' : chosen.trim();
+        downloadFile,
+        requestExportName: defaultName => {
+            const dialog = document.getElementById('writer-export-name');
+            document.getElementById('writer-filename').value = defaultName || 'Untitled.rtf';
+            dialog.returnValue = '';
+            try { dialog.showModal(); document.getElementById('writer-filename').select(); }
+            catch { writerExports.ExportNameSelected(''); }
         },
     },
 });
 
 const assemblyExports = await getAssemblyExports('Broiler.Writer.WebAssembly');
 writerExports = assemblyExports.Broiler.Writer.WebAssembly.BrowserWriterExports;
+recovery = new OfficeRecovery({
+    app: 'writer',
+    capture: () => JSON.parse(writerExports.RecoverySnapshot()),
+    restore: record => { if (!writerExports.RestoreRecovery(record.name, record.payload)) throw new Error('The draft could not be restored; current content retained.'); },
+    acceptFormat: format => format === 'rtf',
+});
+
 
 window.addEventListener('pagehide', stop, { once: true });
+window.addEventListener('pageshow', event => { if (event.persisted) location.reload(); });
 
 // Browsers own the navigation/close prompt; custom asynchronous dialogs cannot delay unloading.
 function confirmUnsavedChanges(event) {
@@ -357,3 +444,7 @@ function confirmUnsavedChanges(event) {
 runMain().catch(error => {
     showError(error instanceof Error ? error.stack ?? error.message : String(error));
 });
+
+// Read-only host diagnostics; mutation remains in the editor and recovery commands.
+export function recoverySnapshot() { return JSON.parse(writerExports.RecoverySnapshot()); }
+export function documentPreview() { return writerExports.DocumentPreview(); }

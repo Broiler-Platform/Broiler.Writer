@@ -1,0 +1,66 @@
+name: Writer web artifact
+on:
+  workflow_call:
+    inputs:
+      version: { type: string, required: true }
+      source_tag: { type: string, required: true }
+      hosting_version: { type: string, default: '' }
+      graphics_version: { type: string, default: '' }
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    defaults:
+      run:
+        working-directory: eng/web
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+      - uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: '10.0.403'
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+      - name: Provision the pinned workload set
+        run: dotnet workload install wasm-tools --version 10.403.0
+      - name: Test the producer archive contract
+        run: python -m unittest -v test_artifact.py
+      - name: Publish and package once
+        shell: pwsh
+        env:
+          WEB_VERSION: ${{ inputs.version }}
+          SOURCE_TAG: ${{ inputs.source_tag }}
+          HOSTING_VERSION: ${{ inputs.hosting_version }}
+          GRAPHICS_VERSION: ${{ inputs.graphics_version }}
+        run: |
+          ./publish.ps1 -Version $env:WEB_VERSION -Tag $env:SOURCE_TAG -HostingVersion $env:HOSTING_VERSION -GraphicsVersion $env:GRAPHICS_VERSION
+      - name: Provision pinned browser tests
+        run: |
+          npm ci
+          npx playwright install --with-deps chromium firefox webkit
+      - name: Test only the extracted archive
+        env:
+          WEB_VERSION: ${{ inputs.version }}
+        run: node smoke.mjs "${GITHUB_WORKSPACE}/artifacts/web-producer/$WEB_VERSION/extracted/wwwroot" writer "${GITHUB_WORKSPACE}/artifacts/web-producer/$WEB_VERSION/smoke.json"
+      - uses: actions/upload-artifact@v7
+        with:
+          name: broiler-writer-web-${{ inputs.version }}
+          path: artifacts/web-producer/${{ inputs.version }}/release/*
+          if-no-files-found: error
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: broiler-writer-web-evidence-${{ inputs.version }}
+          path: |
+            artifacts/web-producer/${{ inputs.version }}/smoke.json*
+            artifacts/web-producer/${{ inputs.version }}/dotnet-info.txt
+            artifacts/web-producer/${{ inputs.version }}/workloads.txt
+          if-no-files-found: warn

@@ -1818,8 +1818,7 @@ internal sealed class WriterApp : IDisposable
     /// so rather than passing it off as a clean open.
     /// </remarks>
     internal static bool MayReplaceDocument(DocumentReadResult result) =>
-        result.IsUsable &&
-        (result.Document.PlainText.Length > 0 || result.Status == DocumentResultStatus.Success);
+        WriterDocumentLoadPolicy.MayReplace(result);
 
     /// <summary>Why a read was refused, for the status bar.</summary>
     internal static string DescribeRefusedOpen(string fileName, DocumentCodecSelection selection)

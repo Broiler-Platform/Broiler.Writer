@@ -23,6 +23,7 @@
     <InternalsVisibleTo Include="Broiler.Writer.Linux" />
     <InternalsVisibleTo Include="Broiler.Writer.Android" />
     <InternalsVisibleTo Include="Broiler.Writer.FormatCodes.Tests" />
+    <InternalsVisibleTo Include="Broiler.Writer.WebAssembly" />
   </ItemGroup>
 
   <ItemGroup>

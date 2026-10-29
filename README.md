@@ -425,4 +425,7 @@ both vendored copies of the props file are imported.
 
 ## License
 
+The WebAssembly edition includes [browser-local recovery](docs/browser-recovery.md)
+with explicit restore, backup export/import and failure-tested IndexedDB storage.
+
 Apache License 2.0 — see [LICENSE](LICENSE).

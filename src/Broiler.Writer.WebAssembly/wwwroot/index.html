@@ -16,8 +16,20 @@
         * { box-sizing: border-box; }
         html, body, main { width: 100%; height: 100%; margin: 0; overflow: hidden; }
         body { background: var(--host-bg); }
+        .office-nav { height: 36px; padding: 5px 12px; background: #f8fafc; font-size: 14px; display: flex; gap: 14px; align-items: center; }
+        .office-nav a { color: #145cb3; }
+        main { height: calc(100% - 68px); }
+        .office-nav button { font: inherit; }
+        #writer-info-panel { position: absolute; z-index: 10; top: 36px; right: 12px; width: min(680px, calc(100vw - 24px)); max-height: 70vh; overflow: auto; padding: 16px; background: #fff; color: #182435; border: 1px solid #cbd5e1; box-shadow: 0 8px 25px #18243533; }
+        #writer-info-panel pre { white-space: pre-wrap; overflow-wrap: anywhere; }
+        .operation-bar { height: 32px; padding: 6px 12px; font-size: 13px; background: #f8fafc; color: #182435; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        #writer-operation[data-outcome="Failed"] { color: #a22218; }
+        #writer-export-name { border: 1px solid #b8c8dc; border-radius: 10px; max-width: min(460px, calc(100vw - 24px)); color: #182435; background: #fff; }
+        #writer-export-name::backdrop { background: #18243555; }
+        #writer-export-name input { width: 100%; padding: 8px; margin: 8px 0 14px; font: inherit; }
+        #writer-export-name button { font: inherit; padding: 6px 14px; margin-right: 8px; }
         #writer-status {
-            position: fixed; z-index: 2; top: 16px; left: 50%; transform: translateX(-50%);
+            position: fixed; z-index: 2; top: 48px; left: 50%; transform: translateX(-50%);
             display: inline-flex; align-items: center; min-height: 34px;
             padding: 7px 14px; border-radius: 999px; font-weight: 600;
             background: var(--status-bg); color: var(--status-fg); box-shadow: 0 4px 16px rgba(15, 30, 50, .18);
@@ -44,6 +56,7 @@
     </style>
 </head>
 <body>
+<nav class="office-nav" aria-label="Office navigation"><a href="https://demo.broiler.app/">Return to Office</a><button id="writer-save-file" hidden>Save to file…</button><details id="writer-info"><summary>Document information</summary><section id="writer-info-panel"><strong id="writer-document-name">Untitled document</strong><p id="writer-operation-detail">Ready</p><h2>Format notes</h2><pre id="writer-notes">No format notes for this operation.</pre><p>Preview limits: 8 MiB files, 250,000 text characters and 10,000 paragraphs. Embedded PNG/JPEG/BMP images: 16 MP each, 32 MP total. Fonts use browser-available fallbacks. PDF and printing are not available in this edition.</p><h2>Text preview</h2><p>First 16,000 characters; this is a read-only view.</p><pre id="writer-preview"></pre></section></details></nav>
 <main>
     <div id="writer-status" role="status">Loading Broiler Writer…</div>
 
@@ -59,6 +72,8 @@
         <div id="error"></div>
     </div>
 </main>
+<div class="operation-bar"><output id="writer-operation" role="status" aria-live="polite">Ready · exports do not confirm a saved disk copy.</output></div>
+<dialog id="writer-export-name" aria-labelledby="writer-export-heading"><form method="dialog"><h2 id="writer-export-heading">Export document</h2><label for="writer-filename">Filename</label><input id="writer-filename" name="filename" required maxlength="255" autocomplete="off"><p>Choose .rtf, .docx, .odt, .html or .md. Downloads keep unsaved changes in this document.</p><button value="export">Export</button><button value="cancel" formnovalidate>Cancel</button></form></dialog>
 <script type="importmap"></script>
 <script type="module" src="main#[.{fingerprint}].js"></script>
 </body>

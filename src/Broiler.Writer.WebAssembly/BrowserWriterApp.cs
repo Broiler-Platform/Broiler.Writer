@@ -87,6 +87,14 @@ internal static class BrowserWriterApp
     internal static void LoadDocument(string fileName, string base64Data) =>
         Run(demo => demo.LoadDocument(fileName, base64Data));
 
+    internal static string PrepareHandleExport(string name) => _writer?.PrepareHandleExport(name) ?? string.Empty;
+    internal static string RecoverySnapshot() => _writer?.RecoverySnapshot() ?? string.Empty;
+    internal static bool RestoreRecovery(string name, string payload) => _writer?.RestoreRecovery(name, payload) ?? false;
+    internal static string PreviewText() => _writer?.PreviewText ?? string.Empty;
+    internal static void ExportCompleted(int token, string outcome, string error) => Run(demo => demo.ExportCompleted(token, outcome, error));
+    internal static void FileOperationMessage(string outcome, string message) => Run(demo => demo.FileOperationMessage(outcome, message));
+    internal static void ExportNameSelected(string name) => Run(demo => demo.ExportNameSelected(name));
+
     internal static void CancelPointer(double timestampMilliseconds) => Run(demo => demo.CancelPointer(timestampMilliseconds));
 
     internal static void Dispose()
@@ -154,9 +162,18 @@ internal static partial class BrowserWriterExports
     internal static void LoadDocument(string fileName, string base64Data) =>
         BrowserWriterApp.LoadDocument(fileName, base64Data);
 
+    [JSExport] internal static string PrepareHandleExport(string name) => BrowserWriterApp.PrepareHandleExport(name);
+    [JSExport] internal static string DocumentPreview() => BrowserWriterApp.PreviewText();
+    [JSExport] internal static void ExportCompleted(int token, string outcome, string error) => BrowserWriterApp.ExportCompleted(token, outcome, error);
+    [JSExport] internal static void FileOperationMessage(string outcome, string message) => BrowserWriterApp.FileOperationMessage(outcome, message);
+    [JSExport] internal static void ExportNameSelected(string name) => BrowserWriterApp.ExportNameSelected(name);
+
     [JSExport]
     internal static void UiCancelPointer(double timestampMilliseconds) =>
         BrowserWriterApp.CancelPointer(timestampMilliseconds);
+
+    [JSExport] internal static string RecoverySnapshot() => BrowserWriterApp.RecoverySnapshot();
+    [JSExport] internal static bool RestoreRecovery(string name, string payload) => BrowserWriterApp.RestoreRecovery(name, payload);
 
     [JSExport]
     internal static void Dispose() => BrowserWriterApp.Dispose();

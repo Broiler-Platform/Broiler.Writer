@@ -11,6 +11,7 @@ name: Publish
 #   Broiler.Writer-<version>-linux-x64-framework-dependent.zip   Broiler.Writer.Linux + its assemblies
 #   Broiler.Writer-<version>.aab                                 app bundle (arm64 + x86_64)
 #   Broiler.Writer-<version>-arm64.apk                           sideloadable APK
+#   Broiler.Writer-<version>-browser-wasm.zip                    complete verified wwwroot, plus descriptor/checksum
 #
 # The two desktop variants:
 #
@@ -23,7 +24,7 @@ name: Publish
 # The Android packages are signed with the release key held in the ANDROID_KEYSTORE_BASE64,
 # ANDROID_KEYSTORE_PASSWORD, ANDROID_KEY_ALIAS and ANDROID_KEY_PASSWORD repository secrets
 # (the monorepo's, under the same names) by eng/sign-android-packages.ps1. The WebAssembly head
-# is not published.
+# is published independently by the web artifact producer.
 #
 # Nothing is pushed to a feed, and every dependency restores from nuget.org as NuGet.config
 # says. The draft release (eng/release-draft.sh) zips each desktop artifact and stays private
@@ -349,23 +350,10 @@ jobs:
   web:
     name: Publish reusable Writer WebAssembly artifact
     needs: version
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v7
-      - uses: ./.github/actions/setup-broiler
-      - name: Install WebAssembly workload
-        run: dotnet workload install wasm-tools
-      - name: Publish Writer web client once
-        env:
-          COMPONENT_VERSION: ${{ needs.version.outputs.version }}
-        run: |
-          dotnet publish src/Broiler.Writer.WebAssembly/Broiler.Writer.WebAssembly.csproj -c Release -p:BroilerWriterVersion="$COMPONENT_VERSION" -p:RunAOTCompilation=false -o artifacts/web
-          test -f artifacts/web/wwwroot/index.html
-      - uses: actions/upload-artifact@v7
-        with:
-          name: broiler-writer-web-${{ needs.version.outputs.version }}
-          path: artifacts/web/
-          if-no-files-found: error
+    uses: ./.github/workflows/web-artifact.yml
+    with:
+      version: ${{ needs.version.outputs.version }}
+      source_tag: ${{ needs.version.outputs.tag }}
 
   release-tests:
     name: Product release regression tests
@@ -425,6 +413,7 @@ jobs:
               done
             done
             echo "- \`Broiler.Writer-$VERSION.aab\` and \`Broiler.Writer-$VERSION-arm64.apk\`"
+            echo "- \`Broiler.Writer-$VERSION-browser-wasm.zip\`, producer descriptor and SHA-256 checksum"
             echo
             echo "Review it under Releases and publish it there."
           } >> "$GITHUB_STEP_SUMMARY"

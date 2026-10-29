@@ -98,6 +98,8 @@ internal sealed class BrowserCanvasUiHost :
     {
         try
         {
+            long pixels = 0;
+            BrowserImageBudget.Add(encodedImage, ref pixels);
             using BBitmap bitmap = BBitmap.Decode(encodedImage);
             return _renderer.CreateImage(bitmap.ToPixelBuffer());
         }
