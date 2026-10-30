@@ -368,6 +368,17 @@ public sealed class WriterZoomTests
             Assert.Contains(WriterZoom.Describe(level), labels);
     }
 
+    [Fact]
+    public void Published_RichEdit_Renders_A_Paged_Document_At_NonDefault_Zoom()
+    {
+        using WriterApp app = CreateApp();
+        app.Editor.Document = Broiler.Documents.Model.RichTextDocument.FromPlainText("Package compatibility")
+            .WithPageGeometry(Broiler.Documents.Model.PageGeometry.A4);
+        Assert.True(app.Menu.CommandDispatcher!.TryExecute("view.zoom.150"));
+        Assert.NotEmpty(DrawnText(app));
+        Assert.Equal(1.5, app.Editor.Zoom);
+    }
+
     // --- Harness -----------------------------------------------------------
 
     private static WriterApp CreateApp(double width = 1200, double height = 800)

@@ -58,7 +58,7 @@ env:
 jobs:
   version:
     name: Resolve preview version
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     outputs:
       version: ${{ steps.version.outputs.version }}
       version-code: ${{ steps.version.outputs.version-code }}
@@ -99,7 +99,7 @@ jobs:
       matrix:
         # The pinned configurations are the ones FolderProfile.pubxml names and they carry
         # the runtime identifier both variants publish for.
-        os: [windows-latest, ubuntu-latest]
+        os: [windows-latest, ubuntu-24.04]
         variant: [self-contained, framework-dependent]
         include:
           - os: windows-latest
@@ -109,7 +109,7 @@ jobs:
             executable: Broiler.Writer.Windows.exe
             assembly: Broiler.Writer.Windows
           # NativeAOT cannot cross-compile, so the Linux binary links on Linux.
-          - os: ubuntu-latest
+          - os: ubuntu-24.04
             rid: linux-x64
             project: src/Broiler.Writer.Linux/Broiler.Writer.Linux.csproj
             configuration: Release-Linux
@@ -201,7 +201,7 @@ jobs:
   android:
     name: android (signed .aab + arm64 .apk)
     needs: version
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 90
     outputs:
       # The signing certificate's fingerprint, for the release notes. A certificate is public
@@ -368,7 +368,7 @@ jobs:
   release:
     name: Tag and draft release ${{ needs.version.outputs.tag }}
     needs: [version, build, android, web, release-tests]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     permissions:
       contents: write
     env:

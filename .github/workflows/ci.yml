@@ -38,11 +38,11 @@ jobs:
             solution: Broiler.Windows.Writer.slnx
             test: false
           - name: Linux head
-            os: ubuntu-latest
+            os: ubuntu-24.04
             solution: Broiler.Linux.Writer.slnx
             test: false
           - name: Tests (Linux)
-            os: ubuntu-latest
+            os: ubuntu-24.04
             solution: Broiler.Writer.Tests.slnx
             test: true
           - name: Tests (Windows)
@@ -66,7 +66,7 @@ jobs:
 
   android:
     name: Android head
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 60
 
     steps:
@@ -87,7 +87,7 @@ jobs:
   # Disabled until WebAssembly head is migrated from submodules to NuGet packages:
   # webassembly:
   #   name: WebAssembly head
-  #   runs-on: ubuntu-latest
+  #   runs-on: ubuntu-24.04
   #   timeout-minutes: 60
   #
   #   steps:
@@ -133,7 +133,7 @@ jobs:
             rid: win-x64
             project: src/Broiler.Writer.Windows/Broiler.Writer.Windows.csproj
             configuration: Release-Windows
-          - os: ubuntu-latest
+          - os: ubuntu-24.04
             rid: linux-x64
             project: src/Broiler.Writer.Linux/Broiler.Writer.Linux.csproj
             configuration: Release-Linux

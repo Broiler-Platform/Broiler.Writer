@@ -1,10 +1,10 @@
 <Project>
 
-  <!-- About artwork and website support currently live in the sibling UI checkout.
-       Set BroilerUiSourceRoot for a different checkout location. Once released, switch
-       UseBroilerUiSource to false and select the corresponding UI package version. -->
+  <!-- Use the published UI packages for reproducible standalone/CI builds.
+       A developer can explicitly opt into a sibling checkout with UseBroilerUiSource=true
+       and optionally BroilerUiSourceRoot. -->
   <PropertyGroup>
-    <UseBroilerUiSource Condition="'$(UseBroilerUiSource)' == ''">true</UseBroilerUiSource>
+    <UseBroilerUiSource Condition="'$(UseBroilerUiSource)' == ''">false</UseBroilerUiSource>
     <BroilerUiSourceRoot Condition="'$(BroilerUiSourceRoot)' == ''">$(MSBuildThisFileDirectory)..\Broiler.UI</BroilerUiSourceRoot>
   </PropertyGroup>
 

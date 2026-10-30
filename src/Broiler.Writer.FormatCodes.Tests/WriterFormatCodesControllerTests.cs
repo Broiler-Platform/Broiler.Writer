@@ -279,11 +279,11 @@ public sealed class WriterFormatCodesControllerTests
         Task secondWork = controller.CurrentWork!;
 
         scheduler.Publish(0);
-        await firstWork;
+        await firstWork.WaitAsync(TestContext.Current.CancellationToken);
         Assert.NotEqual(new string('A', FormatCodeProjectionPolicy.MaxSynchronousSourceCharacters + 1), view.Text);
 
         scheduler.Publish(1);
-        await secondWork;
+        await secondWork.WaitAsync(TestContext.Current.CancellationToken);
         Assert.Equal('B', view.Text[0]);
         Assert.Equal(FormatCodeProjectionPolicy.MaxSynchronousSourceCharacters + 1, view.Text.Length);
         Assert.False(controller.IsProjectionPending);

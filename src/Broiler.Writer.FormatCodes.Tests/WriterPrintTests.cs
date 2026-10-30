@@ -100,7 +100,7 @@ public sealed class WriterPrintTests
         Assert.Null(app.Session.ModalElement);
         UiPrintJob job = Assert.Single(printer.Jobs);
         Assert.Null(job.Pages);
-        Assert.Equal(1, job.ResolvePages().PageCount);
+        Assert.Equal(1, job.ResolvePages(TestContext.Current.CancellationToken).PageCount);
     }
 
     [Fact]

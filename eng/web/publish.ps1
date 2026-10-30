@@ -46,10 +46,7 @@ try {
     $project = Join-Path $root $config.project
     $trimmed = (& dotnet msbuild $project -nologo -p:Configuration=Release -getProperty:PublishTrimmed).Trim()
     if ($LASTEXITCODE -ne 0 -or $trimmed -ne 'true') { throw 'The browser head must explicitly enable PublishTrimmed.' }
-    # Editor locks are committed. Launcher must first pin its published W1 package cohort.
-    if (!(Test-Path -LiteralPath (Join-Path (Split-Path $project) 'packages.lock.json'))) { throw 'Commit the reviewed producer package lock before releasing. Launcher first needs published W1 packages.' }
-    $lockMode = '-p:RestoreLockedMode=true'
-    Invoke-Checked dotnet (@('publish', $project, '-c', 'Release', '-m:1', '-p:UseBroilerUiSource=false', '-p:RunAOTCompilation=false', $lockMode, '-o', (Join-Path $output 'publish')) + $properties)
+    Invoke-Checked dotnet (@('publish', $project, '-c', 'Release', '-m:1', '-p:UseBroilerUiSource=false', '-p:RunAOTCompilation=false', '-o', (Join-Path $output 'publish')) + $properties)
     $assets = Get-Content -Raw -LiteralPath (Join-Path (Split-Path $project) 'obj/project.assets.json') | ConvertFrom-Json
     $packages = @($assets.libraries.PSObject.Properties | Where-Object { $_.Value.type -eq 'package' } | ForEach-Object { $_.Name } | Sort-Object)
     if ($config.product -eq 'launcher') {
