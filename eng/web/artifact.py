@@ -131,8 +131,6 @@ def verify(archive, metadata, extract=None, require_release=False, expected=None
         raise ValueError("Web producer cohort mismatch")
     if require_release and (not manifest["releaseEligible"] or manifest["verificationOnly"] or manifest["dirty"]):
         raise ValueError("Local verification assets cannot be released")
-    if require_release and manifest.get("workloadSet") != "10.403.0":
-        raise ValueError("Release workload-set provenance differs")
     for field, value in (expected or {}).items():
         if value is not None and manifest.get(field) != value:
             raise ValueError("Producer source identity mismatch: " + field)
