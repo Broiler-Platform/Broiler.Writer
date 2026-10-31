@@ -22,15 +22,15 @@ jobs:
           fetch-depth: 0
       - uses: actions/setup-dotnet@v6
         with:
-          dotnet-version: '10.0.403'
+          dotnet-version: '10.0.4xx'
       - uses: actions/setup-python@v6
         with:
           python-version: '3.11'
       - uses: actions/setup-node@v7
         with:
           node-version: '24'
-      - name: Provision the pinned workload set
-        run: dotnet workload install wasm-tools --version 10.403.0
+      - name: Provision the workload set
+        run: dotnet workload install wasm-tools
       - name: Test the producer archive contract
         run: python -m unittest -v test_artifact.py
       - name: Publish and package once
