@@ -1,47 +1,74 @@
 name: Publish
 
-# Dispatch-only. Every run publishes the Windows and Linux Writer in two variants each, and
-# the Android Writer as a release-signed app bundle and APK, stamps all of them with the next
-# preview version, attaches them to the run as artifacts, then drafts a GitHub pre-release
-# carrying them:
-#
-#   Broiler.Writer-<version>-win-x64-self-contained.zip          Broiler.Writer.Windows.exe
-#   Broiler.Writer-<version>-win-x64-framework-dependent.zip     Broiler.Writer.Windows.exe + its assemblies
-#   Broiler.Writer-<version>-linux-x64-self-contained.zip        Broiler.Writer.Linux
-#   Broiler.Writer-<version>-linux-x64-framework-dependent.zip   Broiler.Writer.Linux + its assemblies
-#   Broiler.Writer-<version>.aab                                 app bundle (arm64 + x86_64)
-#   Broiler.Writer-<version>-arm64.apk                           sideloadable APK
-#   Broiler.Writer-<version>-browser-wasm.zip                    complete verified wwwroot, plus descriptor/checksum
-#
-# The two desktop variants:
-#
-#   self-contained       NativeAOT, which is what makes the executable the whole application:
-#                        self-contained, trimmed, no .NET runtime to install, nothing beside it.
-#   framework-dependent  a plain `dotnet publish --self-contained false`: the executable plus
-#                        the application's own managed assemblies, running on the .NET 10
-#                        runtime installed on the machine.
-#
-# The Android packages are signed with the release key held in the ANDROID_KEYSTORE_BASE64,
-# ANDROID_KEYSTORE_PASSWORD, ANDROID_KEY_ALIAS and ANDROID_KEY_PASSWORD repository secrets
-# (the monorepo's, under the same names) by eng/sign-android-packages.ps1. The WebAssembly head
-# is published independently by the web artifact producer.
-#
-# Nothing is pushed to a feed, and every dependency restores from nuget.org as NuGet.config
-# says. The draft release (eng/release-draft.sh) zips each desktop artifact and stays private
-# until someone publishes it.
-#
-# The version is BroilerWriterVersion (Directory.Build.props) raised past every earlier
-# run's writer-v* tag, and a successful run tags its commit, so preview numbers only ever
-# increase and never name two builds. See eng/resolve-preview-version.mjs.
+# One product version and release for all selected targets.
+# Platform implementation stays in reusable build jobs; only this workflow publishes.
 on:
   workflow_dispatch:
     inputs:
       version-suffix:
-        description: >-
-          Optional preview.N override (unused, and at least the next preview). Empty picks
-          the next preview automatically.
+        description: Optional preview.N override; blank increments the existing product release line.
         type: string
         default: ''
+      windows:
+        description: Publish Windows x64 (NativeAOT and framework-dependent).
+        type: boolean
+        default: true
+      linux:
+        description: Publish Linux x64 (NativeAOT and framework-dependent).
+        type: boolean
+        default: true
+      android:
+        description: Publish release-signed Android AAB and arm64 APK.
+        type: boolean
+        default: true
+      web:
+        description: Publish verified WebAssembly assets.
+        type: boolean
+        default: true
+      create_draft:
+        description: Keep the release private for review; false publishes the prerelease.
+        type: boolean
+        default: true
+  workflow_call:
+    inputs:
+      version-suffix:
+        description: Optional preview.N override; blank increments the existing product release line.
+        type: string
+        default: ''
+      windows:
+        description: Publish Windows x64 (NativeAOT and framework-dependent).
+        type: boolean
+        default: true
+      linux:
+        description: Publish Linux x64 (NativeAOT and framework-dependent).
+        type: boolean
+        default: true
+      android:
+        description: Publish release-signed Android AAB and arm64 APK.
+        type: boolean
+        default: true
+      web:
+        description: Publish verified WebAssembly assets.
+        type: boolean
+        default: true
+      create_draft:
+        description: Keep the release private for review; false publishes the prerelease.
+        type: boolean
+        default: true
+    outputs:
+      version:
+        value: ${{ jobs.version.outputs.version }}
+      tag:
+        value: ${{ jobs.version.outputs.tag }}
+    secrets:
+      ANDROID_KEYSTORE_BASE64:
+        required: false
+      ANDROID_KEYSTORE_PASSWORD:
+        required: false
+      ANDROID_KEY_ALIAS:
+        required: false
+      ANDROID_KEY_PASSWORD:
+        required: false
 
 permissions:
   contents: read
@@ -63,7 +90,15 @@ jobs:
       version: ${{ steps.version.outputs.version }}
       version-code: ${{ steps.version.outputs.version-code }}
       tag: ${{ steps.version.outputs.tag }}
+      matrix: ${{ steps.targets.outputs.matrix }}
     steps:
+      - name: Verify producer repository context
+        shell: bash
+        run: |
+          if [ "$GITHUB_REPOSITORY" != "Broiler-Platform/Broiler.Writer" ]; then
+            echo "::error::Dispatch Publish in the producer repository; a caller token/source context cannot publish this product."
+            exit 1
+          fi
       - name: Check out
         uses: actions/checkout@v7
 
@@ -78,6 +113,20 @@ jobs:
       - name: Test the version resolver
         run: node --test eng/resolve-preview-version.test.mjs
 
+      - name: Resolve selected targets
+        id: targets
+        env:
+          PUBLISH_WINDOWS: ${{ inputs.windows }}
+          PUBLISH_LINUX: ${{ inputs.linux }}
+          PUBLISH_ANDROID: ${{ inputs.android }}
+          PUBLISH_WEB: ${{ inputs.web }}
+        run: node eng/publish-targets.mjs
+
+      - name: Test target selection and release packaging
+        run: |
+          node --test eng/publish-targets.test.mjs
+          python -m unittest discover -s eng -p test_release_packaging.py -v
+
       - name: Resolve version
         id: version
         env:
@@ -87,6 +136,7 @@ jobs:
   build:
     name: ${{ matrix.rid }} (${{ matrix.variant }})
     needs: version
+    if: inputs.windows || inputs.linux
     runs-on: ${{ matrix.os }}
     timeout-minutes: 60
 
@@ -96,25 +146,7 @@ jobs:
 
     strategy:
       fail-fast: true
-      matrix:
-        # The pinned configurations are the ones FolderProfile.pubxml names and they carry
-        # the runtime identifier both variants publish for.
-        os: [windows-latest, ubuntu-24.04]
-        variant: [self-contained, framework-dependent]
-        include:
-          - os: windows-latest
-            rid: win-x64
-            project: src/Broiler.Writer.Windows/Broiler.Writer.Windows.csproj
-            configuration: Release-Windows
-            executable: Broiler.Writer.Windows.exe
-            assembly: Broiler.Writer.Windows
-          # NativeAOT cannot cross-compile, so the Linux binary links on Linux.
-          - os: ubuntu-24.04
-            rid: linux-x64
-            project: src/Broiler.Writer.Linux/Broiler.Writer.Linux.csproj
-            configuration: Release-Linux
-            executable: Broiler.Writer.Linux
-            assembly: Broiler.Writer.Linux
+      matrix: ${{ fromJSON(needs.version.outputs.matrix) }}
 
     env:
       VERSION: ${{ needs.version.outputs.version }}
@@ -201,6 +233,7 @@ jobs:
   android:
     name: android (signed .aab + arm64 .apk)
     needs: version
+    if: inputs.android
     runs-on: ubuntu-24.04
     timeout-minutes: 90
     outputs:
@@ -350,6 +383,7 @@ jobs:
   web:
     name: Publish reusable Writer WebAssembly artifact
     needs: version
+    if: inputs.web
     uses: ./.github/workflows/web-artifact.yml
     with:
       version: ${{ needs.version.outputs.version }}
@@ -366,14 +400,25 @@ jobs:
         run: dotnet test src/Broiler.Writer.FormatCodes.Tests/Broiler.Writer.FormatCodes.Tests.csproj -c Release
 
   release:
-    name: Tag and draft release ${{ needs.version.outputs.tag }}
+    name: Create release ${{ needs.version.outputs.tag }}
     needs: [version, build, android, web, release-tests]
+    if: >-
+      ${{ !cancelled() && needs.version.result == 'success' &&
+          needs.release-tests.result == 'success' &&
+          (!inputs.windows && !inputs.linux || needs.build.result == 'success') &&
+          (!inputs.android || needs.android.result == 'success') &&
+          (!inputs.web || needs.web.result == 'success') }}
     runs-on: ubuntu-24.04
     permissions:
       contents: write
     env:
       VERSION: ${{ needs.version.outputs.version }}
       TAG: ${{ needs.version.outputs.tag }}
+      PUBLISH_WINDOWS: ${{ inputs.windows }}
+      PUBLISH_LINUX: ${{ inputs.linux }}
+      PUBLISH_ANDROID: ${{ inputs.android }}
+      PUBLISH_WEB: ${{ inputs.web }}
+      CREATE_DRAFT: ${{ inputs.create_draft }}
 
     steps:
       - name: Check out
@@ -394,7 +439,7 @@ jobs:
           path: artifacts
 
       # A draft pre-release: nothing is public until someone reviews and publishes it.
-      - name: Draft the release
+      - name: Create the selected release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           ANDROID_SIGNING_CERT_SHA256: ${{ needs.android.outputs.signing-certificate-sha256 }}
@@ -402,18 +447,5 @@ jobs:
 
       - name: Summary
         run: |
-          {
-            echo "### Broiler.Writer $VERSION"
-            echo
-            echo "Commit tagged \`$TAG\`. A draft pre-release **Broiler Writer $VERSION** was created with:"
-            echo
-            for rid in win-x64 linux-x64; do
-              for variant in self-contained framework-dependent; do
-                echo "- \`Broiler.Writer-$VERSION-$rid-$variant.zip\`"
-              done
-            done
-            echo "- \`Broiler.Writer-$VERSION.aab\` and \`Broiler.Writer-$VERSION-arm64.apk\`"
-            echo "- \`Broiler.Writer-$VERSION-browser-wasm.zip\`, producer descriptor and SHA-256 checksum"
-            echo
-            echo "Review it under Releases and publish it there."
-          } >> "$GITHUB_STEP_SUMMARY"
+          echo "Product release: $TAG (draft=$CREATE_DRAFT)" >> "$GITHUB_STEP_SUMMARY"
+          echo "Windows=$PUBLISH_WINDOWS; Linux=$PUBLISH_LINUX; Android=$PUBLISH_ANDROID; Web=$PUBLISH_WEB" >> "$GITHUB_STEP_SUMMARY"

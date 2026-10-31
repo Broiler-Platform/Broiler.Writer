@@ -42,10 +42,10 @@ def main():
         entry = "wwwroot/index.html" if web else "Broiler." + names[args.product] + (".Windows.exe" if rid == "win-x64" else ".Linux")
         if args.product in ("launcher", "boss"):
             entry = "Broiler.Launcher.Windows.exe" if args.product == "launcher" else "Broiler.Office.Server.exe"
-        artifacts.append(dict(id="writer-web" if web else args.product, version=args.version, rid=rid,
+        artifacts.append(dict(id=args.product + "-web" if web else args.product, version=args.version, rid=rid,
             asset=path.name, size=path.stat().st_size, sha256=sha, archive="zip", entryPoint=entry,
             invocation="web" if web else "native", publishMode=mode))
-    if not artifacts or len({a["asset"] for a in artifacts}) != len(artifacts):
+    if (not artifacts and not args.additional) or len({a["asset"] for a in artifacts}) != len(artifacts):
         raise ValueError("Missing or duplicate component artifacts")
     manifest = dict(schemaVersion=1, repository=args.repository, tag=args.tag, version=args.version,
                     commit=args.commit, demo=args.demo, artifacts=artifacts)

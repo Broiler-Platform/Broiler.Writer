@@ -16,3 +16,4 @@ runs:
       uses: actions/setup-dotnet@v6
       with:
         dotnet-version: ${{ inputs.dotnet-version }}
+        dotnet-quality: ga
