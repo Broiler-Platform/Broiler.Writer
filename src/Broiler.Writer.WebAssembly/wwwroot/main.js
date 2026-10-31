@@ -302,6 +302,10 @@ function attachInput() {
         const point = localPoint(event);
         writerExports.UiPointerMove(point.x, point.y, event.buttons, event.timeStamp);
     });
+    // The app draws its own context menu. Keep native menus elsewhere on the page.
+    for (const target of [canvas, textInput])
+        addListener(target, 'contextmenu', event => event.preventDefault());
+
     addListener(canvas, 'pointerdown', event => {
         event.preventDefault();
         (focusedIsText ? textInput : canvas).focus({ preventScroll: true });
