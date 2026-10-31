@@ -33,7 +33,7 @@ class ProducerTests(unittest.TestCase):
         self.html = '<script type="importmap">'+json.dumps(mapping)+'</script><script type="module" src="main.hash.js"></script>'
         (self.web / "index.html").write_text(self.html)
         self.identity = dict(product="writer",productName="Writer",repository="Broiler-Platform/Broiler.Writer",version="0.1.0-preview.1",tag="writer-web-v0.1.0-preview.1",commit="a"*40,
-            sdk=artifact.SDK,workload=artifact.WORKLOAD,workloadSet="10.403.0",runtimeMode=artifact.MODE,publishTrimmed=True,runAotCompilation=False,dirty=False,verificationOnly=False)
+            sdk=artifact.SDK,workload=artifact.WORKLOAD,workloadSet="10.0.100",runtimeMode=artifact.MODE,publishTrimmed=True,runAotCompilation=False,dirty=False,verificationOnly=False)
 
     def package(self, identity=None):
         metadata = artifact.pack(self.web, self.root / "release", copy.deepcopy(identity or self.identity))

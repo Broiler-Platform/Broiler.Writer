@@ -18,8 +18,10 @@ if ($Version -notmatch '^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?\z' -or $Tag -notmatch
 Push-Location $PSScriptRoot
 try {
     $sdk = (& dotnet --version).Trim()
+    if ($sdk -notmatch '^10\.0\.') { throw 'Provision a .NET 10 SDK (10.0.x).' }
     $workloads = & dotnet workload list
-    if (($workloads -join "`n") -notmatch 'wasm-tools\s+10\.0\.114/10\.0\.100') { throw 'Provision wasm-tools manifest 10.0.114/10.0.100 before publishing.' }
+    if (($workloads -join "`n") -notmatch 'wasm-tools\s+(10\.0\.\S+)') { throw 'Provision the .NET 10 wasm-tools workload before publishing.' }
+    $workload = $Matches[1]
     $workloadSet = (& dotnet workload --version).Trim()
     $commit = (& git -C $root rev-parse HEAD).Trim()
     if ($LASTEXITCODE -ne 0 -or $commit -notmatch '^[0-9a-f]{40}\z') { throw 'Cannot resolve producer commit.' }
@@ -67,7 +69,7 @@ try {
     $inputProtocol = if ($config.product -eq 'launcher') { 'broiler.host/1' } else { "$($config.product).browser/1" }
     $identity = @{
         product=$config.product; productName=$config.productName; repository=$(if ($env:GITHUB_REPOSITORY) { $env:GITHUB_REPOSITORY } else { $config.repository }); version=$Version; tag=$Tag; commit=$commit
-        sdk=$sdk; workload='10.0.114/10.0.100'; workloadSet=$workloadSet; runtimeMode='trimmed-interpreter'; publishTrimmed=$true; runAotCompilation=$false
+        sdk=$sdk; workload=$workload; workloadSet=$workloadSet; runtimeMode='trimmed-interpreter'; publishTrimmed=$true; runAotCompilation=$false
         dirty=[bool]$dirty; verificationOnly=[bool]$VerificationOnly; releaseEligible=(!$dirty -and !$VerificationOnly); dependencies=$packages
         replayProtocol=$replayProtocol; inputProtocol=$inputProtocol
     }

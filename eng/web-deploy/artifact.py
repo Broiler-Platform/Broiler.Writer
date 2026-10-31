@@ -10,8 +10,8 @@ import stat
 from urllib.parse import unquote, urlsplit
 import zipfile
 
-SDK = "10.0.403"
-WORKLOAD = "10.0.114/10.0.100"
+SDK = "10.0."  # .NET 10 SDK band prefix; no pinned subversion
+WORKLOAD = "10.0."  # wasm-tools manifest prefix; no pinned subversion
 MODE = "trimmed-interpreter"
 
 
@@ -91,7 +91,7 @@ def pack(root, output, identity):
         raise ValueError("Semantic producer version required")
     if not re.fullmatch(r"[0-9a-f]{40}", identity["commit"]):
         raise ValueError("Full actual source commit required")
-    if identity["sdk"] != SDK or identity["workload"] != WORKLOAD or identity["runtimeMode"] != MODE:
+    if not str(identity["sdk"]).startswith(SDK) or not str(identity["workload"]).startswith(WORKLOAD) or identity["runtimeMode"] != MODE:
         raise ValueError("Producer cohort differs from pinned trimmed interpreter configuration")
     if not identity["verificationOnly"] and identity["dirty"]:
         raise ValueError("Release archives require committed clean sources")
@@ -127,12 +127,10 @@ def verify(archive, metadata, extract=None, require_release=False, expected=None
     manifest = json.loads(metadata.read_text(encoding="utf-8-sig"))
     if manifest["schemaVersion"] != 1 or manifest["artifactKind"] != "broiler-web-static" or manifest["runtimeMode"] != MODE:
         raise ValueError("Unsupported web artifact")
-    if manifest["sdk"] != SDK or manifest["workload"] != WORKLOAD or manifest["publishTrimmed"] is not True or manifest["runAotCompilation"] is not False:
+    if not str(manifest["sdk"]).startswith(SDK) or not str(manifest["workload"]).startswith(WORKLOAD) or manifest["publishTrimmed"] is not True or manifest["runAotCompilation"] is not False:
         raise ValueError("Web producer cohort mismatch")
     if require_release and (not manifest["releaseEligible"] or manifest["verificationOnly"] or manifest["dirty"]):
         raise ValueError("Local verification assets cannot be released")
-    if require_release and manifest.get("workloadSet") != "10.403.0":
-        raise ValueError("Release workload-set provenance differs")
     for field, value in (expected or {}).items():
         if value is not None and manifest.get(field) != value:
             raise ValueError("Producer source identity mismatch: " + field)

@@ -59,7 +59,7 @@ jobs:
           if ($LASTEXITCODE -eq 0 -and $existing.Trim() -ne $env:GITHUB_SHA) { throw 'Tag already names different source.' }
           gh release view $tag *> $null
           if ($LASTEXITCODE -eq 0) { throw 'This web release already exists; never replace release bytes.' }
-          "Complete wwwroot; trimmed interpreter; SDK 10.0.403; source $env:GITHUB_SHA. See the attached web-artifact descriptor and checksums. Signing remains deferred." | Set-Content artifacts/web-release-notes.md
+          "Complete wwwroot; trimmed interpreter; SDK 10.0.x; source $env:GITHUB_SHA. See the attached web-artifact descriptor and checksums. Signing remains deferred." | Set-Content artifacts/web-release-notes.md
           $files = @(Get-ChildItem artifacts/web-release -File | ForEach-Object FullName)
           gh release create $tag @files --target $env:GITHUB_SHA --draft --prerelease --title "Broiler Writer web $env:WEB_VERSION" --notes-file artifacts/web-release-notes.md
           if ($LASTEXITCODE -ne 0) { throw 'Creating the draft web release failed.' }

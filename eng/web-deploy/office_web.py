@@ -59,7 +59,7 @@ def validate(lock):
             raise ValueError("Exact tag and source commit required")
         if row.get("entryUrl") != f'https://{host}/releases/{row["version"]}/':
             raise ValueError("Entry URL must match the immutable version")
-        if row.get("runtimeMode") != producer.MODE or row.get("sdk") != producer.SDK or row.get("workload") != producer.WORKLOAD or row.get("workloadSet") != "10.403.0":
+        if row.get("runtimeMode") != producer.MODE or not str(row.get("sdk")).startswith(producer.SDK) or not str(row.get("workload")).startswith(producer.WORKLOAD):
             raise ValueError("Runtime cohort must match the approved producer")
         if row.get("inputProtocol") != ("broiler.host/1" if row["product"] == "launcher" else row["product"] + ".browser/1") or row.get("replayProtocol") not in ("broiler.canvas/1", "broiler.canvas/legacy-preview14"):
             raise ValueError("Unsupported replay/input protocol")

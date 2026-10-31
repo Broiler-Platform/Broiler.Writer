@@ -10,7 +10,7 @@ Select the actual product tag and version; the example is not a released asset.
 Launcher additionally requires explicit `-HostingVersion` and `-GraphicsVersion`
 for the selected browser package cohort. Use the published W1 package generation.
 
-Releases require clean committed sources, SDK 10.0.403, workload set 10.403.0,
+Releases require clean committed sources, a .NET 10 SDK (10.0.x), the wasm-tools workload,
 and a new output directory. NuGet restore runs without lock files. No
 source-project fallback or application rebuild occurs downstream. AOT is disabled.
 `-VerificationOnly` permits local dirty checks but permanently marks their ZIP
