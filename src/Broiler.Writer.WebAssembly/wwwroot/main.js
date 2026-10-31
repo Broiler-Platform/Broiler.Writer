@@ -3,6 +3,9 @@ export const officeInputProtocolVersion = 1;
 if (location.origin === 'https://broiler-platform.github.io') document.querySelector('.office-nav a').href = '/demo/';
 import { dotnet } from './_framework/dotnet.js';
 import { maximumFileBytes, bytesToBase64, base64ToBytes, download, writeHandle } from './writer.files.js';
+import { createClipboard } from './broiler.hosting.webassembly.js';
+
+const browserClipboard = createClipboard();
 
 // Page glue for Broiler Writer in WebAssembly. The managed side owns rendering (it presents straight
 // to #writer-canvas through the direct-Canvas 2D backend), so this module only bridges input,
@@ -409,6 +412,9 @@ setModuleImports('main.js', {
             queueMicrotask(updatePreview);
         },
         reportOperation,
+        // Menu/toolbar clipboard commands (outside trusted copy/cut/paste events).
+        clipboardWriteText: text => browserClipboard.writeText(text),
+        clipboardReadText: () => browserClipboard.readText(),
         setHasUnsavedChanges: modified => {
             if (modified === currentModified) return;
             currentModified = modified;

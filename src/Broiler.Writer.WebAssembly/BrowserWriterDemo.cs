@@ -4,6 +4,7 @@ using System.Globalization;
 using System.IO;
 using System.IO.Compression;
 using System.Linq;
+using System.Threading.Tasks;
 using System.Text;
 using Broiler.Documents.Resources;
 using Broiler.Documents;
@@ -16,6 +17,7 @@ using Broiler.Documents.Model;
 using Broiler.Documents.Rtf;
 using Broiler.Graphics;
 using Broiler.Graphics.WebAssembly;
+using Broiler.Hosting.WebAssembly;
 using Broiler.Input;
 using Broiler.Input.Keyboard;
 using Broiler.Input.Mouse;
@@ -69,6 +71,7 @@ internal sealed partial class BrowserWriterDemo : IDisposable
     private static readonly BSize FontDialogPreferredSize = new(560, 384);
 
     private readonly BrowserCanvasUiHost _host;
+    private readonly BrowserClipboard _clipboard;
     private readonly BrowserUiDispatcher _dispatcher;
     private readonly UiSession _session;
     private readonly StandardWindow _rootWindow;
@@ -143,6 +146,19 @@ internal sealed partial class BrowserWriterDemo : IDisposable
             ClearColor = WriterPalette.Canvas,
         };
         _dispatcher = new BrowserUiDispatcher(BrowserInterop.ScheduleFrame);
+        // Trusted copy/cut/paste events stay synchronous; menu commands use the Async Clipboard API,
+        // and a menu paste re-runs once the browser delivers the text.
+        _clipboard = new BrowserClipboard(
+            write: text => new ValueTask<bool>(BrowserInterop.ClipboardWriteText(text)),
+            read: () => new ValueTask<string?>(BrowserInterop.ClipboardReadText()),
+            replayPaste: () =>
+            {
+                if (_disposed) return;
+                RunClipboardOperation("paste");
+                BrowserInterop.ScheduleFrame();
+            },
+            reportFailure: message => ReportOperation("Failed", message));
+        _host.Clipboard = _clipboard;
         _session = new StandardUiSessionBuilder()
             .WithDispatcher(_dispatcher)
             .WithClock(new BrowserUiClock())
@@ -445,10 +461,7 @@ internal sealed partial class BrowserWriterDemo : IDisposable
 
         _dispatcher.Drain();
 
-        _host.BeginClipboardEvent(StringComparer.Ordinal.Equals(operation, "paste") ? text ?? string.Empty : null);
-        string output;
-        try { RunClipboardOperation(operation); }
-        finally { output = _host.EndClipboardEvent(); }
+        string output = _clipboard.DuringEvent(StringComparer.Ordinal.Equals(operation, "paste") ? text ?? string.Empty : null, () => RunClipboardOperation(operation)) ?? string.Empty;
         BrowserInterop.ScheduleFrame();
         return output;
     }

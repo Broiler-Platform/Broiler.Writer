@@ -1,4 +1,5 @@
 using System.Runtime.InteropServices.JavaScript;
+using System.Threading.Tasks;
 
 namespace Broiler.Writer.WebAssembly;
 
@@ -91,4 +92,14 @@ internal static partial class BrowserInterop
     /// </summary>
     [JSImport("writer.requestExportName", "main.js")]
     internal static partial void RequestExportName(string defaultName);
+
+    /// <summary>Writes plain text through the Async Clipboard API outside a trusted clipboard event.</summary>
+    [JSImport("writer.clipboardWriteText", "main.js")]
+    [return: JSMarshalAs<JSType.Promise<JSType.Boolean>>]
+    internal static partial Task<bool> ClipboardWriteText(string text);
+
+    /// <summary>Reads plain text through the Async Clipboard API; resolves to null when refused.</summary>
+    [JSImport("writer.clipboardReadText", "main.js")]
+    [return: JSMarshalAs<JSType.Promise<JSType.String>>]
+    internal static partial Task<string?> ClipboardReadText();
 }

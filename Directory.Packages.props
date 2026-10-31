@@ -47,6 +47,7 @@
     <PackageVersion Include="Broiler.Hosting.Android" Version="0.1.0-preview.12" />
     <PackageVersion Include="Broiler.Hosting.Linux" Version="0.1.0-preview.12" />
     <PackageVersion Include="Broiler.Hosting.Windows" Version="0.1.0-preview.12" />
+    <PackageVersion Include="Broiler.Hosting.WebAssembly" Version="0.1.0-preview.13" />
     <PackageVersion Include="Broiler.Input.Android" Version="$(BroilerInputVersion)" />
     <PackageVersion Include="Broiler.Input.Keyboard.Android" Version="$(BroilerInputVersion)" />
     <PackageVersion Include="Broiler.Input.Keyboard.Linux" Version="0.1.0-preview.7" />

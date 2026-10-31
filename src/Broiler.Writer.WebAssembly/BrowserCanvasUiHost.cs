@@ -8,6 +8,7 @@ using Broiler.Graphics.Imaging;
 using Broiler.Graphics.Resources;
 using Broiler.Graphics.RenderList;
 using Broiler.Graphics.WebAssembly;
+using Broiler.Hosting.WebAssembly;
 using Broiler.UI;
 
 namespace Broiler.Writer.WebAssembly;
@@ -64,9 +65,6 @@ internal sealed class BrowserCanvasUiHost :
 {
     private readonly BrowserCanvasRenderer _renderer;
     private UiTextCaretInfo? _caret;
-    private bool _clipboardEventActive;
-    private string? _clipboardReadText;
-    private string? _clipboardWriteText;
     private bool _disposed;
 
     internal BrowserCanvasUiHost(BrowserCanvasRenderer renderer, bool reducedMotion, bool darkScheme)
@@ -144,16 +142,21 @@ internal sealed class BrowserCanvasUiHost :
             _caret = null;
     }
 
+    /// <summary>Shared browser clipboard (trusted events + Async Clipboard API fallback).</summary>
+    internal BrowserClipboard? Clipboard { get; set; }
+
     public bool TryGetText(out string text)
     {
-        text = _clipboardEventActive ? _clipboardReadText ?? string.Empty : string.Empty;
-        return _clipboardEventActive && _clipboardReadText is not null;
+        if (!_disposed && Clipboard is { } clipboard)
+            return clipboard.TryGetText(out text);
+        text = string.Empty;
+        return false;
     }
 
     public void SetText(string text)
     {
-        if (_clipboardEventActive)
-            _clipboardWriteText = text ?? string.Empty;
+        if (!_disposed)
+            Clipboard?.SetText(text);
     }
 
     public void SetCursor(UiCursorShape shape) => BrowserInterop.SetCursor(shape.ToString());
@@ -162,22 +165,6 @@ internal sealed class BrowserCanvasUiHost :
 
     internal void ApplyColorScheme(bool darkScheme) =>
         Settings = Settings with { ColorScheme = darkScheme ? UiColorScheme.Dark : UiColorScheme.Light };
-
-    internal void BeginClipboardEvent(string? readText)
-    {
-        _clipboardEventActive = true;
-        _clipboardReadText = readText;
-        _clipboardWriteText = null;
-    }
-
-    internal string EndClipboardEvent()
-    {
-        string result = _clipboardWriteText ?? string.Empty;
-        _clipboardEventActive = false;
-        _clipboardReadText = null;
-        _clipboardWriteText = null;
-        return result;
-    }
 
     internal bool Resize(double width, double height, double dpr)
     {
@@ -202,8 +189,6 @@ internal sealed class BrowserCanvasUiHost :
 
         _disposed = true;
         _caret = null;
-        _clipboardEventActive = false;
-        _clipboardReadText = null;
-        _clipboardWriteText = null;
+        Clipboard = null;
     }
 }
