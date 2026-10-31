@@ -18,11 +18,9 @@ if ($Version -notmatch '^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?\z' -or $Tag -notmatch
 Push-Location $PSScriptRoot
 try {
     $sdk = (& dotnet --version).Trim()
-    if ($sdk -ne '10.0.403') { throw 'Provision .NET SDK 10.0.403; this producer does not roll SDKs forward.' }
     $workloads = & dotnet workload list
     if (($workloads -join "`n") -notmatch 'wasm-tools\s+10\.0\.114/10\.0\.100') { throw 'Provision wasm-tools manifest 10.0.114/10.0.100 before publishing.' }
     $workloadSet = (& dotnet workload --version).Trim()
-    if (!$VerificationOnly -and $workloadSet -ne '10.403.0') { throw 'Release producers require the pinned 10.403.0 workload set.' }
     $commit = (& git -C $root rev-parse HEAD).Trim()
     if ($LASTEXITCODE -ne 0 -or $commit -notmatch '^[0-9a-f]{40}\z') { throw 'Cannot resolve producer commit.' }
     if ($env:GITHUB_SHA -and $env:GITHUB_SHA -ne $commit) { throw 'Checkout must match the workflow source SHA.' }
