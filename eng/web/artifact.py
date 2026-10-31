@@ -15,6 +15,26 @@ WORKLOAD = "10.0."  # wasm-tools manifest prefix; no pinned subversion
 MODE = "trimmed-interpreter"
 
 
+def stable_net10(value):
+    return isinstance(value, str) and re.fullmatch(r"10\.0\.\d+", value) is not None
+
+
+def validate_toolchain(manifest):
+    if not stable_net10(manifest.get("sdk")):
+        raise ValueError("Stable .NET 10 SDK required")
+    workload = manifest.get("workload")
+    if not isinstance(workload, str) or re.fullmatch(r"10\.0\.\d+/10\.0\.\d+", workload) is None:
+        raise ValueError("Stable .NET 10 wasm-tools workload required")
+    workload_set = manifest.get("workloadSet")
+    # Early producers captured blank CLI output lines as a JSON array.
+    # Accept exactly one nonempty version without changing published bytes.
+    if isinstance(workload_set, list) and all(isinstance(v, str) for v in workload_set):
+        values = [v.strip() for v in workload_set if v.strip()]
+        workload_set = values[0] if len(values) == 1 else None
+    if not stable_net10(workload_set):
+        raise ValueError("Stable .NET 10 workload-set provenance required")
+
+
 def digest(data):
     return hashlib.sha256(data).hexdigest()
 
@@ -91,7 +111,8 @@ def pack(root, output, identity):
         raise ValueError("Semantic producer version required")
     if not re.fullmatch(r"[0-9a-f]{40}", identity["commit"]):
         raise ValueError("Full actual source commit required")
-    if not str(identity["sdk"]).startswith(SDK) or not str(identity["workload"]).startswith(WORKLOAD) or identity["runtimeMode"] != MODE:
+    validate_toolchain(identity)
+    if identity["runtimeMode"] != MODE:
         raise ValueError("Producer cohort differs from pinned trimmed interpreter configuration")
     if not identity["verificationOnly"] and identity["dirty"]:
         raise ValueError("Release archives require committed clean sources")
@@ -127,7 +148,8 @@ def verify(archive, metadata, extract=None, require_release=False, expected=None
     manifest = json.loads(metadata.read_text(encoding="utf-8-sig"))
     if manifest["schemaVersion"] != 1 or manifest["artifactKind"] != "broiler-web-static" or manifest["runtimeMode"] != MODE:
         raise ValueError("Unsupported web artifact")
-    if not str(manifest["sdk"]).startswith(SDK) or not str(manifest["workload"]).startswith(WORKLOAD) or manifest["publishTrimmed"] is not True or manifest["runAotCompilation"] is not False:
+    validate_toolchain(manifest)
+    if manifest["publishTrimmed"] is not True or manifest["runAotCompilation"] is not False:
         raise ValueError("Web producer cohort mismatch")
     if require_release and (not manifest["releaseEligible"] or manifest["verificationOnly"] or manifest["dirty"]):
         raise ValueError("Local verification assets cannot be released")

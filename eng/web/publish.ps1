@@ -22,7 +22,11 @@ try {
     $workloads = & dotnet workload list
     if (($workloads -join "`n") -notmatch 'wasm-tools\s+(10\.0\.\S+)') { throw 'Provision the .NET 10 wasm-tools workload before publishing.' }
     $workload = $Matches[1]
-    $workloadSet = (& dotnet workload --version).Trim()
+    $workloadSetLines = @(& dotnet workload --version)
+    if ($LASTEXITCODE -ne 0) { throw 'Cannot resolve workload-set version.' }
+    $workloadSetVersions = @($workloadSetLines | ForEach-Object { $_.Trim() } | Where-Object { $_ })
+    if ($workloadSetVersions.Count -ne 1 -or $workloadSetVersions[0] -notmatch '^10\.0\.\d+$') { throw 'A single stable .NET 10 workload-set version is required.' }
+    $workloadSet = [string]$workloadSetVersions[0]
     $commit = (& git -C $root rev-parse HEAD).Trim()
     if ($LASTEXITCODE -ne 0 -or $commit -notmatch '^[0-9a-f]{40}\z') { throw 'Cannot resolve producer commit.' }
     if ($env:GITHUB_SHA -and $env:GITHUB_SHA -ne $commit) { throw 'Checkout must match the workflow source SHA.' }

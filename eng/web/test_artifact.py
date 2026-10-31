@@ -33,7 +33,23 @@ class ProducerTests(unittest.TestCase):
         self.html = '<script type="importmap">'+json.dumps(mapping)+'</script><script type="module" src="main.hash.js"></script>'
         (self.web / "index.html").write_text(self.html)
         self.identity = dict(product="writer",productName="Writer",repository="Broiler-Platform/Broiler.Writer",version="0.1.0-preview.1",tag="writer-web-v0.1.0-preview.1",commit="a"*40,
-            sdk=artifact.SDK,workload=artifact.WORKLOAD,workloadSet="10.0.100",runtimeMode=artifact.MODE,publishTrimmed=True,runAotCompilation=False,dirty=False,verificationOnly=False)
+            sdk="10.0.403",workload="10.0.114/10.0.100",workloadSet="10.0.100",runtimeMode=artifact.MODE,publishTrimmed=True,runAotCompilation=False,dirty=False,verificationOnly=False)
+
+    def test_stable_toolchain_versions_and_legacy_output(self):
+        for sdk in ("10.0.100", "10.0.403", "10.0.999"):
+            identity = dict(self.identity, sdk=sdk, workloadSet=sdk)
+            artifact.validate_toolchain(identity)
+        artifact.validate_toolchain(dict(self.identity, workloadSet=["10.0.403", ""]))
+
+    def test_invalid_toolchains_are_rejected(self):
+        for field, values in {
+            "sdk": ["10.0.403-preview.1", "11.0.100", "10.0."],
+            "workload": ["10.0.114-preview.1/10.0.100", "11.0.1/11.0.100"],
+            "workloadSet": [None, "10.403.0", "10.0.403-preview.1", [], ["10.0.403", "10.0.404"]],
+        }.items():
+            for value in values:
+                with self.subTest(field=field, value=value), self.assertRaises(ValueError):
+                    artifact.validate_toolchain(dict(self.identity, **{field: value}))
 
     def package(self, identity=None):
         metadata = artifact.pack(self.web, self.root / "release", copy.deepcopy(identity or self.identity))
