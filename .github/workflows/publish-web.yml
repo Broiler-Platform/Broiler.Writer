@@ -3,9 +3,9 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: Explicit independent web component version (for example 0.1.0-preview.1).
+        description: Web component version. Leave empty to auto-increment the latest preview (for example 0.1.0-preview.3 -> 0.1.0-preview.4; 0.1.0-preview.1 when none exists).
         type: string
-        required: true
+        default: ''
       create_draft:
         description: Create a draft GitHub prerelease after extracted-archive browser checks pass.
         type: boolean
@@ -14,18 +14,49 @@ on:
 permissions:
   contents: read
 concurrency:
-  group: writer-web-${{ inputs.version }}
+  group: writer-web-release
   cancel-in-progress: false
 jobs:
+  resolve:
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write  # draft releases are only listed for writers
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - name: Resolve the release version
+        id: version
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REQUESTED: ${{ inputs.version }}
+          PREFIX: writer-web-v
+        run: |
+          set -euo pipefail
+          if [ -n "$REQUESTED" ]; then
+            version="$REQUESTED"
+          else
+            # Consider pushed tags and (draft) releases, which have no tag until published.
+            tags=$( { git ls-remote --tags --refs "https://github.com/$GITHUB_REPOSITORY.git" "refs/tags/${PREFIX}*" | sed 's#.*refs/tags/##'
+                      gh release list --repo "$GITHUB_REPOSITORY" --limit 1000 --json tagName --jq '.[].tagName'; } || true)
+            latest=$(printf '%s\n' "$tags" | sed -nE "s/^${PREFIX}([0-9]+\.[0-9]+\.[0-9]+)-preview\.([0-9]+)$/\1 \2/p" | sort -t' ' -k1,1V -k2,2n | tail -n1)
+            if [ -z "$latest" ]; then
+              version="0.1.0-preview.1"
+            else
+              version="${latest% *}-preview.$(( ${latest#* } + 1 ))"
+            fi
+          fi
+          echo "Release version: $version"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
   produce:
+    needs: resolve
     uses: ./.github/workflows/web-artifact.yml
     with:
-      version: ${{ inputs.version }}
-      source_tag: writer-web-v${{ inputs.version }}
+      version: ${{ needs.resolve.outputs.version }}
+      source_tag: writer-web-v${{ needs.resolve.outputs.version }}
 
   draft:
     if: inputs.create_draft
-    needs: produce
+    needs: [resolve, produce]
     runs-on: ubuntu-24.04
     permissions:
       contents: write
@@ -39,12 +70,12 @@ jobs:
           python-version: '3.11'
       - uses: actions/download-artifact@v8
         with:
-          name: broiler-writer-web-${{ inputs.version }}
+          name: broiler-writer-web-${{ needs.resolve.outputs.version }}
           path: artifacts/web-release
       - name: Verify and draft the exact producer bytes
         shell: pwsh
         env:
-          WEB_VERSION: ${{ inputs.version }}
+          WEB_VERSION: ${{ needs.resolve.outputs.version }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           $tag = "writer-web-v$env:WEB_VERSION"
