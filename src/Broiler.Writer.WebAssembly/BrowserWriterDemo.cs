@@ -65,7 +65,7 @@ internal sealed partial class BrowserWriterDemo : IDisposable
     private static readonly InputDeviceId TextDevice = InputDeviceId.FromOpaqueValue("browser-text");
 
     private const string DefaultDocumentExtension = ".rtf";
-    private const string OpenAcceptExtensions = ".rtf,.docx,.odt,.html,.htm,.md,.markdown";
+    private const string OpenAcceptExtensions = ".rtf,.docx,.odt,.html,.htm,.md,.markdown,.pdf";
     private static readonly BSize FontDialogPreferredSize = new(560, 384);
 
     private readonly BrowserCanvasUiHost _host;
@@ -98,6 +98,7 @@ internal sealed partial class BrowserWriterDemo : IDisposable
     private string? _problem;
     private readonly StandardTooltip _tooltip;
     private readonly StandardTooltipController _tooltips;
+    private readonly WriterPictureEncoding _pictureEncoding = new();
     private readonly DocumentCodecCatalog _documentCatalog = new(new DocumentCodec[]
     {
         new RtfDocumentCodec(),
@@ -105,6 +106,7 @@ internal sealed partial class BrowserWriterDemo : IDisposable
         new OdtDocumentCodec(),
         new HtmlDocumentCodec(),
         new MarkdownDocumentCodec(),
+        BrowserPdfDocuments.CreateCodec(),
     });
     private readonly List<(UiMenuItem Item, RichEditCommand Command)> _richEditMenuItems = [];
     private readonly List<(StandardButton Button, RichEditCommand Command)> _toolbarActionButtons = [];
@@ -471,7 +473,11 @@ internal sealed partial class BrowserWriterDemo : IDisposable
                 long imagePixels = 0;
                 foreach (var image in result.Document.Paragraphs.SelectMany(paragraph => paragraph.Runs).Select(run => run.Style.Image)
                     .Concat(result.Document.Shapes.Select(shape => shape.Image)).Where(image => image is not null)) {
-                    BrowserImageBudget.Add(image!.Data.Span, ref imagePixels);
+                    if (image!.Resource.TryGetPixels(out var pixels)) {
+                        BrowserImageBudget.Add(pixels!.Width, pixels.Height, ref imagePixels);
+                        continue;
+                    }
+                    BrowserImageBudget.Add(image.Data.Span, ref imagePixels);
                     try { using var decoded = Broiler.Graphics.Imaging.BBitmap.Decode(image.Data.Span); }
                     catch (Exception error) when (error is not OutOfMemoryException) { throw new InvalidDataException("An embedded image could not be decoded. The current document is unchanged.", error); }
                 }
@@ -1015,7 +1021,7 @@ internal sealed partial class BrowserWriterDemo : IDisposable
     private void SaveDocumentWithCompletion(Action<bool>? completed)
     {
         if (_documentState.IsExporting || _choosingExportName) { completed?.Invoke(false); return; }
-        if (!_hasSavedName)
+        if (!_hasSavedName || Path.GetExtension(_currentDocumentName).Equals(".pdf", StringComparison.OrdinalIgnoreCase))
         {
             SaveDocumentAsWithCompletion(completed);
             return;
@@ -1031,6 +1037,8 @@ internal sealed partial class BrowserWriterDemo : IDisposable
     {
         if (_documentState.IsExporting || _choosingExportName) { completed?.Invoke(false); return; }
         string suggested = _hasSavedName ? _currentDocumentName : "Untitled" + DefaultDocumentExtension;
+        if (Path.GetExtension(suggested).Equals(".pdf", StringComparison.OrdinalIgnoreCase))
+            suggested = Path.ChangeExtension(suggested, DefaultDocumentExtension);
         _choosingExportName = true; _nameCompletion = completed;
         BrowserInterop.RequestExportName(suggested);
     }
@@ -1165,7 +1173,9 @@ internal sealed partial class BrowserWriterDemo : IDisposable
             throw new NotSupportedException("This export exceeds the browser text or paragraph limit. The document is kept open.");
         string extension = Path.GetExtension(name).ToLowerInvariant();
         using var stream = new MemoryStream();
-        var options = new DocumentWriteOptions(resources: _resources);
+        var resources = DocumentConversionContextBuilder.Continuing(_resources, DocumentResourcePolicy.AllowOwnDocuments);
+        document = _pictureEncoding.EncodeDecodedPictures(document, resources, out _);
+        var options = new DocumentWriteOptions(resources: resources.Build());
         DocumentWriteResult result = extension switch
         {
             ".rtf" => RtfWriter.Write(document, stream, options),

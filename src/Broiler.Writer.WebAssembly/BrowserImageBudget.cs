@@ -11,6 +11,11 @@ internal static class BrowserImageBudget
         bool supported = encoded.StartsWith(new byte[] { 137, 80, 78, 71 }) || encoded.StartsWith(new byte[] { 255, 216 }) || encoded.StartsWith("BM"u8);
         if (!supported || !WriterImageFormats.TryReadPixelSize(encoded, out int width, out int height))
             throw new NotSupportedException("The browser edition previews embedded PNG, JPEG and BMP images with readable dimensions.");
+        Add(width, height, ref totalPixels);
+    }
+
+    internal static void Add(int width, int height, ref long totalPixels)
+    {
         long pixels = (long)width * height;
         if (width <= 0 || height <= 0 || width > 8192 || height > 8192 || pixels > MaximumImagePixels || pixels > MaximumDocumentPixels - totalPixels)
             throw new NotSupportedException("Embedded images exceed the browser pixel budget (16 MP per image, 32 MP total, 8192 pixels per side).");

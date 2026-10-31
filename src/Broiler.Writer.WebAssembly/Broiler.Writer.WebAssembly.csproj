@@ -21,6 +21,9 @@
   <ItemGroup>
     <PackageReference Include="Broiler.Graphics.WebAssembly" />
     <PackageReference Include="Broiler.Media.Image.Managed" />
+    <PackageReference Include="Broiler.Documents.Pdf" />
+    <PackageReference Include="Broiler.Documents.Pdf.Images" />
+    <PackageReference Include="Broiler.Documents.Pdf.Fonts" />
   </ItemGroup>
 
   <ItemGroup>

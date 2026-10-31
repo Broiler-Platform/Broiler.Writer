@@ -30,9 +30,16 @@ public static class WriterAbout
         var dialog = new StandardAboutDialog();
         // Use Writer's assembly even when hosted by another application or a test runner.
         // Broiler.UI preserves the prerelease label and omits the SDK's commit hash.
-        dialog.PopulateFromAssemblies(productAssembly);
+        var components = new[] { productAssembly, typeof(WriterAbout).Assembly, typeof(StandardAboutDialog).Assembly };
+        dialog.PopulateFromAssemblies(productAssembly, components);
         dialog.ProductName = "Broiler Writer";
         dialog.Title = "About Broiler Writer";
+        if (OperatingSystem.IsBrowser())
+        {
+            // Match Cells: the rotated title-bar close glyph triggers whole-frame
+            // software rasterization in the browser. OK and Escape still dismiss it.
+            dialog.CanClose = false;
+        }
         dialog.Picture = Artwork.Value;
         dialog.PreferredSize = new BSize(820, 420);
         dialog.PictureAltText = "Broiler chicken writing at a desk";
