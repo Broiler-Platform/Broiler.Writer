@@ -19,8 +19,8 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Broiler.Graphics.WebAssembly" />
-    <PackageReference Include="Broiler.Hosting.WebAssembly" />
+    <PackageReference Include="Broiler.Graphics.WebAssembly" GeneratePathProperty="true" />
+    <PackageReference Include="Broiler.Hosting.WebAssembly" GeneratePathProperty="true" />
     <PackageReference Include="Broiler.Media.Image.Managed" />
     <PackageReference Include="Broiler.Documents.Pdf" />
     <PackageReference Include="Broiler.Documents.Pdf.Images" />
@@ -45,6 +45,9 @@
          managed code (JSHost.ImportAsync) by a stable literal URL, so it must not be renamed. -->
     <StaticWebAssetFingerprintPattern Include="MainJs" Pattern="main.js" Expression="#[.{fingerprint}]!" />
   </ItemGroup>
+
+  <!-- Compatibility for package assets whose external Content roots break DevServer. -->
+  <Import Project="BrowserPackageAssets.targets" />
 
   <!-- Vendor the canonical Canvas 2D replay module from the backend into this app's wwwroot so it
        publishes as a stable static asset. The backend project owns the source of truth. -->
