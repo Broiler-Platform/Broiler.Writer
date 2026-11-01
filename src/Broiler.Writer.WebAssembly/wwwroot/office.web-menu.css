@@ -1,0 +1,16 @@
+
+/* Web actions live in the managed Office menu; browser panels retain DOM accessibility. */
+body.office-menu-ready main { height: calc(100% - var(--office-operation-height, 32px)); }
+.office-nav[hidden] { display:none!important; }
+#office-web-dialog { width:min(680px,calc(100vw - 24px)); max-width:none; max-height:85vh; padding:20px; border:1px solid #94a3b8; border-radius:12px; color:#182435; background:#fff; }
+#office-web-dialog::backdrop { background:#0007; }
+#office-web-dialog>header { display:flex; align-items:center; justify-content:space-between; gap:16px; }
+#office-web-dialog h2 { font-size:20px; margin:0 0 16px; }
+#office-web-dialog button { font:inherit; padding:7px 12px; }
+#office-web-dialog .office-recovery { display:block; margin:0; }
+#office-web-dialog .office-recovery>summary, #office-web-dialog #writer-info>summary, #office-web-dialog .limits>summary { display:none; }
+#office-web-dialog .office-recovery section, #office-web-dialog #writer-info-panel, #office-web-dialog .limits[open] { position:static; width:auto; max-height:none; height:auto; padding:0; box-shadow:none; border:0; background:inherit; color:inherit; }
+#office-web-dialog pre { white-space:pre-wrap; overflow-wrap:anywhere; }
+#office-web-dialog [hidden] { display:none!important; }
+#office-web-notice { position:fixed; bottom:36px; right:12px; z-index:30; max-width:calc(100vw - 24px); padding:10px 14px; border:1px solid #9a3412; border-radius:8px; background:#fff7ed; color:#7c2d12; }
+@media(prefers-color-scheme:dark) { #office-web-dialog { background:#1d2939; color:#e2e8f0; } }

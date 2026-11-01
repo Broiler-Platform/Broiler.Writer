@@ -644,7 +644,14 @@ internal sealed partial class BrowserWriterDemo : IDisposable
             SelectedBackground = WriterPalette.MenuSelected,
             CommandDispatcher = dispatcher,
         };
-        menu.SetItems([file, edit, format, view, help]);
+        var office = new UiMenuItem("office", "Office") { AccessKey = 'I' };
+        foreach (var (id, label) in new[] { ("home", "Back to Office"), ("recovery", "Recovery…"), ("information", "Document information…"), ("save-file", "Save to file…") }) {
+            string action = id;
+            string command = "office." + id;
+            dispatcher.Add(new StandardCommand(command, () => BrowserInterop.WebMenu(action)));
+            office.Children.Add(new UiMenuItem(command, label) { CommandName = command });
+        }
+        menu.SetItems([file, edit, format, view, office, help]);
         return menu;
     }
 
