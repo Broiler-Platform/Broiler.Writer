@@ -145,6 +145,9 @@ internal sealed class BrowserCanvasUiHost :
     /// <summary>Shared browser clipboard (trusted events + Async Clipboard API fallback).</summary>
     internal BrowserClipboard? Clipboard { get; set; }
 
+    // Clipboard contents are acquired only by an explicit Paste operation.
+    public bool CanQueryTextSynchronously => false;
+
     public bool TryGetText(out string text)
     {
         if (!_disposed && Clipboard is { } clipboard)

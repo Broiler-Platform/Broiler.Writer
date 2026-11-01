@@ -46,7 +46,7 @@
     <PackageVersion Include="Broiler.Graphics.Windows" Version="0.1.0-preview.16" />
     <PackageVersion Include="Broiler.Hosting.Android" Version="0.1.0-preview.12" />
     <PackageVersion Include="Broiler.Hosting.Linux" Version="0.1.0-preview.12" />
-    <PackageVersion Include="Broiler.Hosting.Windows" Version="0.1.0-preview.12" />
+    <PackageVersion Include="Broiler.Hosting.Windows" Version="0.1.0-preview.13" />
     <PackageVersion Include="Broiler.Hosting.WebAssembly" Version="0.1.0-preview.13" />
     <PackageVersion Include="Broiler.Input.Android" Version="$(BroilerInputVersion)" />
     <PackageVersion Include="Broiler.Input.Keyboard.Android" Version="$(BroilerInputVersion)" />
@@ -59,25 +59,25 @@
     <PackageVersion Include="Broiler.Media.Image" Version="0.1.0-preview.16" />
     <PackageVersion Include="Broiler.Media.Image.Managed" Version="0.1.0-preview.16" />
     <PackageVersion Include="Broiler.UI" Version="$(BroilerUiPackageVersion)" />
-    <PackageVersion Include="Broiler.UI.AboutDialog" Version="0.1.0-preview.24" />
-    <PackageVersion Include="Broiler.UI.AboutDialog.Standard" Version="0.1.0-preview.24" />
-    <PackageVersion Include="Broiler.UI.Button.Standard" Version="0.1.0-preview.24" />
-    <PackageVersion Include="Broiler.UI.ComboBox.Standard" Version="0.1.0-preview.24" />
-    <PackageVersion Include="Broiler.UI.Dialog.Standard" Version="0.1.0-preview.24" />
-    <PackageVersion Include="Broiler.UI.Edit.Standard" Version="0.1.0-preview.24" />
-    <PackageVersion Include="Broiler.UI.FileDialog.Standard" Version="0.1.0-preview.24" />
-    <PackageVersion Include="Broiler.UI.FontDialog.Standard" Version="0.1.0-preview.24" />
-    <PackageVersion Include="Broiler.UI.FormatCodeView" Version="0.1.0-preview.24" />
-    <PackageVersion Include="Broiler.UI.FormatCodeView.Standard" Version="0.1.0-preview.24" />
-    <PackageVersion Include="Broiler.UI.Label.Standard" Version="0.1.0-preview.24" />
-    <PackageVersion Include="Broiler.UI.Menu.Standard" Version="0.1.0-preview.24" />
-    <PackageVersion Include="Broiler.UI.PrintDialog.Standard" Version="0.1.0-preview.24" />
-    <PackageVersion Include="Broiler.UI.RichEdit" Version="0.1.0-preview.24" />
-    <PackageVersion Include="Broiler.UI.RichEdit.Standard" Version="0.1.0-preview.24" />
-    <PackageVersion Include="Broiler.UI.Splitter.Standard" Version="0.1.0-preview.24" />
-    <PackageVersion Include="Broiler.UI.Toolbar.Standard" Version="0.1.0-preview.24" />
-    <PackageVersion Include="Broiler.UI.Tooltip.Standard" Version="0.1.0-preview.24" />
-    <PackageVersion Include="Broiler.UI.Window.Standard" Version="0.1.0-preview.24" />
+    <PackageVersion Include="Broiler.UI.AboutDialog" Version="0.1.0-preview.25" />
+    <PackageVersion Include="Broiler.UI.AboutDialog.Standard" Version="0.1.0-preview.25" />
+    <PackageVersion Include="Broiler.UI.Button.Standard" Version="0.1.0-preview.25" />
+    <PackageVersion Include="Broiler.UI.ComboBox.Standard" Version="0.1.0-preview.25" />
+    <PackageVersion Include="Broiler.UI.Dialog.Standard" Version="0.1.0-preview.25" />
+    <PackageVersion Include="Broiler.UI.Edit.Standard" Version="0.1.0-preview.25" />
+    <PackageVersion Include="Broiler.UI.FileDialog.Standard" Version="0.1.0-preview.25" />
+    <PackageVersion Include="Broiler.UI.FontDialog.Standard" Version="0.1.0-preview.25" />
+    <PackageVersion Include="Broiler.UI.FormatCodeView" Version="0.1.0-preview.25" />
+    <PackageVersion Include="Broiler.UI.FormatCodeView.Standard" Version="0.1.0-preview.25" />
+    <PackageVersion Include="Broiler.UI.Label.Standard" Version="0.1.0-preview.25" />
+    <PackageVersion Include="Broiler.UI.Menu.Standard" Version="0.1.0-preview.25" />
+    <PackageVersion Include="Broiler.UI.PrintDialog.Standard" Version="0.1.0-preview.25" />
+    <PackageVersion Include="Broiler.UI.RichEdit" Version="0.1.0-preview.25" />
+    <PackageVersion Include="Broiler.UI.RichEdit.Standard" Version="0.1.0-preview.25" />
+    <PackageVersion Include="Broiler.UI.Splitter.Standard" Version="0.1.0-preview.25" />
+    <PackageVersion Include="Broiler.UI.Toolbar.Standard" Version="0.1.0-preview.25" />
+    <PackageVersion Include="Broiler.UI.Tooltip.Standard" Version="0.1.0-preview.25" />
+    <PackageVersion Include="Broiler.UI.Window.Standard" Version="0.1.0-preview.25" />
     <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="18.11.0" />
     <PackageVersion Include="xunit.v3" Version="4.0.2" />
     <PackageVersion Include="xunit.runner.visualstudio" Version="4.0.1" />
