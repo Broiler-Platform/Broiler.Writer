@@ -117,7 +117,6 @@ internal sealed partial class BrowserWriterDemo : IDisposable
     private readonly List<(UiMenuItem Item, double Zoom)> _zoomMenuItems = [];
     private StandardComboBox? _zoomCombo;
     private double _zoom = WriterZoom.Default;
-    private bool _isControlHeld;
     private UiMenuItem? _fontMenuItem;
     private UiMenuItem? _formatCodesMenuItem;
     private StandardButton? _fontToolbarButton;
@@ -359,7 +358,7 @@ internal sealed partial class BrowserWriterDemo : IDisposable
             UpdateCursor(x, y);
         });
 
-    internal void PointerWheel(double x, double y, int buttons, bool horizontal, double deltaNotches, double timestampMilliseconds) =>
+    internal void PointerWheel(double x, double y, int buttons, bool horizontal, double deltaNotches, bool controlHeld, double timestampMilliseconds) =>
         _dispatcher.Post(() =>
         {
             _buttons = (MouseButtons)buttons;
@@ -369,7 +368,7 @@ internal sealed partial class BrowserWriterDemo : IDisposable
             // browser's own zoom for this canvas, so the gesture is ours to take.
             WriterZoomStep wheelStep = horizontal
                 ? WriterZoomStep.None
-                : WriterZoom.StepForWheel(_isControlHeld, deltaNotches);
+                : WriterZoom.StepForWheel(controlHeld, deltaNotches);
             if (wheelStep != WriterZoomStep.None)
             {
                 StepZoom(wheelStep);
@@ -388,7 +387,6 @@ internal sealed partial class BrowserWriterDemo : IDisposable
         _dispatcher.Post(() =>
         {
             var modifierState = (KeyboardModifierState)modifiers;
-            _isControlHeld = (modifierState & KeyboardModifierState.Control) != KeyboardModifierState.None;
 
             WriterZoomStep zoomStep = WriterZoom.StepFor(keyName, nativeKeyCode, modifierState, down);
             if (zoomStep != WriterZoomStep.None)

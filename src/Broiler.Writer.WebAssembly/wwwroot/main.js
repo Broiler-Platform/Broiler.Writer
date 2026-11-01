@@ -341,7 +341,7 @@ function attachInput() {
         const unit = event.deltaMode === WheelEvent.DOM_DELTA_PIXEL ? 100 : event.deltaMode === WheelEvent.DOM_DELTA_LINE ? 3 : 1;
         const horizontal = Math.abs(event.deltaX) > Math.abs(event.deltaY);
         const delta = horizontal ? -event.deltaX / unit : -event.deltaY / unit;
-        writerExports.UiPointerWheel(point.x, point.y, event.buttons || 0, horizontal, delta, event.timeStamp);
+        writerExports.UiPointerWheel(point.x, point.y, event.buttons || 0, horizontal, delta, event.ctrlKey, event.timeStamp);
     }, { passive: false });
     addListener(canvas, 'keydown', event => dispatchKey(event, true));
     addListener(canvas, 'keyup', event => dispatchKey(event, false));

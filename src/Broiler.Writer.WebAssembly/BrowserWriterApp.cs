@@ -59,8 +59,8 @@ internal static class BrowserWriterApp
     internal static void PointerButton(double x, double y, int buttons, int button, bool down, double timestampMilliseconds) =>
         Run(demo => demo.PointerButton(x, y, buttons, button, down, timestampMilliseconds));
 
-    internal static void PointerWheel(double x, double y, int buttons, bool horizontal, double deltaNotches, double timestampMilliseconds) =>
-        Run(demo => demo.PointerWheel(x, y, buttons, horizontal, deltaNotches, timestampMilliseconds));
+    internal static void PointerWheel(double x, double y, int buttons, bool horizontal, double deltaNotches, bool controlHeld, double timestampMilliseconds) =>
+        Run(demo => demo.PointerWheel(x, y, buttons, horizontal, deltaNotches, controlHeld, timestampMilliseconds));
 
     internal static void KeyboardKey(string keyName, bool down, int modifiers, int nativeKeyCode, bool repeat, int location, double timestampMilliseconds) =>
         Run(demo => demo.KeyboardKey(keyName, down, modifiers, nativeKeyCode, repeat, location, timestampMilliseconds));
@@ -140,8 +140,8 @@ internal static partial class BrowserWriterExports
         BrowserWriterApp.PointerButton(x, y, buttons, button, down, timestampMilliseconds);
 
     [JSExport]
-    internal static void UiPointerWheel(double x, double y, int buttons, bool horizontal, double deltaNotches, double timestampMilliseconds) =>
-        BrowserWriterApp.PointerWheel(x, y, buttons, horizontal, deltaNotches, timestampMilliseconds);
+    internal static void UiPointerWheel(double x, double y, int buttons, bool horizontal, double deltaNotches, bool controlHeld, double timestampMilliseconds) =>
+        BrowserWriterApp.PointerWheel(x, y, buttons, horizontal, deltaNotches, controlHeld, timestampMilliseconds);
 
     [JSExport]
     internal static void UiKeyboardKey(string keyName, bool down, int modifiers, int nativeKeyCode, bool repeat, int location, double timestampMilliseconds) =>
