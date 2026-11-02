@@ -41,7 +41,10 @@ def main():
         mode = "web" if web else "framework-dependent" if "framework-dependent" in path.name else args.self_contained_mode
         entry = "wwwroot/index.html" if web else "Broiler." + names[args.product] + (".Windows.exe" if rid == "win-x64" else ".Linux")
         if args.product in ("launcher", "boss"):
-            entry = "Broiler.Launcher.Windows.exe" if args.product == "launcher" else "Broiler.Office.Server.exe"
+            if args.product == "launcher":
+                entry = "Broiler.Launcher.Windows.exe" if rid == "win-x64" else "Broiler.Launcher.Linux"
+            else:
+                entry = "Broiler.Office.Server.exe" if rid == "win-x64" else "Broiler.Office.Server"
         artifacts.append(dict(id=args.product + "-web" if web else args.product, version=args.version, rid=rid,
             asset=path.name, size=path.stat().st_size, sha256=sha, archive="zip", entryPoint=entry,
             invocation="web" if web else "native", publishMode=mode))
