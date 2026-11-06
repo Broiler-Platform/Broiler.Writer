@@ -170,6 +170,14 @@ public sealed class WriterShellTests
     }
 
     [Fact]
+    public void Controls_Have_Descriptive_Tooltips()
+    {
+        using WriterApp app = CreateApp();
+        Assert.Equal("Document editor", app.Editor.ToolTipText);
+        Assert.Equal("Document actions toolbar", app.Toolbar.ToolTipText);
+    }
+
+    [Fact]
     public void The_Compact_Bar_Builds_And_Groups_Only_What_It_Carries()
     {
         // Android is the only head that builds this, and no other test runs its code path: a

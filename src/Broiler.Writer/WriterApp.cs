@@ -207,6 +207,7 @@ internal sealed class WriterApp : IDisposable
 
         _editor = new StandardRichEdit
         {
+            ToolTipText = "Document editor",
             PreferredSize = new BSize(760, 520),
             PlaceholderText = "Start writing in Broiler Writer...",
             Font = new BFontStyle("Segoe UI", 17),
@@ -227,6 +228,7 @@ internal sealed class WriterApp : IDisposable
         };
         _formatCodesView = new StandardFormatCodeView
         {
+            ToolTipText = "Format codes inspector",
             PreferredSize = new BSize(760, 160),
             Font = new BFontStyle("Cascadia Mono", 14),
             Background = WriterPalette.FormatCodesSurface,
@@ -244,6 +246,7 @@ internal sealed class WriterApp : IDisposable
         };
         _formatCodesSplitter = new StandardSplitter
         {
+            ToolTipText = "Drag to resize format codes panel",
             Orientation = UiSplitterOrientation.Horizontal,
             Minimum = 0.35,
             Maximum = 0.82,
@@ -261,12 +264,14 @@ internal sealed class WriterApp : IDisposable
         // toolbar and the name is not said twice.
         _paneHeader = new StandardLabel
         {
+            ToolTipText = "Format codes inspector",
             Text = "Formatting Codes",
             Font = new BFontStyle("Segoe UI", 12, BFontWeight.SemiBold),
             Foreground = WriterPalette.Muted,
         };
         _status = new StandardLabel
         {
+            ToolTipText = "Document word and character counts",
             Text = string.Empty,
             Font = new BFontStyle("Segoe UI", 13),
             Foreground = WriterPalette.Muted,
@@ -274,6 +279,7 @@ internal sealed class WriterApp : IDisposable
         };
         _statusState = new StandardLabel
         {
+            ToolTipText = "Document edit and zoom status",
             Text = string.Empty,
             Font = new BFontStyle("Segoe UI", 13),
             Foreground = WriterPalette.Muted,
@@ -752,6 +758,7 @@ internal sealed class WriterApp : IDisposable
     {
         var combo = new StandardComboBox
         {
+            ToolTipText = "Zoom level",
             PreferredSize = new BSize(74, _compactMode ? 40 : 30),
             MaxDropDownItems = WriterZoom.Levels.Count,
             ItemHeight = _compactMode ? 40 : 26,
@@ -846,6 +853,7 @@ internal sealed class WriterApp : IDisposable
     {
         var toolbar = new StandardToolbar
         {
+            ToolTipText = "Document actions toolbar",
             Title = "Document toolbar",
             PreferredSize = new BSize(0, _compactMode ? 50 : 40),
             Orientation = UiToolbarOrientation.Horizontal,
