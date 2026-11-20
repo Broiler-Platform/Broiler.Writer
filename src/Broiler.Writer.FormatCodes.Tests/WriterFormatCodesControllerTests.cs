@@ -99,6 +99,25 @@ public sealed class WriterFormatCodesControllerTests
         Assert.Contains("https://new.example.test", view.Text, StringComparison.Ordinal);
         Assert.DoesNotContain("https://old.example.test", view.Text, StringComparison.Ordinal);
     }
+
+    [Fact]
+    public void Advanced_Code_Properties_Can_Be_Edited_And_Removed()
+    {
+        using var editor = new StandardRichEdit
+        {
+            Document = RichTextDocument.FromParagraphs(
+                [RichTextParagraph.Create("i", InlineStyle.Default with { Hidden = true, Language = "tr" })]),
+        };
+        var view = new TestFormatCodeView();
+        using var controller = CreateController(editor, view);
+        FormatCodeToken hidden = Assert.Single(controller.Projection!.Tokens, token => token.DisplayText == "[Hidden ON]");
+        Assert.True(controller.EditTokenProperty(hidden, false));
+        Assert.False(editor.Document.Paragraphs[0].StyleAt(0).Hidden);
+        FormatCodeToken language = Assert.Single(controller.Projection!.Tokens, token => token.DisplayText == "[Language \"tr\"]");
+        Assert.True(controller.EditTokenProperty(language, "en-US"));
+        Assert.Equal("en-US", editor.Document.Paragraphs[0].StyleAt(0).Language);
+        Assert.Equal("i", editor.Document.PlainText);
+    }
     [Fact]
     public void Initial_Projection_Uses_Canonical_Bracket_Text()
     {
@@ -109,6 +128,25 @@ public sealed class WriterFormatCodesControllerTests
 
         Assert.Equal("[Bold ON]Hello World![Bold OFF]", view.Text);
         Assert.NotNull(controller.Projection);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void Picture_Code_Selects_The_Whole_Picture(bool activate)
+    {
+        var image = new InlineImage(new byte[] { 1 }, "image/png", 40, 20);
+        var editor = new StandardRichEdit
+        {
+            Document = RichTextDocument.FromParagraphs([
+                RichTextParagraph.Create(InlineImage.PlaceholderText, InlineStyle.Default with { Image = image }),
+            ]),
+        };
+        var view = new TestFormatCodeView();
+        using var controller = CreateController(editor, view);
+        if (activate) view.Activate(2);
+        else view.SetSelection(2, 2);
+        Assert.Equal(new RichTextRange(RichTextDocument.Start, editor.Document.End), editor.Selection);
     }
 
     [Fact]
@@ -140,6 +178,29 @@ public sealed class WriterFormatCodesControllerTests
         FormatCodeToken pending = Assert.Single(controller.Projection!.PendingTokens);
         Assert.Equal(FormatCodeTokenKind.PendingCode, pending.Kind);
         Assert.Equal("[Pending Bold ON]", pending.DisplayText);
+        Assert.Equal("Hello", view.Text);
+    }
+
+    [Fact]
+    public void Capitalization_Codes_Are_Editable_And_Expose_Pending_Typing_Style()
+    {
+        var editor = new StandardRichEdit();
+        editor.SetPlainText("Hello");
+        editor.Selection = RichTextRange.Caret(editor.Document.End);
+        var view = new TestFormatCodeView();
+        using var controller = CreateController(editor, view);
+        Assert.True(WriterCapitalization.Execute(editor, RichEditCommand.AllCaps));
+        Assert.Contains("Pending All Caps", Assert.Single(controller.Projection!.PendingTokens).DisplayText, StringComparison.Ordinal);
+
+        editor.Selection = new RichTextRange(RichTextDocument.Start, editor.Document.End);
+        Assert.True(controller.ExecutePaletteEntry(FormatCodePaletteEntry.AllCaps));
+        FormatCodeToken token = Assert.Single(controller.Projection!.Tokens,
+            item => item.EditDescriptor?.Property == FormatCodeProperty.Capitalization && item.DisplayText == "[All Caps ON]");
+        Assert.True(controller.EditTokenProperty(token, TextCapitalization.SmallCaps));
+        Assert.Contains("[Small Caps ON]Hello", view.Text, StringComparison.Ordinal);
+        FormatCodeToken smallCaps = Assert.Single(controller.Projection!.Tokens,
+            item => item.EditDescriptor?.Property == FormatCodeProperty.Capitalization && item.DisplayText == "[Small Caps ON]");
+        Assert.True(controller.EditTokenProperty(smallCaps, TextCapitalization.None));
         Assert.Equal("Hello", view.Text);
     }
 

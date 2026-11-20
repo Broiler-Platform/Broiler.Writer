@@ -46,7 +46,7 @@ public sealed class WriterDocumentChangesTests
         Assert.Equal("Keep this text", app.Document.PlainText);
         Assert.True(app.IsModified);
         Assert.Equal(0, requests);
-        Assert.Same(app.Editor, app.Session.FocusedElement);
+        Assert.Same(app.EditorSurface, app.Session.FocusedElement);
     }
 
     [Theory]

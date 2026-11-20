@@ -6,12 +6,21 @@
   <PropertyGroup>
     <UseBroilerUiSource Condition="'$(UseBroilerUiSource)' == ''">false</UseBroilerUiSource>
     <BroilerUiSourceRoot Condition="'$(BroilerUiSourceRoot)' == ''">$(MSBuildThisFileDirectory)..\Broiler.UI</BroilerUiSourceRoot>
+    <BroilerUiPackageVersion Condition="'$(BroilerUiPackageVersion)' == ''">0.1.0-preview.33</BroilerUiPackageVersion>
   </PropertyGroup>
 
   <!-- Components can import these props in an in-tree build; retain their own versions. -->
   <PropertyGroup Condition="$(MSBuildProjectName.StartsWith('Broiler.Writer'))">
     <BroilerWriterVersion Condition="'$(BroilerWriterVersion)' == ''">0.1.0-preview.1</BroilerWriterVersion>
     <Version>$(BroilerWriterVersion)</Version>
+    <!-- The pinned UI packages predate IRichEditGeometry. Source builds use the contract from UI. -->
+    <BroilerUiSharedGeometry Condition="'$(BroilerUiSharedGeometry)' == ''">$(UseBroilerUiSource)</BroilerUiSharedGeometry>
+    <DefineConstants Condition="'$(BroilerUiSharedGeometry)' == 'true'">$(DefineConstants);BROILER_UI_SHARED_GEOMETRY</DefineConstants>
+    <BroilerUiHostedRichEditMenu Condition="'$(BroilerUiHostedRichEditMenu)' == ''">$(UseBroilerUiSource)</BroilerUiHostedRichEditMenu>
+    <DefineConstants Condition="'$(BroilerUiHostedRichEditMenu)' == 'true'">$(DefineConstants);BROILER_UI_HOSTED_RICH_EDIT_MENU</DefineConstants>
+    <!-- Opt in when validating a Documents package that exposes source geometry. -->
+    <DefineConstants Condition="'$(BroilerDocumentsSourceGeometry)' == 'true'">$(DefineConstants);BROILER_DOCUMENTS_SOURCE_GEOMETRY</DefineConstants>
+    <DefineConstants Condition="'$(BroilerSharedParagraphComposition)' == 'true'">$(DefineConstants);BROILER_SHARED_PARAGRAPH_COMPOSITION</DefineConstants>
   </PropertyGroup>
 
   <!-- Broiler.UI vendors its own Broiler.Documents so it can build alone.
@@ -37,16 +46,13 @@
          framework-dependent, and the -Windows / -Linux variants pin a runtime identifier
          (see the Configurations property in Broiler.Writer.Windows and .Linux, and the
          FolderProfile.pubxml that targets Release-Windows). MSBuild only understands Debug
-         and Release on its own, so the compound names are decomposed here into a base
-         configuration and a target OS. Without this, `-c Release-Linux` would build
-         unoptimized and with neither RELEASE nor LINUX defined.
+         and Release on its own, so the compound names inherit the optimization and
+         debug settings of their base configurations here.
 
          The component submodules carry the same decomposition in their own
          Directory.Build.props, which chains to this file in an in-tree build. -->
     <BroilerBaseConfiguration Condition="'$(Configuration)' == 'Debug-Linux' Or '$(Configuration)' == 'Debug-Windows'">Debug</BroilerBaseConfiguration>
     <BroilerBaseConfiguration Condition="'$(Configuration)' == 'Release-Linux' Or '$(Configuration)' == 'Release-Windows'">Release</BroilerBaseConfiguration>
-    <BroilerTargetOperatingSystem Condition="'$(Configuration)' == 'Debug-Linux' Or '$(Configuration)' == 'Release-Linux'">Linux</BroilerTargetOperatingSystem>
-    <BroilerTargetOperatingSystem Condition="'$(Configuration)' == 'Debug-Windows' Or '$(Configuration)' == 'Release-Windows'">Windows</BroilerTargetOperatingSystem>
 
     <DebugSymbols Condition="'$(BroilerBaseConfiguration)' == 'Debug'">true</DebugSymbols>
     <DebugType Condition="'$(BroilerBaseConfiguration)' == 'Debug'">portable</DebugType>
@@ -54,10 +60,6 @@
     <DefineConstants Condition="'$(BroilerBaseConfiguration)' == 'Debug'">$(DefineConstants);DEBUG</DefineConstants>
     <DebugType Condition="'$(BroilerBaseConfiguration)' == 'Release'">portable</DebugType>
     <Optimize Condition="'$(BroilerBaseConfiguration)' == 'Release'">true</Optimize>
-    <DefineConstants Condition="'$(BroilerBaseConfiguration)' == 'Release'">$(DefineConstants);RELEASE</DefineConstants>
-
-    <DefineConstants Condition="'$(BroilerTargetOperatingSystem)' == 'Linux'">$(DefineConstants);LINUX</DefineConstants>
-    <DefineConstants Condition="'$(BroilerTargetOperatingSystem)' == 'Windows'">$(DefineConstants);WINDOWS</DefineConstants>
 
     <!--
       ════════════════════════════════════════════════════════════════════

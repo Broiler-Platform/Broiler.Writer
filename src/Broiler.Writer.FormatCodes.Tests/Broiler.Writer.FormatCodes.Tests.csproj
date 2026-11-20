@@ -43,6 +43,7 @@
 
   <ItemGroup>
     <Using Include="Xunit" />
+    <EmbeddedResource Include="../../eng/web/fixtures/m0-recovery.docx" LogicalName="WriterFixtures.M0Recovery.docx" />
     <Compile Include="../Broiler.Writer.WebAssembly/BrowserDocumentState.cs" Link="BrowserDocumentState.cs" />
     <Compile Include="../Broiler.Writer.WebAssembly/BrowserImageBudget.cs" Link="BrowserImageBudget.cs" />
     <Compile Include="../Broiler.Writer.WebAssembly/BrowserPdfDocuments.cs" Link="BrowserPdfDocuments.cs" />

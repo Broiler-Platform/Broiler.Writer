@@ -63,7 +63,7 @@ public static class WriterAbout
             Math.Max(0, (viewport.Height - height) / 2), width, height));
     }
 
-    private static void OpenDesktopUrl(Uri url)
+    internal static void OpenDesktopUrl(Uri url)
     {
         if (!OperatingSystem.IsWindows() && !OperatingSystem.IsLinux() && !OperatingSystem.IsMacOS())
             throw new NotSupportedException("This host must supply website navigation.");

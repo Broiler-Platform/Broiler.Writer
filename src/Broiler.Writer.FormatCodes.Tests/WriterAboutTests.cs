@@ -59,7 +59,7 @@ public sealed class WriterAboutTests
 
         Assert.False(dialog.IsPresented);
         Assert.Equal(result, dialog.CompletedResult.Kind);
-        Assert.Same(app.Editor, app.Session.FocusedElement);
+        Assert.Same(app.EditorSurface, app.Session.FocusedElement);
 
         Assert.True(app.Menu.CommandDispatcher.TryExecute("help.about"));
         using var reopened = Assert.IsType<StandardAboutDialog>(app.Session.FocusedElement);

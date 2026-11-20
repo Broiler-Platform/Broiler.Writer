@@ -11,11 +11,15 @@ page and pagehide events request another flush. **Saved** means an IndexedDB
 transaction committed; later edits are marked pending. Browser data may still be
 evicted or unavailable. Export a separate document/recovery bundle as a backup.
 
-Writer uses bounded RTF through its existing codec and resource context and checks
-that text round-trips before storing it. Conversion notes remain visible. This is
-not a lossless serialization of every rich document-model feature; complex layout
-may have notes or refuse checkpointing. Keep the original-format export when
-needed. Undo history and caret/selection are not persisted.
+Writer first tries a bounded RTF checkpoint. If it detects a partial conversion
+or formatting loss, it tries a DOCX checkpoint using the same resource permissions.
+DOCX preserves basic bullet and numbered lists that the current RTF codec drops.
+Before storing either format, Writer reads the candidate back and checks text,
+paragraph structure, selected formatting and image limits. If both candidates
+fail, the last good draft stays available. Existing RTF drafts remain readable.
+Recovery bundles with the versioned DOCX format require a Writer version that
+supports it. Recovery covers a subset of the rich document model and does not
+persist undo history or caret/selection.
 
 Restore validates before replacing content, marks the result modified, and creates
 a separate identity while retaining the original draft. It first checkpoints
@@ -35,3 +39,6 @@ The enclosing Office checkout has `tests/office-web/verify-w5.ps1` and
 `docs/broiler-office-web-w5.md`. Verification includes exact published artifacts,
 forced termination of test-owned browser processes, persistent-profile restart,
 tab isolation, migration rollback, storage failures and independent RTF checks.
+Writer's `eng/web/writer-recovery-smoke.mjs` additionally runs against the
+extracted web artifact in CI. It checks legacy RTF migration, DOCX restoration
+after reload, corrupt-bundle rejection and an aborted IndexedDB write.

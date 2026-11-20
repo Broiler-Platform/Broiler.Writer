@@ -1,4 +1,4 @@
-// Vendored identically in Writer and Cells until the shared browser-host package is released.
+// Shared with Cells except for Writer's DOCX recovery format.
 export const recordSchema = 2;
 export const maximumPayloadCharacters = 16 * 1024 * 1024;
 const maximumDrafts = 30;
@@ -7,7 +7,8 @@ const id = () => crypto.randomUUID();
 export function validateRecord(record, app) {
     if (!record || record.app !== app || ![1, recordSchema].includes(record.schema) ||
         typeof record.id !== 'string' || record.id.length > 128 || typeof record.name !== 'string' || record.name.length > 255 ||
-        !['rtf', 'cells-json'].includes(record.format) || typeof record.payload !== 'string' ||
+        !(['rtf', 'cells-json'].includes(record.format) || (app === 'writer' && record.schema === recordSchema && record.format === 'docx-v1')) ||
+        typeof record.payload !== 'string' ||
         record.payload.length > maximumPayloadCharacters || !Number.isSafeInteger(record.revision) || record.revision < 0 ||
         !Number.isSafeInteger(record.generation) || record.generation < 0 || !Number.isFinite(record.updatedAt) ||
         (record.notes !== undefined && (typeof record.notes !== 'string' || record.notes.length > 65536)))

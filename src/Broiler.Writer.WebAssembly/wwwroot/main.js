@@ -248,8 +248,10 @@ function reportOperation(outcome, message, notes = '') {
 }
 
 function updatePreview() {
-    if (started && document.getElementById('writer-info').open)
+    if (started && document.getElementById('writer-info').open) {
         document.getElementById('writer-preview').textContent = writerExports.DocumentPreview();
+        document.getElementById('writer-view-notes').textContent = writerExports.ViewNotes();
+    }
 }
 
 async function saveToHandle() {
@@ -392,6 +394,13 @@ setModuleImports('main.js', {
         },
         scheduleFrame: () => scheduleFrame(),
         setCursor: cursor => { if (canvas) canvas.style.cursor = CURSORS[cursor] || 'default'; },
+        setRenderedPageText: text => {
+            const region = document.getElementById('writer-rendered-page');
+            region.textContent = text;
+            region.hidden = !text;
+            if (text) canvas?.setAttribute('aria-describedby', region.id);
+            else canvas?.removeAttribute('aria-describedby');
+        },
         // The tab is this application's title bar, so the open document's name belongs here.
         setTitle: title => { document.title = title; },
         ready: (logicalWidth, logicalHeight) => {
@@ -427,6 +436,7 @@ setModuleImports('main.js', {
             if (modified) window.addEventListener('beforeunload', confirmUnsavedChanges);
         },
         downloadFile,
+        confirmFormatChanges: message => window.confirm(message),
         requestExportName: defaultName => {
             const dialog = document.getElementById('writer-export-name');
             document.getElementById('writer-filename').value = defaultName || 'Untitled.rtf';
@@ -442,8 +452,8 @@ writerExports = assemblyExports.Broiler.Writer.WebAssembly.BrowserWriterExports;
 recovery = new OfficeRecovery({
     app: 'writer',
     capture: () => JSON.parse(writerExports.RecoverySnapshot()),
-    restore: record => { if (!writerExports.RestoreRecovery(record.name, record.payload)) throw new Error('The draft could not be restored; current content retained.'); },
-    acceptFormat: format => format === 'rtf',
+    restore: record => { if (!writerExports.RestoreRecoveryWithFormat(record.name, record.payload, record.format)) throw new Error('The draft could not be restored; current content retained.'); },
+    acceptFormat: format => format === 'rtf' || format === 'docx-v1',
 });
 
 

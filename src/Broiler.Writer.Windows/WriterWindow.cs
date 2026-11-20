@@ -47,6 +47,9 @@ internal sealed class WriterWindow : Direct2DWindow
             RenderOptions = new BRenderOptions(Antialias: true, VSync: true, SubpixelText: true),
         })
     {
+#if BROILER_DOCUMENTS_SOURCE_GEOMETRY
+        WriterPageLayout.VisualTextMeasurer = WindowsVisualTextGeometry.Measure;
+#endif
         // The Windows host, not the plain one: it offers IUiWindowHost, so a dialog breaks out
         // into its own OS window instead of rendering inside this one.
         _host = new WriterWindowsUiHost(

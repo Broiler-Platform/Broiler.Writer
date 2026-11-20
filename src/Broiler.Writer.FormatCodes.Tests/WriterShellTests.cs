@@ -141,13 +141,34 @@ public sealed class WriterShellTests
     }
 
     [Fact]
+    public void Page_Navigation_Stays_In_The_Status_Bar_When_The_Pane_Is_Toggled()
+    {
+        using WriterApp app = CreateApp();
+        Assert.Contains("Page 1 of 1", DrawnText(app));
+        var editor = Assert.IsType<WriterPageLayout.PageLayoutContent>(app.EditorSurface);
+        UiElement navigation = Assert.IsAssignableFrom<UiElement>(editor.StatusNavigation);
+        BRect statusBounds = navigation.Bounds;
+        Assert.True(statusBounds.Top > editor.Bounds.Bottom);
+
+        app.Menu.CommandDispatcher!.TryExecute("view.formatting-codes");
+        app.RenderFrame();
+
+        Assert.True(statusBounds.Top > editor.Bounds.Bottom);
+        Assert.Equal(statusBounds, navigation.Bounds);
+
+        app.Menu.CommandDispatcher.TryExecute("view.pagination");
+        Assert.DoesNotContain("Page 1 of 1", DrawnText(app));
+        Assert.Equal(UiVisibility.Collapsed, navigation.Visibility);
+    }
+
+    [Fact]
     public void The_Document_Starts_Directly_Under_The_Toolbar()
     {
         using WriterApp app = CreateApp();
         app.RenderFrame();
 
         // The heading that used to sit here is gone, so nothing but a margin separates the two.
-        double gap = app.Editor.Bounds.Top - app.Toolbar.Bounds.Bottom;
+        double gap = app.EditorSurface.Bounds.Top - app.Toolbar.Bounds.Bottom;
         Assert.InRange(gap, 0, 20);
     }
 
@@ -197,6 +218,25 @@ public sealed class WriterShellTests
         // Every break the compact bar sets has to be for a control it actually has.
         foreach (UiElement child in app.Toolbar.Children)
             Assert.NotEqual(UiToolbarBreak.Separator, app.Toolbar.GetBreakBefore(child));
+    }
+
+    [Fact]
+    public void Edit_Menu_Paints_Over_Selected_Document_Text()
+    {
+        using WriterApp app = CreateApp();
+        app.Editor.SetPlainText("Q");
+        Assert.True(app.Menu.CommandDispatcher!.TryExecute("edit.select-all"));
+        app.RenderFrame();
+
+        int edit = Array.FindIndex(app.Menu.Items.ToArray(), item => item.Id == "edit");
+        Assert.True(app.Menu.Open());
+        app.Menu.SetSelectedPath([edit]);
+        string[] text = DrawnText(app);
+
+        Assert.True(app.Menu.OverlayBounds.Bottom > app.Editor.Bounds.Top);
+        int documentText = Array.IndexOf(text, "Q");
+        Assert.Contains("Q", text);
+        Assert.True(Array.IndexOf(text, "Select all") > documentText);
     }
 
     // --- Harness -----------------------------------------------------------

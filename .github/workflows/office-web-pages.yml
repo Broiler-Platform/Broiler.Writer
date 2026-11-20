@@ -77,7 +77,7 @@ jobs:
           import hashlib, json, os, pathlib
           root=pathlib.Path('integration-evidence')
           assert hashlib.sha256((root/'lock/office-web.lock.json').read_bytes()).hexdigest()==os.environ['LOCK_SHA']
-          for name in ('launcher','writer','cell','suite'):
+          for name in ('launcher','writer','cell','plate','suite'):
               report=json.loads((root/'evidence'/f'{name}.json').read_text())
               assert len(report['runs'])==3 and {r['engine'] for r in report['runs']}=={'chromium','firefox','webkit'}
               assert all(r.get('pass') is True for r in report['runs'])
@@ -105,6 +105,7 @@ jobs:
             Broiler-Platform/Broiler) product=launcher ;;
             Broiler-Platform/Broiler.Writer) product=writer ;;
             Broiler-Platform/Broiler.Cells) product=cell ;;
+            Broiler-Platform/Broiler.Plate) product=plate ;;
             *) echo 'Unexpected deployment repository'; exit 1 ;;
           esac
           if [ "$OPERATION" = stage ]; then

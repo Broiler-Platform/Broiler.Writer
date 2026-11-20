@@ -43,10 +43,6 @@ own dependencies, but nothing this repository builds reaches them — see
 
 Build and run the Windows head:
 
-The current About dialog enhancement also requires the sibling `../Broiler.UI` checkout with
-the picture/website API. If it lives elsewhere, pass `-p:BroilerUiSourceRoot=<path>` to the
-build and run commands.
-
 ```bash
 dotnet build Broiler.Windows.Writer.slnx -c Release
 ```
@@ -114,10 +110,8 @@ Android's display version uses the same value. The About dialog omits commit-has
 Override Writer's version with `-p:BroilerWriterVersion=0.2.0-preview.1`; this keeps source
 dependencies on their own versions, whereas the global `-p:Version` also overrides dependencies.
 
-`Broiler.Writer.Core` composes the About dialog. Until the artwork/website API is released as a
-package, builds use the sibling `../Broiler.UI` source checkout for UI controls. Set
-`-p:BroilerUiSourceRoot=<path>` to use another checkout. After that API is released, builds can
-return to packages with `-p:UseBroilerUiSource=false -p:BroilerUiPackageVersion=<version>`.
+Writer uses the published Broiler.UI controls. To test RichEdit changes from a sibling checkout,
+set `-p:UseBroilerUiSource=true`. Set `-p:BroilerUiSourceRoot=<path>` if the checkout is elsewhere.
 
 Open, Save As, Insert Picture, Font and About are **real top-level OS windows** on the Windows head:
 each can be moved onto another monitor, is ordered by the window manager, and carries the one

@@ -5,9 +5,12 @@ using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using Broiler.Documents;
+using Broiler.Documents.Docx;
 using Broiler.Documents.FormatCodes;
+using Broiler.Documents.Markdown;
 using Broiler.Documents.Model;
 using Broiler.Documents.Pagination;
+using Broiler.Documents.Rtf;
 using Broiler.Graphics;
 using Broiler.Input.Keyboard;
 using Broiler.UI;
@@ -58,6 +61,7 @@ internal sealed class WriterApp : IDisposable
     private readonly UiSession _session;
     private readonly StandardWindow _rootWindow;
     private readonly StandardRichEdit _editor;
+    private readonly WriterPageLayout.PageLayoutContent _pageEditor;
     private readonly StandardFormatCodeView _formatCodesView;
     private readonly StandardSplitter _formatCodesSplitter;
     private readonly WriterFormatCodesController _formatCodesController;
@@ -132,6 +136,7 @@ internal sealed class WriterApp : IDisposable
     /// </summary>
     private string? _problem;
     private IReadOnlyList<DocumentDiagnostic> _lastReadDiagnostics = Array.Empty<DocumentDiagnostic>();
+    private (string Name, IReadOnlyList<DocumentDiagnostic> Notes)? _lastSaveNotes;
 
     /// <summary>The prompt waiting for a document's password, or null when none is.</summary>
     private WriterPasswordPrompt? _passwordPrompt;
@@ -207,6 +212,9 @@ internal sealed class WriterApp : IDisposable
 
         _editor = new StandardRichEdit
         {
+#if BROILER_SHARED_PARAGRAPH_COMPOSITION
+            UseSharedParagraphComposition = true,
+#endif
             ToolTipText = "Document editor",
             PreferredSize = new BSize(760, 520),
             PlaceholderText = "Start writing in Broiler Writer...",
@@ -223,9 +231,12 @@ internal sealed class WriterApp : IDisposable
             BorderThickness = 1,
             FocusRingThickness = 1.6,
             CornerRadius = 4,
+            HorizontalScrollPolicy = RichEditScrollPolicy.Auto,
             PaddingX = 18,
             PaddingY = 16,
         };
+        _pageEditor = WriterPageLayout.CreateEditor(_editor);
+        _pageEditor.PictureSelectionChanged += (_, _) => RefreshUi();
         _formatCodesView = new StandardFormatCodeView
         {
             ToolTipText = "Format codes inspector",
@@ -308,7 +319,7 @@ internal sealed class WriterApp : IDisposable
         _content = new WriterContent(
             _menu,
             _toolbar,
-            _editor,
+            _pageEditor,
             _formatCodesSplitter,
             _paneHeader,
             _formatCodesView,
@@ -325,7 +336,7 @@ internal sealed class WriterApp : IDisposable
         _formatCodesController = new WriterFormatCodesController(
             _editor, _formatCodesView, _session.Dispatcher);
         _session.AddRoot(_rootWindow);
-        _session.SetFocus(_editor);
+        FocusEditor();
         _documentChanges = new WriterDocumentChanges(_rootWindow, () => _host.ViewportSize,
             () => _isModified, () => _documentName, SaveDocument);
         _rootWindow.Closing += (_, e) =>
@@ -348,11 +359,12 @@ internal sealed class WriterApp : IDisposable
         };
         _menu.ItemInvoked += (_, e) =>
         {
+            WriterAdvancedCharacterFormatting.SyncInvokedItem(e.Item, _editor);
             if (!string.IsNullOrWhiteSpace(e.Item.CommandName))
                 RefreshUi();
         };
         _formatCodesController.StatusChanged += (_, _) => RefreshUi();
-        _formatCodesView.ExitRequested += (_, _) => _session.SetFocus(_editor);
+        _formatCodesView.ExitRequested += (_, _) => FocusEditor();
         _formatCodesView.SearchRequested += (_, _) =>
         {
             _lastAction = "Formatting Codes search (Ctrl+F)";
@@ -438,6 +450,8 @@ internal sealed class WriterApp : IDisposable
             return;
         }
 
+        if (_session.FocusedElement == _editor && WriterTables.HandleTab(_editor, input))
+            return;
         if (_session.DispatchInput(input))
             _host.RequestInvalidate();
 
@@ -533,18 +547,15 @@ internal sealed class WriterApp : IDisposable
 
         try
         {
-            DocumentWriteResult result = WriteDocument(displayName, _editor.Document, out byte[] bytes);
+            RichTextDocument document = _editor.Document;
+            DocumentWriteResult result = WriteDocument(displayName, document, out byte[] bytes);
+            WriterSavePolicy.EnsureComplete(result);
             stream.Write(bytes, 0, bytes.Length);
             stream.Flush();
             if (updateIdentity)
             {
-                _currentDocumentPath = displayName;
-                SetDocumentName(Path.GetFileName(displayName), modified: false);
-                _lastAction = result.Diagnostics.Count == 0
-                    ? "Saved " + Path.GetFileName(displayName)
-                    : "Saved " + Path.GetFileName(displayName) + " with " + result.Diagnostics.Count.ToString(CultureInfo.InvariantCulture) + " note(s)";
-                _session.SetFocus(_editor);
-                RefreshUi();
+                _lastSaveNotes = result.Diagnostics.Count == 0 ? null : (Path.GetFileName(displayName), result.Diagnostics);
+                FinishReviewedSave(new WriterPreparedSave(displayName, document, bytes, result));
             }
             return true;
         }
@@ -555,6 +566,49 @@ internal sealed class WriterApp : IDisposable
             return false;
         }
     }
+
+    internal void WriteRecoveryCheckpoint(string path)
+    {
+        RichTextDocument document = _pictureEncoding.EncodeDecodedPictures(_editor.Document, _resources, out _);
+        var candidate = WriterRecoveryCheckpoint.Capture(document,
+            new DocumentWriteOptions(resources: _resources.Build()), CreateRecoveryReadOptions());
+        WriterSavePolicy.CommitFile(path, candidate.Bytes);
+    }
+
+    internal void RestoreRecoveryCheckpoint(string path, bool legacyRtf)
+    {
+        var options = CreateRecoveryReadOptions();
+        using FileStream input = File.OpenRead(path);
+        if (input.Length > options.Limits.MaxDocumentBytes)
+            throw new InvalidDataException("The recovery file exceeds the size limit.");
+        byte[] bytes = new byte[(int)input.Length];
+        input.ReadExactly(bytes);
+
+        string format = !legacyRtf && WriterRecoveryCheckpoint.IsDocx(bytes)
+            ? WriterRecoveryCheckpoint.DocxV1
+            : WriterRecoveryCheckpoint.Rtf;
+        DocumentReadResult result = WriterRecoveryCheckpoint.Read(format, bytes, options);
+        if (!WriterDocumentLoadPolicy.MayReplace(result, rejectLimits: true) ||
+            (!legacyRtf && result.Status != DocumentResultStatus.Success))
+            throw new InvalidDataException("The recovery file could not be restored.");
+
+        _currentDocumentPath = null;
+        _lastReadDiagnostics = result.Diagnostics;
+        _lastReadFileName = "Recovered draft";
+        _resources = DocumentConversionContextBuilder.Continuing(result.Resources, DocumentResourcePolicy.AllowOwnDocuments);
+        ReplaceDocument(() =>
+        {
+            _editor.Document = result.Document;
+            _editor.Selection = RichTextRange.Caret(RichTextDocument.Start);
+        });
+        SetDocumentName(_lastReadFileName, modified: true);
+        _lastAction = "Recovered draft";
+        FocusEditor();
+        RefreshUi();
+    }
+
+    private static DocumentReadOptions CreateRecoveryReadOptions() =>
+        new(resourcePolicy: DocumentResourcePolicy.AllowOwnDocuments);
 
     /// <summary>Reports a host failure opening or closing a save stream.</summary>
     public void ReportSaveFailure(string message)
@@ -586,6 +640,12 @@ internal sealed class WriterApp : IDisposable
         dispatcher.Add(new StandardCommand("view.zoom.reset", () => StepZoom(WriterZoomStep.Reset)));
         AddZoomLevelCommands(dispatcher);
         AddFormatCodeCommands(dispatcher);
+        dispatcher.Add(new StandardCommand("format.text-color", () => ShowCharacterColor(RichEditCommand.SetForeground),
+            () => _editor.GetCommandState(RichEditCommand.SetForeground).IsEnabled));
+        dispatcher.Add(new StandardCommand("format.highlight", () => ShowCharacterColor(RichEditCommand.SetBackground),
+            () => _editor.GetCommandState(RichEditCommand.SetBackground).IsEnabled));
+        dispatcher.Add(new StandardCommand("format.link", ShowLinkEditor,
+            () => _editor.GetCommandState(RichEditCommand.InsertText).IsEnabled));
         dispatcher.Add(new StandardCommand("format.font", ShowFontDialog, () => _editor.GetCommandState(RichEditCommand.SetFont).IsEnabled));
         AddRichEditCommand(dispatcher, "edit.undo", RichEditCommand.Undo);
         AddRichEditCommand(dispatcher, "edit.redo", RichEditCommand.Redo);
@@ -597,6 +657,8 @@ internal sealed class WriterApp : IDisposable
         AddRichEditCommand(dispatcher, "format.italic", RichEditCommand.Italic);
         AddRichEditCommand(dispatcher, "format.underline", RichEditCommand.Underline);
         AddRichEditCommand(dispatcher, "format.strike", RichEditCommand.Strikethrough);
+        AddRichEditCommand(dispatcher, "format.all-caps", RichEditCommand.AllCaps);
+        AddRichEditCommand(dispatcher, "format.small-caps", RichEditCommand.SmallCaps);
         AddRichEditCommand(dispatcher, "format.clear", RichEditCommand.ClearFormatting);
         AddRichEditCommand(dispatcher, "paragraph.left", RichEditCommand.AlignLeft);
         AddRichEditCommand(dispatcher, "paragraph.center", RichEditCommand.AlignCenter);
@@ -610,39 +672,64 @@ internal sealed class WriterApp : IDisposable
         var file = new UiMenuItem("file", "File") { AccessKey = 'F' };
         file.Children.Add(new UiMenuItem("new", "New document") { CommandName = "file.new", AccessKey = 'N' });
         file.Children.Add(new UiMenuItem("open", "Open...") { CommandName = "file.open", AccessKey = 'O' });
+        file.Children.Add(new UiMenuItem("save-separator", "") { IsSeparator = true });
         file.Children.Add(new UiMenuItem("save", "Save") { CommandName = "file.save", AccessKey = 'S' });
         file.Children.Add(new UiMenuItem("save-as", "Save as...") { CommandName = "file.save-as", AccessKey = 'A' });
+        file.Children.Add(new UiMenuItem("print-separator", "") { IsSeparator = true });
+        file.Children.Add(new UiMenuItem("page-layout", "Page Layout...") { CommandName = "view.page-layout" });
+        var pageSetup = new UiMenuItem("page-setup", "Page setup") { AccessKey = 'U' };
+        WriterFormattingDialog.AddPageStructureCommands(dispatcher, pageSetup, _editor, () => _rootWindow,
+            () => _host.ViewportSize, action => action());
+        file.Children.Add(pageSetup);
         file.Children.Add(new UiMenuItem("print", "Print...") { CommandName = "file.print", AccessKey = 'P', Accelerator = "Ctrl+P" });
+        file.Children.Add(new UiMenuItem("exit-separator", "") { IsSeparator = true });
         file.Children.Add(new UiMenuItem("exit", "Exit") { CommandName = "file.exit", AccessKey = 'X' });
 
         var edit = new UiMenuItem("edit", "Edit") { AccessKey = 'E' };
         edit.Children.Add(RichEditItem("undo", "Undo", "edit.undo", RichEditCommand.Undo, 'U'));
         edit.Children.Add(RichEditItem("redo", "Redo", "edit.redo", RichEditCommand.Redo, 'R'));
+        edit.Children.Add(new UiMenuItem("clipboard-separator", "") { IsSeparator = true });
         edit.Children.Add(RichEditItem("cut", "Cut", "edit.cut", RichEditCommand.Cut, 'T'));
         edit.Children.Add(RichEditItem("copy", "Copy", "edit.copy", RichEditCommand.Copy, 'C'));
         edit.Children.Add(RichEditItem("paste", "Paste", "edit.paste", RichEditCommand.Paste, 'P'));
+        edit.Children.Add(new UiMenuItem("selection-separator", "") { IsSeparator = true });
         edit.Children.Add(RichEditItem("select-all", "Select all", "edit.select-all", RichEditCommand.SelectAll, 'A'));
 
         var format = new UiMenuItem("format", "Format") { AccessKey = 'O' };
         _fontMenuItem = new UiMenuItem("font", "Font...") { CommandName = "format.font", AccessKey = 'F' };
         format.Children.Add(_fontMenuItem);
+        format.Children.Add(new UiMenuItem("styles-separator", "") { IsSeparator = true });
         format.Children.Add(RichEditItem("bold", "Bold", "format.bold", RichEditCommand.Bold, 'B', checkable: true));
         format.Children.Add(RichEditItem("italic", "Italic", "format.italic", RichEditCommand.Italic, 'I', checkable: true));
         format.Children.Add(RichEditItem("underline", "Underline", "format.underline", RichEditCommand.Underline, 'U', checkable: true));
         format.Children.Add(RichEditItem("strike", "Strikethrough", "format.strike", RichEditCommand.Strikethrough, 'S', checkable: true));
+        format.Children.Add(RichEditItem("all-caps", "All caps", "format.all-caps", RichEditCommand.AllCaps, 'A', checkable: true));
+        format.Children.Add(RichEditItem("small-caps", "Small caps", "format.small-caps", RichEditCommand.SmallCaps, 'M', checkable: true));
+        WriterAdvancedCharacterFormatting.AddFormattingItems(dispatcher, format, _editor, RefreshAdvancedCharacterFormatting,
+            () => WriterFormattingDialog.ShowLanguage(_rootWindow, _host.ViewportSize, _editor, RefreshAdvancedCharacterFormatting));
+        format.Children.Add(new UiMenuItem("color-separator", "") { IsSeparator = true });
+        format.Children.Add(new UiMenuItem("text-color", "Text color...") { CommandName = "format.text-color" });
+        format.Children.Add(new UiMenuItem("highlight", "Highlight...") { CommandName = "format.highlight" });
+        format.Children.Add(new UiMenuItem("link", "Link...") { CommandName = "format.link" });
+        format.Children.Add(new UiMenuItem("clear-separator", "") { IsSeparator = true });
         format.Children.Add(RichEditItem("clear", "Clear formatting", "format.clear", RichEditCommand.ClearFormatting, 'C'));
 
+        format.Children.Add(new UiMenuItem("insert-separator", "") { IsSeparator = true });
         format.Children.Add(new UiMenuItem("picture", "Insert picture...")
         {
             CommandName = "insert.picture",
             AccessKey = 'R',
         });
 
+        format.Children.Add(new UiMenuItem("codes-separator", "") { IsSeparator = true });
         var insertCode = new UiMenuItem("insert-code", "Insert Code") { AccessKey = 'D' };
         insertCode.Children.Add(new UiMenuItem("code-bold", "Bold") { CommandName = "formatcodes.insert.bold" });
         insertCode.Children.Add(new UiMenuItem("code-italic", "Italic") { CommandName = "formatcodes.insert.italic" });
         insertCode.Children.Add(new UiMenuItem("code-underline", "Underline") { CommandName = "formatcodes.insert.underline" });
         insertCode.Children.Add(new UiMenuItem("code-strike", "Strikethrough") { CommandName = "formatcodes.insert.strike" });
+        insertCode.Children.Add(new UiMenuItem("code-all-caps", "All caps") { CommandName = "formatcodes.insert.all-caps" });
+        insertCode.Children.Add(new UiMenuItem("code-small-caps", "Small caps") { CommandName = "formatcodes.insert.small-caps" });
+        insertCode.Children.Add(new UiMenuItem("breaks-separator", "") { IsSeparator = true });
         insertCode.Children.Add(new UiMenuItem("code-tab", "Tab") { CommandName = "formatcodes.insert.tab" });
         insertCode.Children.Add(new UiMenuItem("code-line-break", "Soft line break") { CommandName = "formatcodes.insert.line-break" });
         insertCode.Children.Add(new UiMenuItem("code-paragraph-break", "Paragraph break") { CommandName = "formatcodes.insert.paragraph-break" });
@@ -661,10 +748,16 @@ internal sealed class WriterApp : IDisposable
         paragraph.Children.Add(RichEditItem("center", "Align center", "paragraph.center", RichEditCommand.AlignCenter, 'C', checkable: true));
         paragraph.Children.Add(RichEditItem("right", "Align right", "paragraph.right", RichEditCommand.AlignRight, 'R', checkable: true));
         paragraph.Children.Add(RichEditItem("justify", "Justify", "paragraph.justify", RichEditCommand.AlignJustify, 'J', checkable: true));
+        paragraph.Children.Add(new UiMenuItem("lists-separator", "") { IsSeparator = true });
         paragraph.Children.Add(RichEditItem("bullets", "Bullets", "paragraph.bullets", RichEditCommand.BulletList, 'B', checkable: true));
         paragraph.Children.Add(RichEditItem("numbered", "Numbered", "paragraph.numbered", RichEditCommand.NumberedList, 'N', checkable: true));
+        paragraph.Children.Add(new UiMenuItem("indent-separator", "") { IsSeparator = true });
         paragraph.Children.Add(RichEditItem("indent", "Indent", "paragraph.indent", RichEditCommand.Indent, 'I'));
         paragraph.Children.Add(RichEditItem("outdent", "Outdent", "paragraph.outdent", RichEditCommand.Outdent, 'O'));
+        paragraph.Children.Add(new UiMenuItem("properties-separator", "") { IsSeparator = true });
+        WriterFormattingDialog.AddParagraphCommands(dispatcher, paragraph, _editor, () => _rootWindow,
+            () => _host.ViewportSize, action => action());
+        format.Children.Add(new UiMenuItem("paragraph-separator", "") { IsSeparator = true });
         format.Children.Add(paragraph);
 
         var view = new UiMenuItem("view", "View") { AccessKey = 'V' };
@@ -676,14 +769,25 @@ internal sealed class WriterApp : IDisposable
             IsChecked = true,
         };
         view.Children.Add(_formatCodesMenuItem);
+        WriterPageLayout.AddPaginationMenu(dispatcher, view, _pageEditor, RefreshUi);
+        dispatcher.Add(new StandardCommand("view.page-layout", () => WriterPageLayout.Show(_rootWindow, _host.ViewportSize, _editor, _editor.Font.FamilyName)));
+        WriterAdvancedCharacterFormatting.AddViewItem(dispatcher, view, _editor, RefreshUi);
+        dispatcher.Add(new StandardCommand("view.notes", ShowEditingViewNotes));
+        view.Children.Add(new UiMenuItem("zoom-separator", "") { IsSeparator = true });
         view.Children.Add(new UiMenuItem("zoom-in", "Zoom in") { CommandName = "view.zoom.in", AccessKey = 'I' });
         view.Children.Add(new UiMenuItem("zoom-out", "Zoom out") { CommandName = "view.zoom.out", AccessKey = 'O' });
         view.Children.Add(new UiMenuItem("zoom-reset", "Actual size") { CommandName = "view.zoom.reset", AccessKey = 'A' });
         view.Children.Add(CreateZoomMenu());
 
+        view.Children.Add(new UiMenuItem("notes-separator", "") { IsSeparator = true });
+        view.Children.Add(new UiMenuItem("view-notes", "Editing view notes...") { CommandName = "view.notes" });
+
         var help = new UiMenuItem("help", "Help") { AccessKey = 'H' };
         help.Children.Add(new UiMenuItem("notes", "Notes for this document...") { CommandName = "help.notes", AccessKey = 'N' });
         dispatcher.Add(new StandardCommand("help.notes", ShowDocumentNotes, () => _lastReadDiagnostics.Count > 0));
+        help.Children.Add(new UiMenuItem("save-notes", "Last save notes...") { CommandName = "help.save-notes" });
+        dispatcher.Add(new StandardCommand("help.save-notes", ShowSaveNotes, () => _lastSaveNotes is not null));
+        help.Children.Add(new UiMenuItem("about-separator", "") { IsSeparator = true });
         help.Children.Add(new UiMenuItem("about", "About Broiler Writer") { CommandName = "help.about", AccessKey = 'A' });
         dispatcher.Add(new StandardCommand("help.about", ShowAbout));
 
@@ -702,7 +806,11 @@ internal sealed class WriterApp : IDisposable
             SelectedBackground = WriterPalette.MenuSelected,
             CommandDispatcher = dispatcher,
         };
-        menu.SetItems([file, edit, format, view, help]);
+        var table = WriterFormattingDialog.CreateTableMenu(dispatcher, _editor, () => _rootWindow,
+            () => _host.ViewportSize, action => action());
+        var graphics = WriterFormattingDialog.CreateGraphicsMenu(dispatcher, _editor, () => _rootWindow,
+            () => _host.ViewportSize, action => action());
+        menu.SetItems([file, edit, format, view, table, graphics, help]);
         return menu;
     }
 
@@ -804,6 +912,7 @@ internal sealed class WriterApp : IDisposable
         bool changed = !WriterZoom.Same(resolved, _zoom);
         _zoom = resolved;
         _editor.Zoom = resolved;
+        _pageEditor.SetZoom(resolved);
         _lastAction = changed
             ? "Zoom " + WriterZoom.Describe(resolved)
             : "Zoom already " + WriterZoom.Describe(resolved);
@@ -818,6 +927,8 @@ internal sealed class WriterApp : IDisposable
         dispatcher.Add(new StandardCommand("formatcodes.insert.italic", () => RunFormatCodePalette(FormatCodePaletteEntry.Italic)));
         dispatcher.Add(new StandardCommand("formatcodes.insert.underline", () => RunFormatCodePalette(FormatCodePaletteEntry.Underline)));
         dispatcher.Add(new StandardCommand("formatcodes.insert.strike", () => RunFormatCodePalette(FormatCodePaletteEntry.Strikethrough)));
+        dispatcher.Add(new StandardCommand("formatcodes.insert.all-caps", () => RunFormatCodePalette(FormatCodePaletteEntry.AllCaps)));
+        dispatcher.Add(new StandardCommand("formatcodes.insert.small-caps", () => RunFormatCodePalette(FormatCodePaletteEntry.SmallCaps)));
         dispatcher.Add(new StandardCommand("formatcodes.insert.tab", () => RunFormatCodePalette(FormatCodePaletteEntry.Tab)));
         dispatcher.Add(new StandardCommand("formatcodes.insert.line-break", () => RunFormatCodePalette(FormatCodePaletteEntry.LineBreak)));
         dispatcher.Add(new StandardCommand("formatcodes.insert.paragraph-break", () => RunFormatCodePalette(FormatCodePaletteEntry.ParagraphBreak)));
@@ -1082,9 +1193,9 @@ internal sealed class WriterApp : IDisposable
 
     private void RunRichEditCommand(RichEditCommand command)
     {
-        bool ran = _editor.ExecuteCommand(command);
+        bool ran = WriterCapitalization.Execute(_editor, command);
         _lastAction = ran ? FriendlyCommandName(command) : FriendlyCommandName(command) + " unavailable";
-        _session.SetFocus(_editor);
+        FocusEditor();
         RefreshUi();
     }
 
@@ -1098,7 +1209,7 @@ internal sealed class WriterApp : IDisposable
         ReplaceDocument(() => _editor.SetPlainText(string.Empty));
         SetDocumentName(UntitledDocumentName, modified: false);
         _lastAction = "New document";
-        _session.SetFocus(_editor);
+        FocusEditor();
         RefreshUi();
     }
 
@@ -1149,7 +1260,7 @@ internal sealed class WriterApp : IDisposable
             return;
         }
 
-        completed(SaveDocumentAs(_currentDocumentPath));
+        SaveDocumentAs(_currentDocumentPath, completed);
     }
 
     private void ShowSaveDialog() => ShowSaveDialog(static _ => { });
@@ -1182,8 +1293,10 @@ internal sealed class WriterApp : IDisposable
             GetFileTypeFilterIndex(_saveDocumentFileFilters, _currentDocumentPath));
         dialog.ResultCompleted += (_, e) =>
         {
-            completed(e.Result.Kind == UiDialogResultKind.Accepted &&
-                !string.IsNullOrWhiteSpace(e.Result.Value) && SaveDocumentAs(e.Result.Value));
+            if (e.Result.Kind == UiDialogResultKind.Accepted && !string.IsNullOrWhiteSpace(e.Result.Value))
+                SaveDocumentAs(e.Result.Value, completed);
+            else
+                completed(false);
         };
 
         dialog.ShowSaveModal(_rootWindow, GetDialogPlacement());
@@ -1236,36 +1349,91 @@ internal sealed class WriterApp : IDisposable
         RefreshUi();
     }
 
-    private bool SaveDocumentAs(string path)
+    private void SaveDocumentAs(string path, Action<bool> completed)
     {
-        bool saved = false;
+        ReviewSave(path, Commit, () => ShowSaveDialog(completed), () => completed(false), resolvePath: true);
+
+        void Commit(WriterPreparedSave save)
+        {
+            bool saved = false;
+            try
+            {
+                Directory.CreateDirectory(Path.GetDirectoryName(save.Name)!);
+                WriterSavePolicy.CommitFile(save.Name, save.Bytes);
+                FinishReviewedSave(save);
+                _lastDirectory = Path.GetDirectoryName(save.Name) ?? _lastDirectory;
+                saved = true;
+            }
+            catch (Exception ex) when (IsFileOperationException(ex))
+            {
+                ReportSaveFailure(ex.Message);
+            }
+            completed(saved);
+        }
+    }
+
+    internal void ReviewSave(string name, Action<WriterPreparedSave> commit, Action chooseAnother, Action cancel,
+        bool resolvePath = false)
+    {
+        _lastSaveNotes = null;
+        WriterPreparedSave save;
         try
         {
-            string fullPath = ResolveDocumentPath(path);
-            string? directory = Path.GetDirectoryName(fullPath);
-            if (!string.IsNullOrWhiteSpace(directory))
-                Directory.CreateDirectory(directory);
-
-            DocumentWriteResult result = WriteDocument(fullPath, _editor.Document, out byte[] bytes);
-            File.WriteAllBytes(fullPath, bytes);
-            _currentDocumentPath = fullPath;
-            _lastDirectory = Path.GetDirectoryName(fullPath) ?? _lastDirectory;
-            SetDocumentName(Path.GetFileName(fullPath), modified: false);
-            _lastAction = result.Diagnostics.Count == 0
-                ? "Saved " + Path.GetFileName(fullPath)
-                : "Saved " + Path.GetFileName(fullPath) + " with " + result.Diagnostics.Count.ToString(CultureInfo.InvariantCulture) + " note(s)";
-            if (result.Diagnostics.Count > 0)
-                _problem = _lastAction;
-            saved = true;
+            if (resolvePath)
+                name = ResolveDocumentPath(name);
+            RichTextDocument document = _editor.Document;
+            DocumentWriteResult result = WriteDocument(name, document, out byte[] bytes);
+            _lastSaveNotes = result.Diagnostics.Count == 0 ? null : (Path.GetFileName(name), result.Diagnostics);
+            WriterSavePolicy.EnsureComplete(result);
+            save = new WriterPreparedSave(name, document, bytes, result);
         }
         catch (Exception ex) when (IsFileOperationException(ex))
         {
             _problem = _lastAction = "Save failed: " + ex.Message;
+            FocusEditor();
+            RefreshUi();
+            cancel();
+            return;
         }
 
-        _session.SetFocus(_editor);
+        if (!save.RequiresReview)
+        {
+            commit(save);
+            return;
+        }
+
+        StandardDialog dialog = WriterNotes.CreateDialog(Path.GetFileName(save.Name), save.Result.Diagnostics, reviewSave: true);
+        dialog.ResultCompleted += (_, e) =>
+        {
+            if (e.Result.Kind == UiDialogResultKind.Accepted)
+                commit(save);
+            else if (e.Result.Kind == UiDialogResultKind.Rejected)
+                chooseAnother();
+            else
+            {
+                _lastAction = "Save canceled";
+                FocusEditor();
+                RefreshUi();
+                cancel();
+            }
+        };
+        dialog.ShowModal(_rootWindow, GetFontDialogPlacement());
         RefreshUi();
-        return saved;
+    }
+
+    internal void FinishReviewedSave(WriterPreparedSave save)
+    {
+        string fileName = Path.GetFileName(save.Name);
+        if (!save.RequiresReview && ReferenceEquals(save.Document, _editor.Document))
+        {
+            _currentDocumentPath = save.Name;
+            SetDocumentName(fileName, modified: false);
+        }
+        _lastAction = save.RequiresReview
+            ? "Saved " + fileName + " with format changes. Editing copy kept."
+            : "Saved " + fileName;
+        FocusEditor();
+        RefreshUi();
     }
 
     private void ShowInsertPictureDialog()
@@ -1334,7 +1502,7 @@ internal sealed class WriterApp : IDisposable
             _lastAction = inserted
                 ? "Inserted picture " + Path.GetFileName(fullPath)
                 : "Insert picture unavailable";
-            _session.SetFocus(_editor);
+            FocusEditor();
             RefreshUi();
             return inserted;
         }
@@ -1345,6 +1513,19 @@ internal sealed class WriterApp : IDisposable
             return false;
         }
     }
+
+    private void RefreshAdvancedCharacterFormatting()
+    {
+        if (_editor.Selection.IsEmpty)
+            _formatCodesController.Refresh();
+        RefreshUi();
+    }
+
+    private void ShowCharacterColor(RichEditCommand command) =>
+        WriterFormattingDialog.ShowColor(_rootWindow, _host.ViewportSize, _editor, command, RefreshUi);
+
+    private void ShowLinkEditor() =>
+        WriterFormattingDialog.ShowLink(_rootWindow, _host.ViewportSize, _editor, _openUrl ?? WriterAbout.OpenDesktopUrl);
 
     private void ShowFontDialog()
     {
@@ -1394,7 +1575,7 @@ internal sealed class WriterApp : IDisposable
         _lastAction = ran
             ? "Font: " + font.FamilyName + " " + font.Size.ToString("0.###", CultureInfo.InvariantCulture)
             : "Font unavailable";
-        _session.SetFocus(_editor);
+        FocusEditor();
         RefreshUi();
     }
 
@@ -1432,6 +1613,23 @@ internal sealed class WriterApp : IDisposable
         RefreshUi();
     }
 
+    private void ShowSaveNotes()
+    {
+        if (_lastSaveNotes is not { } save)
+            return;
+
+        StandardDialog dialog = WriterNotes.CreateDialog("saving " + save.Name, save.Notes);
+        dialog.ShowModal(_rootWindow, GetFontDialogPlacement());
+        RefreshUi();
+    }
+
+    private void ShowEditingViewNotes()
+    {
+        StandardDialog dialog = WriterNotes.CreateViewDialog(_editor.Document, _editor.ShowHiddenText, IsPaginationEnabled);
+        dialog.ShowModal(_rootWindow, GetFontDialogPlacement());
+        RefreshUi();
+    }
+
     /// <summary>
     /// Prints the document as it stands: laid out on its own page by
     /// <see cref="DocumentPaginator"/>, chosen and previewed in the print dialog - or in the
@@ -1449,11 +1647,7 @@ internal sealed class WriterApp : IDisposable
         if (_printing)
             return;
 
-        var paginator = new DocumentPaginator(DocumentPaginator.CreateDefaultSettings() with
-        {
-            // A run that names no family is drawn on screen in the editor's; it prints in it too.
-            DefaultFontFamily = _editor.Font.FamilyName,
-        });
+        DocumentPaginator paginator = WriterPageLayout.CreatePaginator(_editor.Font.FamilyName);
         var document = new RichTextPagedDocument(_editor.Document, _documentName, paginator);
 
         Task<UiPrintResult> printing;
@@ -1532,7 +1726,7 @@ internal sealed class WriterApp : IDisposable
 
     private void ShowAbout()
     {
-        _session.SetFocus(_editor);
+        FocusEditor();
         WriterAbout.Show(_rootWindow, _host.ViewportSize, typeof(WriterApp).Assembly, _openUrl);
     }
 
@@ -1708,7 +1902,7 @@ internal sealed class WriterApp : IDisposable
             _editor.Document = selection.Result.Document;
             _editor.Selection = RichTextRange.Caret(RichTextDocument.Start);
         });
-        _session.SetFocus(_editor);
+        FocusEditor();
     }
 
     /// <summary>
@@ -1800,7 +1994,7 @@ internal sealed class WriterApp : IDisposable
     {
         _passwordPrompt = null;
         _problem = _lastAction = DescribeDeclinedPassword(fileName, reason);
-        _session.SetFocus(_editor);
+        FocusEditor();
         RefreshUi();
     }
 
@@ -1928,7 +2122,15 @@ internal sealed class WriterApp : IDisposable
             stream,
             new DocumentWriteOptions(resources: _resources.Build()));
         bytes = stream.ToArray();
-        return result;
+        result = WriterSavePolicy.ReviewCharacterFormatting(extension, written, result);
+        result = WriterSavePolicy.ReviewParagraphFormatting(format.Codec, written, bytes, result);
+        return format.Codec switch
+        {
+            RtfDocumentCodec => WriterSavePolicy.ReviewRtfLists(written, bytes, result),
+            DocxDocumentCodec => WriterSavePolicy.ReviewDocxNestedPictures(bytes, result),
+            MarkdownDocumentCodec => WriterSavePolicy.ReviewMarkdownCapitalization(written, result),
+            _ => result,
+        };
     }
 
     private static bool IsFileOperationException(Exception ex) =>
@@ -1943,7 +2145,7 @@ internal sealed class WriterApp : IDisposable
         if (!_content.IsFormatCodesVisible &&
             (_session.FocusedElement == _formatCodesView || _session.FocusedElement == _formatCodesSplitter))
         {
-            _session.SetFocus(_editor);
+            FocusEditor();
         }
         else if (_content.IsFormatCodesVisible)
         {
@@ -2014,18 +2216,29 @@ internal sealed class WriterApp : IDisposable
         return true;
     }
 
+    internal bool IsPaginationEnabled =>
+        _pageEditor.IsPaginationEnabled;
+
+    internal UiElement EditorSurface =>
+        _pageEditor.IsPaginationEnabled ? _pageEditor : _editor;
+
+    private void FocusEditor()
+    {
+        _pageEditor.FocusEditor();
+    }
+
     private void CycleFormattingCodesFocus(bool reverse)
     {
         UiElement? focused = _session.FocusedElement;
         if (!_content.IsFormatCodesVisible)
         {
-            _session.SetFocus(focused == _menu ? _editor : _menu);
+            _session.SetFocus(focused == _menu ? EditorSurface : _menu);
             return;
         }
 
         UiElement next = reverse
-            ? focused == _editor ? _menu : focused == _menu ? _formatCodesView : _editor
-            : focused == _editor ? _formatCodesView : focused == _formatCodesView ? _menu : _editor;
+            ? focused == EditorSurface ? _menu : focused == _menu ? _formatCodesView : EditorSurface
+            : focused == EditorSurface ? _formatCodesView : focused == _formatCodesView ? _menu : EditorSurface;
         _session.SetFocus(next);
         _lastAction = "Focus moved with F6";
         RefreshUi();
@@ -2033,9 +2246,11 @@ internal sealed class WriterApp : IDisposable
 
     private void RefreshUi()
     {
+        _paneHeader.Text = WriterPictureInformation.Describe(_editor);
+        _paneHeader.ToolTipText = _paneHeader.Text;
         foreach ((UiMenuItem item, RichEditCommand command) in _richEditMenuItems)
         {
-            RichEditCommandState state = _editor.GetCommandState(command);
+            RichEditCommandState state = WriterCapitalization.GetState(_editor, command);
             item.IsEnabled = state.IsEnabled;
             if (item.IsCheckable)
                 item.IsChecked = state.IsToggled;
@@ -2136,6 +2351,7 @@ internal sealed class WriterApp : IDisposable
     /// </summary>
     private void ReplaceDocument(Action replace)
     {
+        _lastSaveNotes = null;
         _replacingDocument++;
         try
         {
@@ -2183,6 +2399,8 @@ internal sealed class WriterApp : IDisposable
         if (style.Italic) names.Add("italic");
         if (style.Underline) names.Add("underline");
         if (style.Strikethrough) names.Add("strike");
+        if (style.Capitalization == TextCapitalization.AllCaps) names.Add("all caps");
+        if (style.Capitalization == TextCapitalization.SmallCaps) names.Add("small caps");
         if (!string.IsNullOrWhiteSpace(style.FontFamily)) names.Add(style.FontFamily);
         if (style.FontSize is > 0) names.Add(style.FontSize.Value.ToString("0.###", CultureInfo.InvariantCulture));
         return names.Count == 0 ? "plain" : string.Join(" + ", names);
@@ -2193,6 +2411,8 @@ internal sealed class WriterApp : IDisposable
         {
             RichEditCommand.SelectAll => "Select all",
             RichEditCommand.ClearFormatting => "Clear formatting",
+            RichEditCommand.AllCaps => "All caps",
+            RichEditCommand.SmallCaps => "Small caps",
             RichEditCommand.AlignLeft => "Align left",
             RichEditCommand.AlignCenter => "Align center",
             RichEditCommand.AlignRight => "Align right",
@@ -2222,7 +2442,8 @@ internal sealed class WriterApp : IDisposable
     {
         private const double Margin = 24;
         private const double WorkspaceTop = 14;
-        private const double StatusHeight = 22;
+        private const double StatusLabelHeight = 22;
+        private double StatusHeight => _pageNavigation?.Visibility == UiVisibility.Visible ? 30 : StatusLabelHeight;
         private const double StatusGap = 12;
         private const double PaneHeaderHeight = 20;
         private const double MinWidth = 900;
@@ -2230,18 +2451,19 @@ internal sealed class WriterApp : IDisposable
 
         private readonly StandardMenu _menu;
         private readonly StandardToolbar _toolbar;
-        private readonly StandardRichEdit _editor;
+        private readonly UiElement _editor;
         private readonly StandardSplitter _formatCodesSplitter;
         private readonly StandardLabel _paneHeader;
         private readonly StandardFormatCodeView _formatCodesView;
         private readonly StandardLabel _status;
         private readonly StandardLabel _statusState;
+        private readonly UiElement? _pageNavigation;
         private bool _isFormatCodesVisible = true;
 
         public WriterContent(
             StandardMenu menu,
             StandardToolbar toolbar,
-            StandardRichEdit editor,
+            UiElement editor,
             StandardSplitter formatCodesSplitter,
             StandardLabel paneHeader,
             StandardFormatCodeView formatCodesView,
@@ -2251,20 +2473,25 @@ internal sealed class WriterApp : IDisposable
             _menu = menu;
             _toolbar = toolbar;
             _editor = editor;
+            _pageNavigation = (editor as WriterPageLayout.PageLayoutContent)?.StatusNavigation;
+            if (_pageNavigation is not null)
+                AddChild(_pageNavigation);
             _formatCodesSplitter = formatCodesSplitter;
             _paneHeader = paneHeader;
             _formatCodesView = formatCodesView;
             _status = status;
             _statusState = statusState;
 
-            AddChild(_menu);
-            AddChild(_toolbar);
             AddChild(_editor);
             AddChild(_formatCodesSplitter);
             AddChild(_paneHeader);
             AddChild(_formatCodesView);
             AddChild(_status);
             AddChild(_statusState);
+
+            // Children paint in order. Keep command popups above the document.
+            AddChild(_toolbar);
+            AddChild(_menu);
         }
 
         public bool IsFormatCodesVisible
@@ -2302,8 +2529,9 @@ internal sealed class WriterApp : IDisposable
                 _paneHeader.Measure(new BSize(contentWidth, PaneHeaderHeight));
                 _formatCodesView.Measure(new BSize(contentWidth, Math.Max(WriterFormatCodesLayout.MinimumPaneHeight, height * 0.25)));
             }
-            _status.Measure(new BSize(contentWidth, StatusHeight));
-            _statusState.Measure(new BSize(contentWidth, StatusHeight));
+            _pageNavigation?.Measure(new BSize(contentWidth, StatusHeight));
+            _status.Measure(new BSize(contentWidth, StatusLabelHeight));
+            _statusState.Measure(new BSize(contentWidth, StatusLabelHeight));
 
             return new BSize(width, height);
         }
@@ -2348,11 +2576,19 @@ internal sealed class WriterApp : IDisposable
                 _formatCodesView.Arrange(new BRect(x, headerTop + PaneHeaderHeight, width, layout.PaneHeight));
             }
 
-            // Facts on the left, state on the right. The right-hand label is placed by its own
-            // width rather than aligned, because a label does not align itself.
-            double stateWidth = Math.Min(width, _statusState.DesiredSize.Width);
-            _status.Arrange(new BRect(x, statusTop, Math.Max(0, width - stateWidth - 16), StatusHeight));
-            _statusState.Arrange(new BRect(x + width - stateWidth, statusTop, stateWidth, StatusHeight));
+            double navigationWidth = _pageNavigation?.Visibility == UiVisibility.Visible
+                ? Math.Min(width, _pageNavigation.DesiredSize.Width)
+                : 0;
+            double stateWidth = Math.Min(width - navigationWidth, _statusState.DesiredSize.Width);
+            double navigationLeft = Math.Min(x + (width - navigationWidth) / 2,
+                x + width - stateWidth - navigationWidth);
+            double factsRight = navigationWidth > 0 ? navigationLeft : x + width - stateWidth;
+            double factsWidth = Math.Max(0, factsRight - x - 16);
+            double labelTop = statusTop + (StatusHeight - StatusLabelHeight) / 2;
+            _status.Arrange(new BRect(x, labelTop, factsWidth, StatusLabelHeight));
+            _statusState.Arrange(new BRect(x + width - stateWidth, labelTop, stateWidth, StatusLabelHeight));
+            if (navigationWidth > 0)
+                _pageNavigation!.Arrange(new BRect(navigationLeft, statusTop, navigationWidth, StatusHeight));
         }
 
         protected override void RenderCore(UiRenderContext context)

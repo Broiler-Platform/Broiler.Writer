@@ -96,9 +96,10 @@ public sealed class WriterImageRenderTests
         using BBitmap bitmap = renderer.RenderToImage(frame, descriptor, BFrameContext.Default);
 
         BRenderCommand.DrawImage drawn = Assert.Single(frame.Commands.OfType<BRenderCommand.DrawImage>());
+        BRect destination = WriterRenderCoordinates.ImageBounds(frame, drawn);
         BColor sample = bitmap.GetPixel(
-            (int)Math.Round(drawn.Destination.Left + (drawn.Destination.Width / 2)),
-            (int)Math.Round(drawn.Destination.Top + (drawn.Destination.Height / 2)));
+            (int)Math.Round(destination.Left + (destination.Width / 2)),
+            (int)Math.Round(destination.Top + (destination.Height / 2)));
 
         // The source PNG is solid red; the middle of the destination rectangle is
         // where it lands on the page.
@@ -214,10 +215,11 @@ public sealed class WriterImageRenderTests
             frame.Commands.OfType<BRenderCommand.DrawImage>());
 
         // The picture's own corner is the page's white, and its middle is not.
-        var corner = new BPoint(drawn.Destination.Left + 1, drawn.Destination.Top + 1);
+        BRect destination = WriterRenderCoordinates.ImageBounds(frame, drawn);
+        var corner = new BPoint(destination.Left + 1, destination.Top + 1);
         var middle = new BPoint(
-            drawn.Destination.Left + (drawn.Destination.Width / 2),
-            drawn.Destination.Top + (drawn.Destination.Height / 2));
+            destination.Left + (destination.Width / 2),
+            destination.Top + (destination.Height / 2));
 
         BColor cornerPixel = page.GetPixel((int)corner.X, (int)corner.Y);
         BColor middlePixel = page.GetPixel((int)middle.X, (int)middle.Y);

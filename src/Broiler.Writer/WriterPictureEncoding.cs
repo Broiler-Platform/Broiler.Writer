@@ -36,10 +36,6 @@ namespace Broiler.Writer;
 /// rather than borrowing the decoded picture's approval, and it is remembered
 /// per picture, so saving the same document again encodes nothing twice.
 /// </para>
-/// <para>
-/// Only the body is searched. It is where a PDF read puts its pictures, and no
-/// other reader produces decoded samples.
-/// </para>
 /// </remarks>
 internal sealed class WriterPictureEncoding
 {
@@ -51,7 +47,7 @@ internal sealed class WriterPictureEncoding
     private readonly ConditionalWeakTable<BImageResource, BImageResource> _encodings = new();
 
     /// <summary>
-    /// Returns <paramref name="document"/> with each decoded picture in its body
+    /// Returns <paramref name="document"/> with its permitted decoded pictures
     /// replaced by a PNG encoding admitted into <paramref name="resources"/>, and
     /// in <paramref name="encoded"/> how many distinct pictures that was.
     /// </summary>
@@ -68,59 +64,19 @@ internal sealed class WriterPictureEncoding
             return document;
 
         DocumentConversionContext decided = resources.Build();
-        var replacements = new Dictionary<InlineImage, InlineImage?>(ReferenceEqualityComparer.Instance);
-        RichTextParagraph[]? paragraphs = null;
-
-        for (int index = 0; index < document.ParagraphCount; index++)
+        int replaced = 0;
+        RichTextDocument prepared = document.MapPictures(image =>
         {
-            // The runs of the paragraph as it was. An encoded picture takes the
-            // place of a decoded one character for character, so the offsets
-            // stay good while the paragraph is rebuilt around them.
-            RichTextParagraph paragraph = document.Paragraphs[index];
-            int offset = 0;
-            foreach (StyleRun run in document.Paragraphs[index].Runs)
-            {
-                if (run.Style.Image is InlineImage image)
-                {
-                    if (!replacements.TryGetValue(image, out InlineImage? replacement))
-                    {
-                        replacement = Encode(image, decided, resources);
-                        replacements[image] = replacement;
-                        if (replacement is not null)
-                            encoded++;
-                    }
-
-                    if (replacement is not null)
-                    {
-                        string text = paragraph.Text.Substring(offset, run.Length);
-                        paragraph = paragraph
-                            .RemoveRange(offset, run.Length)
-                            .InsertText(offset, text, run.Style with { Image = replacement });
-                    }
-                }
-
-                offset += run.Length;
-            }
-
-            if (!ReferenceEquals(paragraph, document.Paragraphs[index]))
-            {
-                paragraphs ??= [.. document.Paragraphs];
-                paragraphs[index] = paragraph;
-            }
-        }
-
-        if (paragraphs is null)
-            return document;
-
-        // The paragraph count is unchanged, so every table still spans the
-        // paragraphs it did, and the rest of the document comes across whole.
-        return RichTextDocument.FromParagraphs(paragraphs)
-            .WithRunningContent(document.RunningContent)
-            .WithShapes(document.Shapes)
-            .WithPageGeometry(document.PageGeometry)
-            .WithTables(document.Tables)
-            .WithStyleDefaults(document.StyleDefaults);
+            InlineImage? replacement = Encode(image, decided, resources);
+            if (replacement is null)
+                return image;
+            replaced++;
+            return replacement;
+        });
+        encoded = replaced;
+        return prepared;
     }
+
 
     /// <summary>
     /// The picture as PNG, admitted into <paramref name="resources"/>; or null
@@ -154,9 +110,7 @@ internal sealed class WriterPictureEncoding
             _encodings.AddOrUpdate(image.Resource, png);
         }
 
-        return resources.AdmitImage(
-            new InlineImage(png, default, image.Width, image.Height, image.AltText, image.Name, image.Presentation),
-            entry!.Provenance,
-            entry.Disposition);
+        InlineImage replacement = image.WithResource(png);
+        return resources.AdmitImage(replacement, entry!.Provenance, entry.Disposition);
     }
 }

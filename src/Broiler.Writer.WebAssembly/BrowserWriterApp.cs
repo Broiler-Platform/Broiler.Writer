@@ -90,7 +90,10 @@ internal static class BrowserWriterApp
     internal static string PrepareHandleExport(string name) => _writer?.PrepareHandleExport(name) ?? string.Empty;
     internal static string RecoverySnapshot() => _writer?.RecoverySnapshot() ?? string.Empty;
     internal static bool RestoreRecovery(string name, string payload) => _writer?.RestoreRecovery(name, payload) ?? false;
+    internal static bool RestoreRecoveryWithFormat(string name, string payload, string format) =>
+        _writer?.RestoreRecovery(name, payload, format) ?? false;
     internal static string PreviewText() => _writer?.PreviewText ?? string.Empty;
+    internal static string EditingViewNotes() => _writer?.ViewNotes ?? string.Empty;
     internal static void ExportCompleted(int token, string outcome, string error) => Run(demo => demo.ExportCompleted(token, outcome, error));
     internal static void FileOperationMessage(string outcome, string message) => Run(demo => demo.FileOperationMessage(outcome, message));
     internal static void ExportNameSelected(string name) => Run(demo => demo.ExportNameSelected(name));
@@ -164,6 +167,7 @@ internal static partial class BrowserWriterExports
 
     [JSExport] internal static string PrepareHandleExport(string name) => BrowserWriterApp.PrepareHandleExport(name);
     [JSExport] internal static string DocumentPreview() => BrowserWriterApp.PreviewText();
+    [JSExport] internal static string ViewNotes() => BrowserWriterApp.EditingViewNotes();
     [JSExport] internal static void ExportCompleted(int token, string outcome, string error) => BrowserWriterApp.ExportCompleted(token, outcome, error);
     [JSExport] internal static void FileOperationMessage(string outcome, string message) => BrowserWriterApp.FileOperationMessage(outcome, message);
     [JSExport] internal static void ExportNameSelected(string name) => BrowserWriterApp.ExportNameSelected(name);
@@ -174,6 +178,8 @@ internal static partial class BrowserWriterExports
 
     [JSExport] internal static string RecoverySnapshot() => BrowserWriterApp.RecoverySnapshot();
     [JSExport] internal static bool RestoreRecovery(string name, string payload) => BrowserWriterApp.RestoreRecovery(name, payload);
+    [JSExport] internal static bool RestoreRecoveryWithFormat(string name, string payload, string format) =>
+        BrowserWriterApp.RestoreRecoveryWithFormat(name, payload, format);
 
     [JSExport]
     internal static void Dispose() => BrowserWriterApp.Dispose();

@@ -184,6 +184,8 @@ public sealed class WriterFormatCodesController : IDisposable
         RichTextRange range = descriptor.RemovalIntent.Range;
         if (value is false && descriptor.Property is >= FormatCodeProperty.Bold and <= FormatCodeProperty.Strikethrough)
             return ExecuteIntent(descriptor.RemovalIntent);
+        if (descriptor.Property == FormatCodeProperty.Capitalization && value is TextCapitalization.None)
+            return ExecuteIntent(descriptor.RemovalIntent);
 
         try
         {
@@ -198,6 +200,12 @@ public sealed class WriterFormatCodesController : IDisposable
                 FormatCodeProperty.Foreground => FormatCodePaletteEntry.Foreground,
                 FormatCodeProperty.Background => FormatCodePaletteEntry.Background,
                 FormatCodeProperty.Link => FormatCodePaletteEntry.Link,
+                FormatCodeProperty.Capitalization when value is TextCapitalization.AllCaps => FormatCodePaletteEntry.AllCaps,
+                FormatCodeProperty.Capitalization when value is TextCapitalization.SmallCaps => FormatCodePaletteEntry.SmallCaps,
+                FormatCodeProperty.Hidden => FormatCodePaletteEntry.Hidden,
+                FormatCodeProperty.BaselineShift => FormatCodePaletteEntry.BaselineShift,
+                FormatCodeProperty.Language => FormatCodePaletteEntry.Language,
+                FormatCodeProperty.CharacterStyle => FormatCodePaletteEntry.CharacterStyle,
                 FormatCodeProperty.Alignment when value is TextAlignment.Left => FormatCodePaletteEntry.AlignLeft,
                 FormatCodeProperty.Alignment when value is TextAlignment.Center => FormatCodePaletteEntry.AlignCenter,
                 FormatCodeProperty.Alignment when value is TextAlignment.Right => FormatCodePaletteEntry.AlignRight,
@@ -258,7 +266,8 @@ public sealed class WriterFormatCodesController : IDisposable
         {
             FormatCodeMappedPosition anchor = _projection!.MapProjectedOffset(e.Anchor);
             FormatCodeMappedPosition focus = _projection.MapProjectedOffset(e.Focus);
-            _editor.Selection = new RichTextRange(anchor.DocumentPosition, focus.DocumentPosition);
+            _editor.Selection = e.Anchor == e.Focus && focus.AffectedRange is { } pictureRange && IsPictureRange(pictureRange)
+                ? pictureRange : new RichTextRange(anchor.DocumentPosition, focus.DocumentPosition);
             _editor.SecondarySelection = e.Anchor == e.Focus ? focus.AffectedRange : null;
         });
         SetStatus("Formatting Codes selection mapped to document");
@@ -271,7 +280,8 @@ public sealed class WriterFormatCodesController : IDisposable
 
         RunSynchronized(() =>
         {
-            _editor.Selection = RichTextRange.Caret(e.Mapping.DocumentPosition);
+            _editor.Selection = e.Mapping.AffectedRange is { } pictureRange && IsPictureRange(pictureRange)
+                ? pictureRange : RichTextRange.Caret(e.Mapping.DocumentPosition);
             _editor.SecondarySelection = e.Mapping.AffectedRange;
         });
         SetStatus(e.Token is null
@@ -425,6 +435,17 @@ public sealed class WriterFormatCodesController : IDisposable
     private bool ProjectionMatchesEditor() =>
         _projection is not null && ReferenceEquals(_projectedDocument, _editor.Document);
 
+    private bool IsPictureRange(RichTextRange range)
+    {
+        var document = _editor.Document;
+        int paragraph = document.ParagraphIndexAt(range.Start);
+        int offset = document.OffsetAt(range.Start);
+        return document.ParagraphIndexAt(range.End) == paragraph && document.OffsetAt(range.End) == offset + 1 &&
+            offset < document.Paragraphs[paragraph].Length &&
+            document.Paragraphs[paragraph].Text[offset] == InlineImage.Placeholder &&
+            document.Paragraphs[paragraph].StyleAt(offset).Image is not null;
+    }
+
     private bool ProjectionContainsToken(FormatCodeToken token)
     {
         if (_projection is null)
@@ -480,7 +501,7 @@ public sealed class WriterFormatCodesController : IDisposable
 
     private static bool IsPendingStyleCommand(RichEditCommand command) => command is
         RichEditCommand.Bold or RichEditCommand.Italic or RichEditCommand.Underline or
-        RichEditCommand.Strikethrough or RichEditCommand.SetForeground or
+        RichEditCommand.Strikethrough or RichEditCommand.AllCaps or RichEditCommand.SmallCaps or RichEditCommand.SetForeground or
         RichEditCommand.SetBackground or RichEditCommand.SetFontFamily or
         RichEditCommand.SetFontSize or RichEditCommand.SetFont or RichEditCommand.ClearFormatting;
 

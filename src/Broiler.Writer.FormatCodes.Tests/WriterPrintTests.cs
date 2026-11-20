@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Broiler.Documents.Model;
 using Broiler.Graphics.Geometry;
 using Broiler.Graphics.Paging;
 using Broiler.Graphics.RenderList;
@@ -21,6 +22,21 @@ namespace Broiler.Writer.FormatCodes.Tests;
 /// </summary>
 public sealed class WriterPrintTests
 {
+    [Fact]
+    public void Print_Preview_Excludes_Hidden_Runs_Even_When_The_Editor_Shows_Them()
+    {
+        using WriterApp app = CreateApp(new FakePrintHost());
+        app.Editor.Document = RichTextDocument.FromParagraphs([
+            RichTextParagraph.Plain("visible ").InsertText(8, "concealed", InlineStyle.Default with { Hidden = true })
+        ]);
+        app.Dispatch(CtrlP());
+        var preview = Assert.IsType<StandardPrintDialog>(app.Session.ModalElement);
+        Assert.Equal(1, preview.Pages!.PageCount);
+        BPage page = preview.Pages.GetPage(0);
+        Assert.Contains(page.Commands.OfType<BRenderCommand.DrawText>(), command => command.Text.Text.Contains("visible"));
+        Assert.DoesNotContain(page.Commands.OfType<BRenderCommand.DrawText>(), command => command.Text.Text.Contains("concealed"));
+    }
+
     [Fact]
     public void A_Head_That_Cannot_Print_Offers_No_Print()
     {

@@ -25,7 +25,8 @@ producer = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(producer)
 PRODUCTS = {"launcher": ("Broiler-Platform/Broiler", "demo.broiler.app"),
             "writer": ("Broiler-Platform/Broiler.Writer", "writer.broiler.app"),
-            "cell": ("Broiler-Platform/Broiler.Cells", "cell.broiler.app")}
+            "cell": ("Broiler-Platform/Broiler.Cells", "cell.broiler.app"),
+            "plate": ("Broiler-Platform/Broiler.Plate", "plate.broiler.app")}
 VERSION = re.compile(r"[A-Za-z0-9][A-Za-z0-9.+-]{0,79}\Z")
 SHA = re.compile(r"[0-9a-f]{64}\Z")
 
@@ -49,8 +50,8 @@ def validate(lock):
     if not VERSION.fullmatch(lock.get("catalogVersion", "")) or lock.get("channel") not in ("preview", "stable"):
         raise ValueError("Invalid suite identity")
     rows = lock.get("components", [])
-    if len(rows) != 3 or {r.get("product") for r in rows} != set(PRODUCTS):
-        raise ValueError("Exactly Launcher, Writer and Cell are required")
+    if len(rows) != len(PRODUCTS) or {r.get("product") for r in rows} != set(PRODUCTS):
+        raise ValueError("Exactly Launcher, Writer, Cell and Plate are required")
     for row in rows:
         repo, host = PRODUCTS[row["product"]]
         if row.get("repository") != repo or not VERSION.fullmatch(row.get("version", "")):
@@ -244,7 +245,7 @@ def health(lock):
                                          "securityHeaders": {name: response.headers.get(name) for name in ("Content-Security-Policy", "Strict-Transport-Security", "X-Content-Type-Options", "Permissions-Policy")}})
     return {"schemaVersion": 1, "artifactKind": "broiler-office-web-release", "status": "staged",
             "catalogVersion": lock["catalogVersion"], "channel": lock["channel"], "lockSha256": digest((json.dumps(lock, sort_keys=True, separators=(",", ":"))).encode()),
-            "components": lock["components"], "disabledProducts": ["browser", "plate"], "delivery": delivery}
+            "components": lock["components"], "disabledProducts": ["browser"], "delivery": delivery}
 
 
 def promote(lock, site, previous):

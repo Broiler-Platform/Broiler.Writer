@@ -51,6 +51,10 @@ jobs:
         env:
           WEB_VERSION: ${{ inputs.version }}
         run: node smoke.mjs "${GITHUB_WORKSPACE}/artifacts/web-producer/$WEB_VERSION/extracted/wwwroot" writer "${GITHUB_WORKSPACE}/artifacts/web-producer/$WEB_VERSION/smoke.json"
+      - name: Verify Writer recovery from the extracted archive
+        env:
+          WEB_VERSION: ${{ inputs.version }}
+        run: node writer-recovery-smoke.mjs "${GITHUB_WORKSPACE}/artifacts/web-producer/$WEB_VERSION/extracted/wwwroot"
       - uses: actions/upload-artifact@v7
         with:
           name: broiler-writer-web-${{ inputs.version }}

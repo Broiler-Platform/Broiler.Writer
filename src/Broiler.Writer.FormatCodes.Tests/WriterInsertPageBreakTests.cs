@@ -97,14 +97,8 @@ public sealed class WriterInsertPageBreakTests
     }
 
     [Fact]
-    public void The_Document_View_Is_Unchanged_By_It()
+    public void The_Document_View_Shows_The_New_Page()
     {
-        // Pinned rather than left for a reviewer to discover. StandardRichEdit
-        // draws one sheet that grows instead of starting a second, so a break it
-        // is told about has nowhere to show. The break is real - the assertions
-        // above are on the document - and it reaches paper through the codecs,
-        // the CLI layout and the PDF writer. It just does not reach this surface,
-        // and will not until a paginating one exists.
         using WriterApp app = CreateApp();
         app.Editor.SetPlainText("first\nsecond");
         app.Editor.Selection = RichTextRange.Caret(app.Document.End);
@@ -119,7 +113,8 @@ public sealed class WriterInsertPageBreakTests
         (string Text, double X, double Y)[] after = Drawn(app);
 
         Assert.True(app.Document.Paragraphs[1].Style.PageBreakBefore);
-        Assert.Equal(before, after);
+        Assert.NotEqual(before, after);
+        Assert.Contains(after, item => item.Text == "Page 2 of 2");
     }
 
     private static (string Text, double X, double Y)[] Drawn(WriterApp app) =>

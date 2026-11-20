@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
@@ -69,6 +69,10 @@ internal sealed partial class BrowserWriterDemo : IDisposable
     private const string DefaultDocumentExtension = ".rtf";
     private const string OpenAcceptExtensions = ".rtf,.docx,.odt,.html,.htm,.md,.markdown,.pdf";
     private static readonly BSize FontDialogPreferredSize = new(560, 384);
+    private static readonly DocumentReadOptions BrowserReadOptions = new(
+        limits: new DocumentLimits(maxDocumentBytes: MaximumFileBytes, maxRunLength: MaximumTextCharacters,
+            maxParagraphCount: 10000, maxBinBytes: MaximumFileBytes),
+        resourcePolicy: DocumentResourcePolicy.AllowOwnDocuments);
 
     private readonly BrowserCanvasUiHost _host;
     private readonly BrowserClipboard _clipboard;
@@ -76,6 +80,7 @@ internal sealed partial class BrowserWriterDemo : IDisposable
     private readonly UiSession _session;
     private readonly StandardWindow _rootWindow;
     private readonly StandardRichEdit _editor;
+    private readonly WriterPageLayout.PageLayoutContent _pageEditor;
     private readonly StandardFormatCodeView _formatCodesView;
     private readonly StandardSplitter _formatCodesSplitter;
     private readonly WriterFormatCodesController _formatCodesController;
@@ -166,15 +171,21 @@ internal sealed partial class BrowserWriterDemo : IDisposable
 
         _editor = new StandardRichEdit
         {
+#if BROILER_SHARED_PARAGRAPH_COMPOSITION
+            UseSharedParagraphComposition = true,
+#endif
             PreferredSize = new BSize(760, 520),
             PlaceholderText = "Start writing in Broiler Writer...",
             Font = new BFontStyle("Segoe UI", 17),
             Background = WriterPalette.Page,
             BorderColor = WriterPalette.EditorBorder,
             FocusRing = WriterPalette.Accent,
+            HorizontalScrollPolicy = RichEditScrollPolicy.Auto,
             PaddingX = 18,
             PaddingY = 16,
         };
+        _pageEditor = WriterPageLayout.CreateEditor(_editor);
+        _pageEditor.PictureSelectionChanged += (_, _) => RefreshUi();
         _formatCodesView = new StandardFormatCodeView
         {
             PreferredSize = new BSize(760, 160),
@@ -251,7 +262,7 @@ internal sealed partial class BrowserWriterDemo : IDisposable
         _content = new WriterContent(
             _menu,
             _toolbar,
-            _editor,
+            _pageEditor,
             _formatCodesSplitter,
             _paneHeader,
             _formatCodesView,
@@ -266,7 +277,7 @@ internal sealed partial class BrowserWriterDemo : IDisposable
         _formatCodesController = new WriterFormatCodesController(
             _editor, _formatCodesView, _session.Dispatcher);
         _session.AddRoot(_rootWindow);
-        _session.SetFocus(_editor);
+        FocusEditor();
 
         _editor.SelectionChanged += (_, _) => RefreshUi();
         _editor.DocumentChanged += (_, _) =>
@@ -282,11 +293,12 @@ internal sealed partial class BrowserWriterDemo : IDisposable
         };
         _menu.ItemInvoked += (_, e) =>
         {
+            WriterAdvancedCharacterFormatting.SyncInvokedItem(e.Item, _editor);
             if (!string.IsNullOrWhiteSpace(e.Item.CommandName))
                 RefreshUi();
         };
         _formatCodesController.StatusChanged += (_, _) => RefreshUi();
-        _formatCodesView.ExitRequested += (_, _) => _session.SetFocus(_editor);
+        _formatCodesView.ExitRequested += (_, _) => FocusEditor();
         _formatCodesView.SearchRequested += (_, _) =>
         {
             _lastAction = "Formatting Codes search (Ctrl+F)";
@@ -375,12 +387,13 @@ internal sealed partial class BrowserWriterDemo : IDisposable
                 return;
             }
 
-            _session.DispatchInput(UiInputEvent.FromMouseWheel(new MouseWheelEvent(
+            var input = UiInputEvent.FromMouseWheel(new MouseWheelEvent(
                 Header(PointerDevice, timestampMilliseconds),
                 InputPoint.ClientDeviceIndependentPixels(x, y),
                 _buttons,
                 horizontal ? MouseWheelAxis.Horizontal : MouseWheelAxis.Vertical,
-                deltaNotches)));
+                deltaNotches));
+            _session.DispatchInput(input);
         });
 
     internal void KeyboardKey(string keyName, bool down, int modifiers, int nativeKeyCode, bool repeat, int location, double timestampMilliseconds) =>
@@ -425,7 +438,10 @@ internal sealed partial class BrowserWriterDemo : IDisposable
                 IsExtended: location != 0,
                 WasDown: repeat,
                 Location: Enum.IsDefined((KeyboardKeyLocation)location) ? (KeyboardKeyLocation)location : KeyboardKeyLocation.Standard);
-            _session.DispatchInput(UiInputEvent.FromKeyboardKey(input));
+            var key = UiInputEvent.FromKeyboardKey(input);
+            if (_session.FocusedElement == _editor && WriterTables.HandleTab(_editor, key))
+                return;
+            _session.DispatchInput(key);
         });
 
     internal void TextInput(string text, double timestampMilliseconds) =>
@@ -501,7 +517,7 @@ internal sealed partial class BrowserWriterDemo : IDisposable
                 _currentDocumentName = name; _hasSavedName = true;
                 SetDocumentName(name, modified: false);
                 ReportOperation("Opened", result.Status == DocumentResultStatus.Partial ? "Opened a supported subset of " + name + ". Review the format notes." : "Opened " + name, result.Diagnostics);
-                _session.SetFocus(_editor);
+                FocusEditor();
             }
             catch (Exception ex) when (IsDocumentException(ex))
             {
@@ -541,6 +557,12 @@ internal sealed partial class BrowserWriterDemo : IDisposable
         dispatcher.Add(new StandardCommand("view.zoom.reset", () => StepZoom(WriterZoomStep.Reset)));
         AddZoomLevelCommands(dispatcher);
         AddFormatCodeCommands(dispatcher);
+        dispatcher.Add(new StandardCommand("format.text-color", () => ShowCharacterColor(RichEditCommand.SetForeground),
+            () => _editor.GetCommandState(RichEditCommand.SetForeground).IsEnabled));
+        dispatcher.Add(new StandardCommand("format.highlight", () => ShowCharacterColor(RichEditCommand.SetBackground),
+            () => _editor.GetCommandState(RichEditCommand.SetBackground).IsEnabled));
+        dispatcher.Add(new StandardCommand("format.link", ShowLinkEditor,
+            () => _editor.GetCommandState(RichEditCommand.InsertText).IsEnabled));
         dispatcher.Add(new StandardCommand("format.font", ShowFontDialog, () => _editor.GetCommandState(RichEditCommand.SetFont).IsEnabled));
         AddRichEditCommand(dispatcher, "edit.undo", RichEditCommand.Undo);
         AddRichEditCommand(dispatcher, "edit.redo", RichEditCommand.Redo);
@@ -552,6 +574,8 @@ internal sealed partial class BrowserWriterDemo : IDisposable
         AddRichEditCommand(dispatcher, "format.italic", RichEditCommand.Italic);
         AddRichEditCommand(dispatcher, "format.underline", RichEditCommand.Underline);
         AddRichEditCommand(dispatcher, "format.strike", RichEditCommand.Strikethrough);
+        AddRichEditCommand(dispatcher, "format.all-caps", RichEditCommand.AllCaps);
+        AddRichEditCommand(dispatcher, "format.small-caps", RichEditCommand.SmallCaps);
         AddRichEditCommand(dispatcher, "format.clear", RichEditCommand.ClearFormatting);
         AddRichEditCommand(dispatcher, "paragraph.left", RichEditCommand.AlignLeft);
         AddRichEditCommand(dispatcher, "paragraph.center", RichEditCommand.AlignCenter);
@@ -582,6 +606,13 @@ internal sealed partial class BrowserWriterDemo : IDisposable
         format.Children.Add(RichEditItem("italic", "Italic", "format.italic", RichEditCommand.Italic, 'I', checkable: true));
         format.Children.Add(RichEditItem("underline", "Underline", "format.underline", RichEditCommand.Underline, 'U', checkable: true));
         format.Children.Add(RichEditItem("strike", "Strikethrough", "format.strike", RichEditCommand.Strikethrough, 'S', checkable: true));
+        format.Children.Add(RichEditItem("all-caps", "All caps", "format.all-caps", RichEditCommand.AllCaps, 'A', checkable: true));
+        format.Children.Add(RichEditItem("small-caps", "Small caps", "format.small-caps", RichEditCommand.SmallCaps, 'M', checkable: true));
+        format.Children.Add(new UiMenuItem("text-color", "Text color...") { CommandName = "format.text-color" });
+        format.Children.Add(new UiMenuItem("highlight", "Highlight...") { CommandName = "format.highlight" });
+        format.Children.Add(new UiMenuItem("link", "Link...") { CommandName = "format.link" });
+        WriterAdvancedCharacterFormatting.AddFormattingItems(dispatcher, format, _editor, RefreshAdvancedCharacterFormatting,
+            () => _dispatcher.Post(() => WriterFormattingDialog.ShowLanguage(_rootWindow, _host.ViewportSize, _editor, RefreshAdvancedCharacterFormatting)));
         format.Children.Add(RichEditItem("clear", "Clear formatting", "format.clear", RichEditCommand.ClearFormatting, 'C'));
 
         var insertCode = new UiMenuItem("insert-code", "Insert Code") { AccessKey = 'D' };
@@ -589,6 +620,8 @@ internal sealed partial class BrowserWriterDemo : IDisposable
         insertCode.Children.Add(new UiMenuItem("code-italic", "Italic") { CommandName = "formatcodes.insert.italic" });
         insertCode.Children.Add(new UiMenuItem("code-underline", "Underline") { CommandName = "formatcodes.insert.underline" });
         insertCode.Children.Add(new UiMenuItem("code-strike", "Strikethrough") { CommandName = "formatcodes.insert.strike" });
+        insertCode.Children.Add(new UiMenuItem("code-all-caps", "All caps") { CommandName = "formatcodes.insert.all-caps" });
+        insertCode.Children.Add(new UiMenuItem("code-small-caps", "Small caps") { CommandName = "formatcodes.insert.small-caps" });
         insertCode.Children.Add(new UiMenuItem("code-tab", "Tab") { CommandName = "formatcodes.insert.tab" });
         insertCode.Children.Add(new UiMenuItem("code-line-break", "Soft line break") { CommandName = "formatcodes.insert.line-break" });
         insertCode.Children.Add(new UiMenuItem("code-paragraph-break", "Paragraph break") { CommandName = "formatcodes.insert.paragraph-break" });
@@ -603,10 +636,13 @@ internal sealed partial class BrowserWriterDemo : IDisposable
         paragraph.Children.Add(RichEditItem("left", "Align left", "paragraph.left", RichEditCommand.AlignLeft, 'L', checkable: true));
         paragraph.Children.Add(RichEditItem("center", "Align center", "paragraph.center", RichEditCommand.AlignCenter, 'C', checkable: true));
         paragraph.Children.Add(RichEditItem("right", "Align right", "paragraph.right", RichEditCommand.AlignRight, 'R', checkable: true));
+        paragraph.Children.Add(RichEditItem("justify", "Justify", "paragraph.justify", RichEditCommand.AlignJustify, 'J', checkable: true));
         paragraph.Children.Add(RichEditItem("bullets", "Bullets", "paragraph.bullets", RichEditCommand.BulletList, 'B', checkable: true));
         paragraph.Children.Add(RichEditItem("numbered", "Numbered", "paragraph.numbered", RichEditCommand.NumberedList, 'N', checkable: true));
         paragraph.Children.Add(RichEditItem("indent", "Indent", "paragraph.indent", RichEditCommand.Indent, 'I'));
         paragraph.Children.Add(RichEditItem("outdent", "Outdent", "paragraph.outdent", RichEditCommand.Outdent, 'O'));
+        WriterFormattingDialog.AddParagraphCommands(dispatcher, paragraph, _editor, () => _rootWindow,
+            () => _host.ViewportSize, _dispatcher.Post);
         format.Children.Add(paragraph);
 
         var view = new UiMenuItem("view", "View") { AccessKey = 'V' };
@@ -618,6 +654,13 @@ internal sealed partial class BrowserWriterDemo : IDisposable
             IsChecked = true,
         };
         view.Children.Add(_formatCodesMenuItem);
+        WriterPageLayout.AddPaginationMenu(dispatcher, view, _pageEditor, RefreshUi);
+        view.Children.Add(new UiMenuItem("page-layout", "Page Layout...") { CommandName = "view.page-layout" });
+        WriterFormattingDialog.AddPageStructureCommands(dispatcher, view, _editor, () => _rootWindow,
+            () => _host.ViewportSize, _dispatcher.Post);
+        dispatcher.Add(new StandardCommand("view.page-layout", () => _dispatcher.Post(() => WriterPageLayout.Show(
+            _rootWindow, _host.ViewportSize, _editor, _editor.Font.FamilyName, BrowserInterop.SetRenderedPageText))));
+        WriterAdvancedCharacterFormatting.AddViewItem(dispatcher, view, _editor, RefreshUi);
         view.Children.Add(new UiMenuItem("zoom-in", "Zoom in") { CommandName = "view.zoom.in", AccessKey = 'I' });
         view.Children.Add(new UiMenuItem("zoom-out", "Zoom out") { CommandName = "view.zoom.out", AccessKey = 'O' });
         view.Children.Add(new UiMenuItem("zoom-reset", "Actual size") { CommandName = "view.zoom.reset", AccessKey = 'A' });
@@ -649,7 +692,11 @@ internal sealed partial class BrowserWriterDemo : IDisposable
             dispatcher.Add(new StandardCommand(command, () => BrowserInterop.WebMenu(action)));
             office.Children.Add(new UiMenuItem(command, label) { CommandName = command });
         }
-        menu.SetItems([file, edit, format, view, office, help]);
+        var table = WriterFormattingDialog.CreateTableMenu(dispatcher, _editor, () => _rootWindow,
+            () => _host.ViewportSize, action => _dispatcher.Post(action));
+        var graphics = WriterFormattingDialog.CreateGraphicsMenu(dispatcher, _editor, () => _rootWindow,
+            () => _host.ViewportSize, action => _dispatcher.Post(action));
+        menu.SetItems([file, edit, format, view, table, graphics, office, help]);
         return menu;
     }
 
@@ -740,6 +787,7 @@ internal sealed partial class BrowserWriterDemo : IDisposable
         bool changed = !WriterZoom.Same(resolved, _zoom);
         _zoom = resolved;
         _editor.Zoom = resolved;
+        _pageEditor.SetZoom(resolved);
         _lastAction = changed
             ? "Zoom " + WriterZoom.Describe(resolved)
             : "Zoom already " + WriterZoom.Describe(resolved);
@@ -754,6 +802,8 @@ internal sealed partial class BrowserWriterDemo : IDisposable
         dispatcher.Add(new StandardCommand("formatcodes.insert.italic", () => RunFormatCodePalette(FormatCodePaletteEntry.Italic)));
         dispatcher.Add(new StandardCommand("formatcodes.insert.underline", () => RunFormatCodePalette(FormatCodePaletteEntry.Underline)));
         dispatcher.Add(new StandardCommand("formatcodes.insert.strike", () => RunFormatCodePalette(FormatCodePaletteEntry.Strikethrough)));
+        dispatcher.Add(new StandardCommand("formatcodes.insert.all-caps", () => RunFormatCodePalette(FormatCodePaletteEntry.AllCaps)));
+        dispatcher.Add(new StandardCommand("formatcodes.insert.small-caps", () => RunFormatCodePalette(FormatCodePaletteEntry.SmallCaps)));
         dispatcher.Add(new StandardCommand("formatcodes.insert.tab", () => RunFormatCodePalette(FormatCodePaletteEntry.Tab)));
         dispatcher.Add(new StandardCommand("formatcodes.insert.line-break", () => RunFormatCodePalette(FormatCodePaletteEntry.LineBreak)));
         dispatcher.Add(new StandardCommand("formatcodes.insert.paragraph-break", () => RunFormatCodePalette(FormatCodePaletteEntry.ParagraphBreak)));
@@ -993,9 +1043,9 @@ internal sealed partial class BrowserWriterDemo : IDisposable
 
     private void RunRichEditCommand(RichEditCommand command)
     {
-        bool ran = _editor.ExecuteCommand(command);
+        bool ran = WriterCapitalization.Execute(_editor, command);
         _lastAction = ran ? FriendlyCommandName(command) : FriendlyCommandName(command) + " unavailable";
-        _session.SetFocus(_editor);
+        FocusEditor();
         RefreshUi();
     }
 
@@ -1020,7 +1070,7 @@ internal sealed partial class BrowserWriterDemo : IDisposable
         ReplaceDocument(() => _editor.SetPlainText(string.Empty));
         SetDocumentName(UntitledDocumentName, modified: false);
         ReportOperation("New", "New document");
-        _session.SetFocus(_editor);
+        FocusEditor();
         RefreshUi();
     }
 
@@ -1076,23 +1126,28 @@ internal sealed partial class BrowserWriterDemo : IDisposable
             string resolved = EnsureExtension(DisplayFileName(name));
             DocumentWriteResult result = WriteDocument(resolved, _editor.Document, out byte[] bytes);
             EnsureWritableResult(result, bytes);
-            int token = BeginExport(resolved, result); _saveCompletion = completed;
-            BrowserInterop.DownloadFile(resolved, Convert.ToBase64String(bytes), token);
-            ReportOperation("Pending", "Preparing export of " + resolved, result.Diagnostics);
+            if (ConfirmExport(resolved, result))
+            {
+                int token = BeginExport(resolved, result);
+                _saveCompletion = completed;
+                ReportOperation("Pending", "Preparing export of " + resolved, result.Diagnostics);
+                BrowserInterop.DownloadFile(resolved, Convert.ToBase64String(bytes), token);
+            }
+            else
+                completed?.Invoke(false);
         }
         catch (Exception ex) when (IsDocumentException(ex))
         {
             ReportOperation("Failed", "Export failed: " + ex.Message); completed?.Invoke(false);
         }
 
-        _session.SetFocus(_editor);
+        FocusEditor();
         RefreshUi();
     }
 
     private int BeginExport(string name, DocumentWriteResult result)
     {
-        _exportCanMarkClean = result.Status == DocumentResultStatus.Success &&
-            !result.Diagnostics.Any(note => note.Severity != DocumentDiagnosticSeverity.Info);
+        _exportCanMarkClean = !WriterSavePolicy.RequiresReview(result);
         _exportName = name;
         return _documentState.BeginExport();
     }
@@ -1105,6 +1160,8 @@ internal sealed partial class BrowserWriterDemo : IDisposable
             string resolved = EnsureExtension(DisplayFileName(name));
             DocumentWriteResult result = WriteDocument(resolved, _editor.Document, out byte[] bytes);
             EnsureWritableResult(result, bytes);
+            if (!ConfirmExport(resolved, result))
+                return string.Empty;
             int token = BeginExport(resolved, result);
             ReportOperation("Pending", "Writing " + resolved, result.Diagnostics);
             return token.ToString(CultureInfo.InvariantCulture) + "\0" + resolved + "\0" + Convert.ToBase64String(bytes);
@@ -1113,10 +1170,27 @@ internal sealed partial class BrowserWriterDemo : IDisposable
         }
     }
 
+    private bool ConfirmExport(string name, DocumentWriteResult result)
+    {
+        if (!WriterSavePolicy.RequiresReview(result))
+            return true;
+
+        string message = "Some document content or formatting may change in " + name + ".";
+        string notes = string.Join("\n", result.Diagnostics
+            .Where(note => note.Severity != DocumentDiagnosticSeverity.Info)
+            .Take(5).Select(note => note.Code + ": " + note.Message));
+        ReportOperation("Review", message, result.Diagnostics);
+        if (BrowserInterop.ConfirmFormatChanges(message + "\n\n" + notes + "\n\nContinue with this file?"))
+            return true;
+
+        ReportOperation("Canceled", "Export canceled. Choose another format to preserve more of the document.", preserveNotes: true);
+        return false;
+    }
+
     internal void ExportCompleted(int token, string outcome, string error) => _dispatcher.Post(() => {
         if (!Enum.TryParse(outcome, out BrowserExportOutcome status)) status = BrowserExportOutcome.Failed;
         if (!_documentState.CompleteExport(token, status, _exportCanMarkClean)) return;
-        if (status is BrowserExportOutcome.ExportInitiated or BrowserExportOutcome.SavedToHandle) {
+        if (_exportCanMarkClean && status is (BrowserExportOutcome.ExportInitiated or BrowserExportOutcome.SavedToHandle)) {
             _currentDocumentName = _exportName!; _hasSavedName = true; _documentName = _exportName!;
         }
         string message = status switch {
@@ -1128,10 +1202,11 @@ internal sealed partial class BrowserWriterDemo : IDisposable
         ReportOperation(status.ToString(), message, preserveNotes: true);
         UpdateWindowTitle();
         var completed = _saveCompletion; _saveCompletion = null; completed?.Invoke(status == BrowserExportOutcome.SavedToHandle && !_isModified);
-        _session.SetFocus(_editor); RefreshUi();
+        FocusEditor(); RefreshUi();
     });
 
     internal string PreviewText { get { string text = _editor.GetPlainText(); return text[..Math.Min(text.Length, 16000)]; } }
+    internal string ViewNotes => WriterNotes.DescribeView(_editor.Document, _editor.ShowHiddenText, IsPaginationEnabled);
     internal void FileOperationMessage(string outcome, string message) => _dispatcher.Post(() => { ReportOperation(outcome, message); RefreshUi(); });
 
     private void ReportOperation(string outcome, string message, IReadOnlyList<DocumentDiagnostic>? diagnostics = null, bool preserveNotes = false)
@@ -1144,8 +1219,7 @@ internal sealed partial class BrowserWriterDemo : IDisposable
 
     private static void EnsureWritableResult(DocumentWriteResult result, byte[] bytes)
     {
-        if (result.Status == DocumentResultStatus.Rejected || result.DestinationState != DocumentDestinationState.Committed)
-            throw new IOException("The document codec did not complete an export.");
+        WriterSavePolicy.EnsureComplete(result);
         if (bytes.Length > MaximumFileBytes) throw new IOException("The export exceeds the 8 MiB browser limit.");
     }
 
@@ -1180,9 +1254,7 @@ internal sealed partial class BrowserWriterDemo : IDisposable
             throw new NotSupportedException("No readable document codec recognized '" + Path.GetExtension(name) + "'.");
 
         using var readStream = new MemoryStream(bytes, writable: false);
-        return match.Codec.Read(readStream, new DocumentReadOptions(
-            limits: new DocumentLimits(maxDocumentBytes: MaximumFileBytes, maxRunLength: MaximumTextCharacters, maxParagraphCount: 10000, maxBinBytes: MaximumFileBytes),
-            resourcePolicy: DocumentResourcePolicy.AllowOwnDocuments));
+        return match.Codec.Read(readStream, BrowserReadOptions);
     }
 
     private DocumentWriteResult WriteDocument(string name, RichTextDocument document, out byte[] bytes)
@@ -1205,10 +1277,19 @@ internal sealed partial class BrowserWriterDemo : IDisposable
         };
 
         bytes = stream.ToArray();
-        if (extension is ".md" or ".markdown")
+        result = WriterSavePolicy.ReviewCharacterFormatting(extension, document, result);
+        result = WriterSavePolicy.ReviewParagraphFormatting(_documentCatalog.FindByExtension(extension), document, bytes, result, BrowserReadOptions);
+        if (extension == ".rtf" && bytes.Length <= MaximumFileBytes)
+            return WriterSavePolicy.ReviewRtfLists(document, bytes, result, BrowserReadOptions);
+        if (extension == ".docx" && bytes.Length <= MaximumFileBytes)
+            return WriterSavePolicy.ReviewDocxNestedPictures(bytes, result);
+        if ((extension is ".md" or ".markdown") && result.Status != DocumentResultStatus.Rejected)
+        {
+            result = WriterSavePolicy.ReviewMarkdownCapitalization(document, result);
             return new DocumentWriteResult(result.BytesWritten, result.Diagnostics.Concat(new[] {
                 DocumentDiagnostic.Warning("writer.browser.markdown.subset", "Markdown preserves a supported text/emphasis/link subset. Underline, exact fonts and page layout may be omitted; original editing content is retained and existing unsaved changes are not cleared.")
             }), DocumentResultStatus.Partial, result.DestinationState);
+        }
         return result;
     }
 
@@ -1219,6 +1300,20 @@ internal sealed partial class BrowserWriterDemo : IDisposable
         ex is IOException or InvalidDataException or NotSupportedException or ArgumentException or FormatException or InvalidOperationException or System.Xml.XmlException;
 
     // ---- Font dialog ------------------------------------------------------------------------
+
+    private void RefreshAdvancedCharacterFormatting()
+    {
+        if (_editor.Selection.IsEmpty)
+            _formatCodesController.Refresh();
+        RefreshUi();
+    }
+
+    private void ShowCharacterColor(RichEditCommand command) =>
+        _dispatcher.Post(() => WriterFormattingDialog.ShowColor(_rootWindow, _host.ViewportSize, _editor, command, RefreshUi));
+
+    private void ShowLinkEditor() =>
+        _dispatcher.Post(() => WriterFormattingDialog.ShowLink(_rootWindow, _host.ViewportSize, _editor,
+            url => BrowserInterop.OpenUrl(url.AbsoluteUri)));
 
     private void ShowFontDialog()
     {
@@ -1262,7 +1357,7 @@ internal sealed partial class BrowserWriterDemo : IDisposable
         _lastAction = ran
             ? "Font: " + font.FamilyName + " " + font.Size.ToString("0.###", CultureInfo.InvariantCulture)
             : "Font unavailable";
-        _session.SetFocus(_editor);
+        FocusEditor();
         RefreshUi();
     }
 
@@ -1309,7 +1404,7 @@ internal sealed partial class BrowserWriterDemo : IDisposable
 
     private void ShowAbout()
     {
-        _session.SetFocus(_editor);
+        FocusEditor();
         WriterAbout.Show(_rootWindow, _host.ViewportSize, typeof(BrowserWriterDemo).Assembly,
             url => BrowserInterop.OpenUrl(url.AbsoluteUri));
     }
@@ -1323,6 +1418,15 @@ internal sealed partial class BrowserWriterDemo : IDisposable
             case StandardFormatCodeView formatCodes:
                 if (StringComparer.OrdinalIgnoreCase.Equals(operation, "copy"))
                     formatCodes.CopySelection();
+                break;
+            case WriterPageLayout.PageLayoutContent:
+                _ = operation switch
+                {
+                    "copy" => _editor.ExecuteCommand(RichEditCommand.Copy),
+                    "cut" => _editor.ExecuteCommand(RichEditCommand.Cut),
+                    "paste" => _editor.ExecuteCommand(RichEditCommand.Paste),
+                    _ => false,
+                };
                 break;
             case StandardRichEdit richEdit:
                 _ = operation switch
@@ -1374,7 +1478,8 @@ internal sealed partial class BrowserWriterDemo : IDisposable
         UiElement? target = _session.HitTest(new BPoint(x, y));
         UiCursorShape cursor = target switch
         {
-            StandardRichEdit or StandardEdit or StandardFormatCodeView => UiCursorShape.Text,
+            IUiTextEditor or StandardFormatCodeView => UiCursorShape.Text,
+            Broiler.UI.PrintPreview.Standard.StandardPrintPreview => UiCursorShape.Text,
             StandardButton or StandardMenu or StandardToggleButton or StandardSplitter => UiCursorShape.Hand,
             _ => UiCursorShape.Arrow,
         };
@@ -1384,7 +1489,7 @@ internal sealed partial class BrowserWriterDemo : IDisposable
     private void PublishFrameState()
     {
         UiTextCaretInfo? caret = _host.CurrentCaret;
-        bool focusedIsText = _session.FocusedElement is StandardRichEdit or StandardEdit or StandardFormatCodeView;
+        bool focusedIsText = _session.FocusedElement is IUiTextEditor or StandardFormatCodeView;
         BrowserInterop.PublishFrame(
             _host.FrameIndex,
             caret is not null,
@@ -1406,7 +1511,7 @@ internal sealed partial class BrowserWriterDemo : IDisposable
     {
         ReplaceDocument(() => _editor.SetPlainText(
             "Broiler Writer\n" +
-            "This browser build is a Broiler.UI window with a Broiler-rendered menu and StandardRichEdit document surface, presented through the direct-Canvas 2D backend.\n" +
+            "This browser build uses a Broiler.UI window, a paginated document editor, and the direct-Canvas 2D backend.\n" +
             "Use the Edit and Format menus, or keyboard shortcuts such as Ctrl+B, Ctrl+I, Ctrl+U, Ctrl+Z, and Ctrl+Y. Open and Save round-trip through the Broiler.Documents RTF, DOCX, ODT, HTML, and Markdown codecs."));
 
         RichTextPosition start = RichTextDocument.Start;
@@ -1426,7 +1531,7 @@ internal sealed partial class BrowserWriterDemo : IDisposable
         if (!_content.IsFormatCodesVisible &&
             (_session.FocusedElement == _formatCodesView || _session.FocusedElement == _formatCodesSplitter))
         {
-            _session.SetFocus(_editor);
+            FocusEditor();
         }
         else if (_content.IsFormatCodesVisible)
         {
@@ -1439,18 +1544,29 @@ internal sealed partial class BrowserWriterDemo : IDisposable
         RefreshUi();
     }
 
+    internal bool IsPaginationEnabled =>
+        _pageEditor.IsPaginationEnabled;
+
+    private UiElement EditorSurface =>
+        _pageEditor.IsPaginationEnabled ? _pageEditor : _editor;
+
+    private void FocusEditor()
+    {
+        _pageEditor.FocusEditor();
+    }
+
     private void CycleFormattingCodesFocus(bool reverse)
     {
         UiElement? focused = _session.FocusedElement;
         if (!_content.IsFormatCodesVisible)
         {
-            _session.SetFocus(focused == _menu ? _editor : _menu);
+            _session.SetFocus(focused == _menu ? EditorSurface : _menu);
             return;
         }
 
         UiElement next = reverse
-            ? focused == _editor ? _menu : focused == _menu ? _formatCodesView : _editor
-            : focused == _editor ? _formatCodesView : focused == _formatCodesView ? _menu : _editor;
+            ? focused == EditorSurface ? _menu : focused == _menu ? _formatCodesView : EditorSurface
+            : focused == EditorSurface ? _formatCodesView : focused == _formatCodesView ? _menu : EditorSurface;
         _session.SetFocus(next);
         _lastAction = "Focus moved with F6";
         RefreshUi();
@@ -1458,9 +1574,11 @@ internal sealed partial class BrowserWriterDemo : IDisposable
 
     private void RefreshUi()
     {
+        _paneHeader.Text = WriterPictureInformation.Describe(_editor);
+        _paneHeader.ToolTipText = _paneHeader.Text;
         foreach ((UiMenuItem item, RichEditCommand command) in _richEditMenuItems)
         {
-            RichEditCommandState state = _editor.GetCommandState(command);
+            RichEditCommandState state = WriterCapitalization.GetState(_editor, command);
             item.IsEnabled = state.IsEnabled;
             if (item.IsCheckable)
                 item.IsChecked = state.IsToggled;
@@ -1578,6 +1696,8 @@ internal sealed partial class BrowserWriterDemo : IDisposable
         if (style.Italic) names.Add("italic");
         if (style.Underline) names.Add("underline");
         if (style.Strikethrough) names.Add("strike");
+        if (style.Capitalization == TextCapitalization.AllCaps) names.Add("all caps");
+        if (style.Capitalization == TextCapitalization.SmallCaps) names.Add("small caps");
         if (!string.IsNullOrWhiteSpace(style.FontFamily)) names.Add(style.FontFamily);
         if (style.FontSize is > 0) names.Add(style.FontSize.Value.ToString("0.###", CultureInfo.InvariantCulture));
         return names.Count == 0 ? "plain" : string.Join(" + ", names);
@@ -1588,6 +1708,8 @@ internal sealed partial class BrowserWriterDemo : IDisposable
         {
             RichEditCommand.SelectAll => "Select all",
             RichEditCommand.ClearFormatting => "Clear formatting",
+            RichEditCommand.AllCaps => "All caps",
+            RichEditCommand.SmallCaps => "Small caps",
             RichEditCommand.AlignLeft => "Align left",
             RichEditCommand.AlignCenter => "Align center",
             RichEditCommand.AlignRight => "Align right",
@@ -1637,7 +1759,8 @@ internal sealed partial class BrowserWriterDemo : IDisposable
         private const double Margin = 24;
         private const double ToolbarHeight = 40;
         private const double WorkspaceTop = 14;
-        private const double StatusHeight = 22;
+        private const double StatusLabelHeight = 22;
+        private double StatusHeight => _pageNavigation?.Visibility == UiVisibility.Visible ? 30 : StatusLabelHeight;
         private const double StatusGap = 12;
         private const double PaneHeaderHeight = 20;
         private const double MinWidth = 900;
@@ -1645,18 +1768,19 @@ internal sealed partial class BrowserWriterDemo : IDisposable
 
         private readonly StandardMenu _menu;
         private readonly StandardToolbar _toolbar;
-        private readonly StandardRichEdit _editor;
+        private readonly UiElement _editor;
         private readonly StandardSplitter _formatCodesSplitter;
         private readonly StandardLabel _paneHeader;
         private readonly StandardFormatCodeView _formatCodesView;
         private readonly StandardLabel _status;
         private readonly StandardLabel _statusState;
+        private readonly UiElement? _pageNavigation;
         private bool _isFormatCodesVisible = true;
 
         public WriterContent(
             StandardMenu menu,
             StandardToolbar toolbar,
-            StandardRichEdit editor,
+            UiElement editor,
             StandardSplitter formatCodesSplitter,
             StandardLabel paneHeader,
             StandardFormatCodeView formatCodesView,
@@ -1666,20 +1790,25 @@ internal sealed partial class BrowserWriterDemo : IDisposable
             _menu = menu;
             _toolbar = toolbar;
             _editor = editor;
+            _pageNavigation = (editor as WriterPageLayout.PageLayoutContent)?.StatusNavigation;
+            if (_pageNavigation is not null)
+                AddChild(_pageNavigation);
             _formatCodesSplitter = formatCodesSplitter;
             _paneHeader = paneHeader;
             _formatCodesView = formatCodesView;
             _status = status;
             _statusState = statusState;
 
-            AddChild(_menu);
-            AddChild(_toolbar);
             AddChild(_editor);
             AddChild(_formatCodesSplitter);
             AddChild(_paneHeader);
             AddChild(_formatCodesView);
             AddChild(_status);
             AddChild(_statusState);
+
+            // Children paint in order. Keep command popups above the document.
+            AddChild(_toolbar);
+            AddChild(_menu);
         }
 
         public bool IsFormatCodesVisible
@@ -1717,8 +1846,9 @@ internal sealed partial class BrowserWriterDemo : IDisposable
                 _paneHeader.Measure(new BSize(contentWidth, PaneHeaderHeight));
                 _formatCodesView.Measure(new BSize(contentWidth, Math.Max(WriterFormatCodesLayout.MinimumPaneHeight, height * 0.25)));
             }
-            _status.Measure(new BSize(contentWidth, StatusHeight));
-            _statusState.Measure(new BSize(contentWidth, StatusHeight));
+            _pageNavigation?.Measure(new BSize(contentWidth, StatusHeight));
+            _status.Measure(new BSize(contentWidth, StatusLabelHeight));
+            _statusState.Measure(new BSize(contentWidth, StatusLabelHeight));
 
             return new BSize(width, height);
         }
@@ -1763,11 +1893,19 @@ internal sealed partial class BrowserWriterDemo : IDisposable
                 _formatCodesView.Arrange(new BRect(x, headerTop + PaneHeaderHeight, width, layout.PaneHeight));
             }
 
-            // Facts on the left, state on the right. The right-hand label is placed by its own
-            // width rather than aligned, because a label does not align itself.
-            double stateWidth = Math.Min(width, _statusState.DesiredSize.Width);
-            _status.Arrange(new BRect(x, statusTop, Math.Max(0, width - stateWidth - 16), StatusHeight));
-            _statusState.Arrange(new BRect(x + width - stateWidth, statusTop, stateWidth, StatusHeight));
+            double navigationWidth = _pageNavigation?.Visibility == UiVisibility.Visible
+                ? Math.Min(width, _pageNavigation.DesiredSize.Width)
+                : 0;
+            double stateWidth = Math.Min(width - navigationWidth, _statusState.DesiredSize.Width);
+            double navigationLeft = Math.Min(x + (width - navigationWidth) / 2,
+                x + width - stateWidth - navigationWidth);
+            double factsRight = navigationWidth > 0 ? navigationLeft : x + width - stateWidth;
+            double factsWidth = Math.Max(0, factsRight - x - 16);
+            double labelTop = statusTop + (StatusHeight - StatusLabelHeight) / 2;
+            _status.Arrange(new BRect(x, labelTop, factsWidth, StatusLabelHeight));
+            _statusState.Arrange(new BRect(x + width - stateWidth, labelTop, stateWidth, StatusLabelHeight));
+            if (navigationWidth > 0)
+                _pageNavigation!.Arrange(new BRect(navigationLeft, statusTop, navigationWidth, StatusHeight));
         }
 
         protected override void RenderCore(UiRenderContext context)

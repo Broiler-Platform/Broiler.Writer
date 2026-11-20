@@ -25,7 +25,8 @@ public sealed class MainActivity : Activity
 {
     private const int OpenDocumentRequest = 1001;
     private const int CreateDocumentRequest = 1002;
-    private const string RecoveryFileName = "writer-recovery.rtf";
+    private const string RecoveryFileName = "writer-recovery-v1.checkpoint";
+    private const string LegacyRecoveryFileName = "writer-recovery.rtf";
     private AndroidBroilerView? _view;
     private WriterUiHost? _host;
     private WriterApp? _app;
@@ -174,22 +175,39 @@ public sealed class MainActivity : Activity
 
     private void SaveToUri(global::Android.Net.Uri uri, string displayName)
     {
+        if (_app is not WriterApp app)
+        {
+            CompleteSave(false);
+            return;
+        }
+
+        app.ReviewSave(EnsureSupportedExtension(displayName),
+            save => CommitToUri(app, uri, save),
+            () => RequestSaveDocument(displayName, true, _saveCompleted ?? (static _ => { })),
+            () => CompleteSave(false));
+    }
+
+    private void CommitToUri(WriterApp app, global::Android.Net.Uri uri, WriterPreparedSave save)
+    {
         bool saved = false;
         try
         {
             using (Stream? output = ContentResolver?.OpenOutputStream(uri, "wt"))
             {
                 if (output is null)
-                    _app?.ReportSaveFailure("Could not open the document for writing.");
-                saved = output is not null && _app?.WriteDocument(output, EnsureSupportedExtension(displayName)) == true;
+                    throw new IOException("Could not open the document for writing.");
+                output.Write(save.Bytes);
+                output.Flush();
             }
-            if (saved)
+            app.FinishReviewedSave(save);
+            saved = true;
+            if (!save.RequiresReview)
                 _currentDocumentUri = uri;
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or Java.Lang.Exception)
         {
             saved = false;
-            _app?.ReportSaveFailure(ex.Message);
+            app.ReportSaveFailure(ex.Message);
             Toast.MakeText(this, "Save failed: " + ex.Message, ToastLength.Long)?.Show();
         }
         CompleteSave(saved);
@@ -209,11 +227,11 @@ public sealed class MainActivity : Activity
             return;
         try
         {
-            using FileStream output = File.Create(Path.Combine(directory, RecoveryFileName));
-            _app.WriteDocument(output, RecoveryFileName, updateIdentity: false);
+            _app.WriteRecoveryCheckpoint(Path.Combine(directory, RecoveryFileName));
         }
-        catch (IOException)
+        catch (Exception error) when (error is IOException or InvalidDataException or UnauthorizedAccessException)
         {
+            global::Android.Util.Log.Warn("Broiler.Writer", "Recovery checkpoint was not replaced. " + error.Message);
         }
     }
 
@@ -222,15 +240,18 @@ public sealed class MainActivity : Activity
         if (_app is null || FilesDir?.AbsolutePath is not string directory)
             return;
         string path = Path.Combine(directory, RecoveryFileName);
+        bool legacyRtf = !File.Exists(path);
+        if (legacyRtf)
+            path = Path.Combine(directory, LegacyRecoveryFileName);
         if (!File.Exists(path))
             return;
         try
         {
-            using FileStream input = File.OpenRead(path);
-            _app.LoadDocument(input, "Recovered.rtf");
+            _app.RestoreRecoveryCheckpoint(path, legacyRtf);
         }
-        catch (IOException)
+        catch (Exception error) when (error is IOException or InvalidDataException or UnauthorizedAccessException)
         {
+            global::Android.Util.Log.Warn("Broiler.Writer", "Recovery checkpoint could not be restored. " + error.Message);
         }
     }
 

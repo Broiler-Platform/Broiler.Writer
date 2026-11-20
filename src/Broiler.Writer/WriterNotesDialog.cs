@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Text;
 using Broiler.Documents;
+using Broiler.Documents.Model;
 using Broiler.Graphics;
 using Broiler.Graphics.Geometry;
 using Broiler.Graphics.Text;
@@ -14,11 +15,7 @@ using Broiler.UI.RichEdit.Standard;
 namespace Broiler.Writer;
 
 /// <summary>
-/// Shows what a read reported. The status bar can say a document opened with
-/// notes, but not what they were, and the only other way to see them was to set
-/// BROILER_WRITER_DOCUMENT_LOG and read stderr - a switch for chasing one bad
-/// file, not an answer for someone who has just been told their letter opened
-/// with two notes against it.
+/// Presents file-format diagnostics, save review and editing-view notes.
 /// </summary>
 internal static class WriterNotes
 {
@@ -27,11 +24,30 @@ internal static class WriterNotes
     /// and arranges every child across its whole client area, so the content is
     /// one element that lays itself out rather than a subclass.
     /// </summary>
-    public static StandardDialog CreateDialog(string fileName, IReadOnlyList<DocumentDiagnostic> diagnostics)
+    public static StandardDialog CreateDialog(string fileName, IReadOnlyList<DocumentDiagnostic> diagnostics, bool reviewSave = false)
+    {
+        string title = (reviewSave ? "Review format changes for " : "Notes for ") + fileName;
+        string description = reviewSave
+            ? "Some document content or formatting may change in this file."
+                + (diagnostics.Count == 0 ? string.Empty : "\n\n" + Describe(diagnostics))
+            : Describe(diagnostics);
+        return CreateDialog(title, description, reviewSave);
+    }
+
+    internal static StandardDialog CreateViewDialog(RichTextDocument document, bool showsHiddenText = true, bool isPaginated = true) =>
+        CreateDialog("Editing view notes", DescribeView(document, showsHiddenText, isPaginated), reviewSave: false);
+
+    internal static string DescribeView(RichTextDocument document, bool showsHiddenText = true, bool isPaginated = true)
+    {
+        IReadOnlyList<DocumentDiagnostic> notes = WriterViewDiagnostics.Collect(document, showsHiddenText, isPaginated);
+        return notes.Count == 0 ? WriterViewDiagnostics.EmptyMessage : Describe(notes);
+    }
+
+    private static StandardDialog CreateDialog(string title, string description, bool reviewSave)
     {
         var dialog = new StandardDialog
         {
-            Title = "Notes for " + fileName,
+            Title = title,
             PreferredSize = new BSize(560, 320),
             TitleFont = new BFontStyle("Segoe UI", 14, BFontWeight.SemiBold),
         };
@@ -44,13 +60,26 @@ internal static class WriterNotes
             IsReadOnly = true,
             Font = new BFontStyle("Segoe UI", 13),
         };
-        text.SetPlainText(Describe(diagnostics));
-
-        var close = new StandardButton { Text = "Close" };
-        close.Clicked += (_, _) => dialog.Accept();
-
-        dialog.AddChild(new NotesContent(text, close));
+        text.SetPlainText(description);
+        if (reviewSave)
+        {
+            dialog.AddChild(new NotesContent(text,
+                [CreateButton("Save anyway", () => dialog.Accept()),
+                 CreateButton("Save as...", () => dialog.Reject()),
+                 CreateButton("Cancel", () => dialog.Cancel())]));
+        }
+        else
+        {
+            dialog.AddChild(new NotesContent(text, [CreateButton("Close", () => dialog.Accept())]));
+        }
         return dialog;
+    }
+
+    private static StandardButton CreateButton(string label, Action action)
+    {
+        var button = new StandardButton { Text = label };
+        button.Clicked += (_, _) => action();
+        return button;
     }
 
     /// <summary>
@@ -87,24 +116,26 @@ internal static class WriterNotes
     private sealed class NotesContent : UiElement
     {
         private const double ButtonHeight = 30;
-        private const double ButtonWidth = 88;
+        private const double ButtonWidth = 112;
         private const double Gap = 10;
 
         private readonly StandardRichEdit _text;
-        private readonly StandardButton _close;
+        private readonly StandardButton[] _buttons;
 
-        public NotesContent(StandardRichEdit text, StandardButton close)
+        public NotesContent(StandardRichEdit text, StandardButton[] buttons)
         {
             _text = text;
-            _close = close;
+            _buttons = buttons;
             AddChild(_text);
-            AddChild(_close);
+            foreach (StandardButton button in buttons)
+                AddChild(button);
         }
 
         protected override BSize MeasureCore(BSize availableSize)
         {
             _text.Measure(new BSize(availableSize.Width, Math.Max(0, availableSize.Height - ButtonHeight - Gap)));
-            _close.Measure(new BSize(ButtonWidth, ButtonHeight));
+            foreach (StandardButton button in _buttons)
+                button.Measure(new BSize(ButtonWidth, ButtonHeight));
             return availableSize;
         }
 
@@ -112,11 +143,14 @@ internal static class WriterNotes
         {
             double textHeight = Math.Max(0, finalRect.Height - ButtonHeight - Gap);
             _text.Arrange(new BRect(finalRect.Left, finalRect.Top, finalRect.Width, textHeight));
-            _close.Arrange(new BRect(
-                finalRect.Left + Math.Max(0, finalRect.Width - ButtonWidth),
-                finalRect.Top + textHeight + Gap,
-                ButtonWidth,
-                ButtonHeight));
+            double gap = Math.Min(Gap, finalRect.Width / _buttons.Length);
+            double width = Math.Min(ButtonWidth, (finalRect.Width - gap * (_buttons.Length - 1)) / _buttons.Length);
+            double left = finalRect.Right - width * _buttons.Length - gap * (_buttons.Length - 1);
+            foreach (StandardButton button in _buttons)
+            {
+                button.Arrange(new BRect(left, finalRect.Top + textHeight + Gap, width, ButtonHeight));
+                left += width + gap;
+            }
         }
     }
 }

@@ -416,9 +416,10 @@ public sealed class WriterPdfFormatTests
         // What lands on the page is the picture, in the colour its profile gave
         // it: 188 on its left half and 137 on its right.
         using BBitmap bitmap = renderer.RenderToImage(frame, BSurfaceDescriptor.Default(new BSize(900, 600)), BFrameContext.Default);
-        int middle = (int)Math.Round(drawn.Destination.Top + (drawn.Destination.Height / 2));
-        BColor left = bitmap.GetPixel((int)Math.Round(drawn.Destination.Left + (drawn.Destination.Width / 4)), middle);
-        BColor right = bitmap.GetPixel((int)Math.Round(drawn.Destination.Left + (drawn.Destination.Width * 3 / 4)), middle);
+        BRect destination = WriterRenderCoordinates.ImageBounds(frame, drawn);
+        int middle = (int)Math.Round(destination.Top + (destination.Height / 2));
+        BColor left = bitmap.GetPixel((int)Math.Round(destination.Left + (destination.Width / 4)), middle);
+        BColor right = bitmap.GetPixel((int)Math.Round(destination.Left + (destination.Width * 3 / 4)), middle);
         Assert.InRange(left.R, 178, 198);
         Assert.InRange(right.R, 127, 147);
     }

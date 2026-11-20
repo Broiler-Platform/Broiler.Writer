@@ -32,6 +32,9 @@ internal static partial class BrowserInterop
     [JSImport("writer.setCursor", "main.js")]
     internal static partial void SetCursor(string cursor);
 
+    [JSImport("writer.setRenderedPageText", "main.js")]
+    internal static partial void SetRenderedPageText(string text);
+
     /// <summary>Signals that the Writer is initialized so the page can attach input and observers.</summary>
     [JSImport("writer.ready", "main.js")]
     internal static partial void Ready(double logicalWidth, double logicalHeight);
@@ -82,6 +85,9 @@ internal static partial class BrowserInterop
 
     [JSImport("writer.reportOperation", "main.js")]
     internal static partial void ReportOperation(string outcome, string message, string notes);
+
+    [JSImport("writer.confirmFormatChanges", "main.js")]
+    internal static partial bool ConfirmFormatChanges(string message);
 
     /// <summary>
     /// Triggers a browser download of an encoded document (managed → page). The bytes are passed as
